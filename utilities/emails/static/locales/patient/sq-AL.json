@@ -1,6 +1,5 @@
 {
-  "imageAlt": "Njoftim",
-  "copyright": "© {pageName}",
+  "copyright": "© {year} {pageName}. Të gjitha të drejtat të rezervuara.",
   "greeting": "Përshëndetje {fullName},",
   "labelNumber": "Rezervimi",
   "labelWhen": "Kur",
@@ -27,5 +26,15 @@
   "subjectReminder": "Kujtesë: takimi {number} — {companyName}",
   "introReminder": "Ky është një kujtesë për takimin tuaj të ardhshëm.",
   "closingReminder": "Ju lutemi vini disa minuta më herët. Shihemi së shpejti.",
-  "smsReminder": "{companyName}: kujtesë për takimin tuaj më {when} me {practitionerName}. Menaxhoni: {manageUrl}"
+  "smsReminder": "{companyName}: kujtesë për takimin tuaj më {when} me {practitionerName}. Menaxhoni: {manageUrl}",
+  "htmlLang": "sq",
+  "summaryTitle": "Takimi juaj",
+  "fallbackLabel": "Nëse butoni nuk funksionon, kopjoni këtë lidhje në shfletuesin tuaj:",
+  "ignore": "Nëse diçka këtu duket gabim, përgjigjuni këtij emaili ose telefononi klinikën.",
+  "footerNote": "E morët këtë email sepse me këtë adresë u rezervua një takim te {companyName}.",
+  "preheaderRequested": "E morëm kërkesën tuaj për takim.",
+  "preheaderConfirmed": "Takimi juaj është konfirmuar. Ja detajet.",
+  "preheaderRescheduled": "Takimi juaj ka një orar të ri.",
+  "preheaderCancelled": "Takimi juaj është anuluar.",
+  "preheaderReminder": "Takimi juaj po afron."
 }

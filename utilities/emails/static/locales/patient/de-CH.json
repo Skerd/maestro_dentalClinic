@@ -1,6 +1,5 @@
 {
-  "imageAlt": "Benachrichtigung",
-  "copyright": "© {pageName}",
+  "copyright": "© {year} {pageName}. Alle Rechte vorbehalten.",
   "greeting": "Hallo {fullName}",
   "labelNumber": "Buchung",
   "labelWhen": "Wann",
@@ -27,5 +26,15 @@
   "subjectReminder": "Erinnerung: Termin {number} — {companyName}",
   "introReminder": "Wir erinnern Sie an Ihren bevorstehenden Termin.",
   "closingReminder": "Bitte kommen Sie ein paar Minuten früher. Bis bald.",
-  "smsReminder": "{companyName}: Erinnerung an Ihren Termin am {when} bei {practitionerName}. Verwalten: {manageUrl}"
+  "smsReminder": "{companyName}: Erinnerung an Ihren Termin am {when} bei {practitionerName}. Verwalten: {manageUrl}",
+  "htmlLang": "de",
+  "summaryTitle": "Ihr Termin",
+  "fallbackLabel": "Falls die Schaltfläche nicht funktioniert, kopieren Sie diesen Link in Ihren Browser:",
+  "ignore": "Falls hier etwas nicht stimmt, antworten Sie auf diese E-Mail oder rufen Sie die Praxis an.",
+  "footerNote": "Sie erhalten diese E-Mail, weil mit dieser Adresse bei {companyName} ein Termin gebucht wurde.",
+  "preheaderRequested": "Wir haben Ihre Terminanfrage erhalten.",
+  "preheaderConfirmed": "Ihr Termin ist bestätigt. Hier die Einzelheiten.",
+  "preheaderRescheduled": "Ihr Termin hat eine neue Zeit.",
+  "preheaderCancelled": "Ihr Termin wurde abgesagt.",
+  "preheaderReminder": "Ihr Termin steht bevor."
 }

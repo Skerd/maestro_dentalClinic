@@ -1,6 +1,5 @@
 {
-  "imageAlt": "Notifica",
-  "copyright": "© {pageName}",
+  "copyright": "© {year} {pageName}. Tutti i diritti riservati.",
   "greeting": "Gentile {fullName},",
   "labelNumber": "Prenotazione",
   "labelWhen": "Quando",
@@ -27,5 +26,15 @@
   "subjectReminder": "Promemoria: appuntamento {number} — {companyName}",
   "introReminder": "Questo è un promemoria del tuo prossimo appuntamento.",
   "closingReminder": "Ti preghiamo di arrivare qualche minuto prima. A presto.",
-  "smsReminder": "{companyName}: promemoria del tuo appuntamento il {when} con {practitionerName}. Gestisci: {manageUrl}"
+  "smsReminder": "{companyName}: promemoria del tuo appuntamento il {when} con {practitionerName}. Gestisci: {manageUrl}",
+  "htmlLang": "it",
+  "summaryTitle": "Il tuo appuntamento",
+  "fallbackLabel": "Se il pulsante non funziona, copia questo link nel browser:",
+  "ignore": "Se qualcosa non ti sembra corretto, rispondi a questa e-mail o chiama lo studio.",
+  "footerNote": "Ricevi questa e-mail perché con questo indirizzo è stato prenotato un appuntamento presso {companyName}.",
+  "preheaderRequested": "Abbiamo ricevuto la tua richiesta di appuntamento.",
+  "preheaderConfirmed": "Il tuo appuntamento è confermato. Ecco i dettagli.",
+  "preheaderRescheduled": "Il tuo appuntamento ha un nuovo orario.",
+  "preheaderCancelled": "Il tuo appuntamento è stato annullato.",
+  "preheaderReminder": "Il tuo appuntamento si avvicina."
 }

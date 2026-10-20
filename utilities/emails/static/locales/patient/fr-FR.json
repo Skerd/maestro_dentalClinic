@@ -1,6 +1,5 @@
 {
-  "imageAlt": "Notification",
-  "copyright": "© {pageName}",
+  "copyright": "© {year} {pageName}. Tous droits réservés.",
   "greeting": "Bonjour {fullName},",
   "labelNumber": "Réservation",
   "labelWhen": "Quand",
@@ -27,5 +26,15 @@
   "subjectReminder": "Rappel : rendez-vous {number} — {companyName}",
   "introReminder": "Ceci est un rappel de votre prochain rendez-vous.",
   "closingReminder": "Merci d'arriver quelques minutes en avance. À bientôt.",
-  "smsReminder": "{companyName} : rappel de votre rendez-vous le {when} avec {practitionerName}. Gérer : {manageUrl}"
+  "smsReminder": "{companyName} : rappel de votre rendez-vous le {when} avec {practitionerName}. Gérer : {manageUrl}",
+  "htmlLang": "fr",
+  "summaryTitle": "Votre rendez-vous",
+  "fallbackLabel": "Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :",
+  "ignore": "Si quelque chose vous semble incorrect, répondez à cet e-mail ou appelez le cabinet.",
+  "footerNote": "Vous recevez cet e-mail car un rendez-vous a été pris avec cette adresse chez {companyName}.",
+  "preheaderRequested": "Nous avons reçu votre demande de rendez-vous.",
+  "preheaderConfirmed": "Votre rendez-vous est confirmé. Voici les détails.",
+  "preheaderRescheduled": "Votre rendez-vous a un nouvel horaire.",
+  "preheaderCancelled": "Votre rendez-vous a été annulé.",
+  "preheaderReminder": "Votre rendez-vous approche."
 }

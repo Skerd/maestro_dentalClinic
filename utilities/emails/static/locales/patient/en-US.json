@@ -1,6 +1,5 @@
 {
-  "imageAlt": "Notification",
-  "copyright": "© {pageName}",
+  "copyright": "© {year} {pageName}. All rights reserved.",
   "greeting": "Hello {fullName},",
   "labelNumber": "Booking",
   "labelWhen": "When",
@@ -27,5 +26,15 @@
   "subjectReminder": "Reminder: appointment {number} — {companyName}",
   "introReminder": "This is a reminder of your upcoming appointment.",
   "closingReminder": "Please arrive a few minutes early. See you soon.",
-  "smsReminder": "{companyName}: reminder of your appointment on {when} with {practitionerName}. Manage: {manageUrl}"
+  "smsReminder": "{companyName}: reminder of your appointment on {when} with {practitionerName}. Manage: {manageUrl}",
+  "htmlLang": "en",
+  "summaryTitle": "Your appointment",
+  "fallbackLabel": "If the button does not work, copy this link into your browser:",
+  "ignore": "If anything here looks wrong, reply to this email or call the clinic.",
+  "footerNote": "You received this email because an appointment was booked with this address at {companyName}.",
+  "preheaderRequested": "We have received your appointment request.",
+  "preheaderConfirmed": "Your appointment is confirmed. Here are the details.",
+  "preheaderRescheduled": "Your appointment has a new time.",
+  "preheaderCancelled": "Your appointment has been cancelled.",
+  "preheaderReminder": "Your appointment is coming up."
 }
