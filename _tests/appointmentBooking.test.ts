@@ -248,7 +248,7 @@ describe("staff and dentists", {timeout: 60000}, () => {
         await book();
         const longAgo = new Date(Date.now() - 30 * 31 * 24 * 3600 * 1000);
         await Appointment.updateOne({}, {$set: {status: "completed", startAt: longAgo, endAt: longAgo}});
-        await runAppointmentRetention();
+        await runAppointmentRetention(companyId);
         const stored = await Appointment.findOne({});
         expect(stored!.anonymizedAt).toBeInstanceOf(Date);
         expect(stored!.patient.email).toBe("—");

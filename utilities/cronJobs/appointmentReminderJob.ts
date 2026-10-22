@@ -4,6 +4,7 @@
  * reminder goes out at most once even if two runs overlap; a reschedule clears it.
  */
 
+import type {ObjectId} from "mongodb";
 import {CONSTANTS} from "@coreModule/environment";
 import {getLogger, serverLogger} from "@coreModule/loggers/serverLog";
 import ClinicConfig from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig";
@@ -13,14 +14,14 @@ import {notifyPatient} from "@dentalClinicModule/utilities/services/appointmentN
 const HOUR = 3600 * 1000;
 const BATCH_SIZE = 200;
 
-export async function runAppointmentReminders(parentLogger?: serverLogger): Promise<void> {
+export async function runAppointmentReminders(company: ObjectId, parentLogger?: serverLogger): Promise<void> {
     const logger = getLogger("appointment_reminders", parentLogger);
     const languageCode = CONSTANTS.DEFAULT_LANGUAGE ?? "en-US";
     const now = new Date();
     logger.start("Sending appointment reminders...");
 
     let sent = 0;
-    const configs = await ClinicConfig.find({deletedAt: null, reminderHoursBefore: {$gt: 0}}).select("company reminderHoursBefore");
+    const configs = await ClinicConfig.find({company, deletedAt: null, reminderHoursBefore: {$gt: 0}}).select("company reminderHoursBefore");
     for (const config of configs) {
         const due = await Appointment.find({
             company: config.company,

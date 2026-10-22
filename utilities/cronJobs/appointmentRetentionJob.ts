@@ -5,6 +5,7 @@
  * name blanked out.
  */
 
+import type {ObjectId} from "mongodb";
 import {getLogger, serverLogger} from "@coreModule/loggers/serverLog";
 import ClinicConfig from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig";
 import Appointment from "@dentalClinicModule/database/schemas/appointment/appointment";
@@ -12,13 +13,13 @@ import Appointment from "@dentalClinicModule/database/schemas/appointment/appoin
 const BATCH_SIZE = 500;
 const REMOVED = "—";
 
-export async function runAppointmentRetention(parentLogger?: serverLogger): Promise<void> {
+export async function runAppointmentRetention(company: ObjectId, parentLogger?: serverLogger): Promise<void> {
     const logger = getLogger("appointment_retention", parentLogger);
     const now = new Date();
     logger.start("Removing expired patient details...");
 
     let anonymized = 0;
-    const configs = await ClinicConfig.find({deletedAt: null}).select("company retentionMonths");
+    const configs = await ClinicConfig.find({company, deletedAt: null}).select("company retentionMonths");
     for (const config of configs) {
         const cutoff = new Date(now);
         cutoff.setMonth(cutoff.getMonth() - config.retentionMonths);

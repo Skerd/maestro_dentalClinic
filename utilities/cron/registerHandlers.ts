@@ -6,9 +6,8 @@ export function registerDentalClinicCronHandlers(): void {
     registerCronHandler({
         code: "dentalClinic.reminders",
         handler: async (ctx) => {
-            await runAppointmentReminders(ctx.logger);
+            await runAppointmentReminders(ctx.company, ctx.logger);
         },
-        version: "1",
         defaultJob: {
             name: "Appointment reminders",
             cronExpression: "0 */15 * * * *",
@@ -19,9 +18,8 @@ export function registerDentalClinicCronHandlers(): void {
     registerCronHandler({
         code: "dentalClinic.retention",
         handler: async (ctx) => {
-            await runAppointmentRetention(ctx.logger);
+            await runAppointmentRetention(ctx.company, ctx.logger);
         },
-        version: "1",
         defaultJob: {
             name: "Appointment data retention",
             cronExpression: "0 30 3 * * *",
