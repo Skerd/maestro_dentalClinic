@@ -14,6 +14,7 @@ import {practitionerService} from "@dentalClinicModule/database/schemas/practiti
 import Appointment from "@dentalClinicModule/database/schemas/appointment/appointment";
 import {practitionerToDTO, practitionersToDTO} from "@dentalClinicModule/utilities/mappers/practitioner/practitionerMapper.dto";
 import {practitionersToSelect} from "@dentalClinicModule/utilities/mappers/practitioner/practitionerMapper.select";
+import {PractitionerActions} from "@dentalClinicModule/database/schemas/practitioner/practitioner.actions";
 import {blockingAppointmentFilter} from "@dentalClinicModule/utilities/services/clinicAvailability";
 import {lockPractitioner} from "@dentalClinicModule/utilities/services/appointmentBooking";
 
@@ -51,6 +52,7 @@ export const {router} = createCrudRouter({
     selectSearchField: "displayName",
     selectProjection: "_id displayName",
     defaultSort: {sortOrder: 1, displayName: 1},
+    actions: PractitionerActions,
     extraSelectFilter: ({service, location}: any) => ({
         isActive: true,
         ...(service ? {services: new ObjectId(String(service))} : {}),

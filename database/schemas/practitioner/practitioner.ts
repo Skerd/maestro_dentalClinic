@@ -100,10 +100,16 @@ const PractitionerSchema = new Schema<IPractitioner>(
         schedule: {
             type: [{
                 _id: false,
-                location: {type: SchemaTypes.ObjectId, ref: "ClinicLocation", required: true, refAllowlist: ClinicLocationSimpleSnippet},
-                dayOfWeek: {type: SchemaTypes.Number, required: true, min: 0, max: 6},
-                startTime: {type: SchemaTypes.String, required: true},
-                endTime: {type: SchemaTypes.String, required: true},
+                location: {
+                    type: SchemaTypes.ObjectId,
+                    ref: "ClinicLocation",
+                    required: true,
+                    refAllowlist: ClinicLocationSimpleSnippet,
+                    dynamicTableConfiguration: {hideColumn: true, filterable: false, sortable: false},
+                },
+                dayOfWeek: {type: SchemaTypes.Number, required: true, min: 0, max: 6, dynamicTableConfiguration: {hideColumn: true, filterable: false, sortable: false}},
+                startTime: {type: SchemaTypes.String, required: true, dynamicTableConfiguration: {hideColumn: true, filterable: false, sortable: false}},
+                endTime: {type: SchemaTypes.String, required: true, dynamicTableConfiguration: {hideColumn: true, filterable: false, sortable: false}},
             }],
             default: [],
             dynamicTableConfiguration: {hideColumn: true, filterable: false, sortable: false},

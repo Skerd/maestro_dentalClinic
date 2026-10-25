@@ -10,6 +10,7 @@ import ClinicLocation from "@dentalClinicModule/database/schemas/clinicLocation/
 import {clinicLocationService} from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation.service";
 import {clinicLocationToDTO, clinicLocationsToDTO} from "@dentalClinicModule/utilities/mappers/clinicLocation/clinicLocationMapper.dto";
 import {clinicLocationsToSelect} from "@dentalClinicModule/utilities/mappers/clinicLocation/clinicLocationMapper.select";
+import {ClinicLocationActions} from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation.actions";
 
 /** The Zod contract can't compare fields, so the timezone name and each hours row are checked here. */
 function assertValidSchedule(data: {timezone?: string; openingHours?: {startTime: string; endTime: string}[]}, languageCode: string): void {
@@ -37,6 +38,7 @@ export const {router} = createCrudRouter({
     toSelect: clinicLocationsToSelect,
     defaultSort: {name: 1},
     extraSelectFilter: () => ({isActive: true}),
+    actions: ClinicLocationActions,
     buildCreateData: (params: any) => {
         assertValidSchedule(params, params.languageCode);
         return buildCreateDataFromSchemaDef(ClinicLocationSchemaDef)(params);

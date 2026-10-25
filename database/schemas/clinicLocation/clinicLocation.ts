@@ -52,12 +52,12 @@ const ClinicLocationSchema = new Schema<IClinicLocation>(
         email: {type: SchemaTypes.String, trim: true, lowercase: true},
         address: {
             type: {
-                country: {type: SchemaTypes.ObjectId, ref: "Country", refAllowlist: CountrySimpleSnippet},
-                city: {type: SchemaTypes.ObjectId, ref: "City", refAllowlist: CitySimpleSnippet},
-                street: {type: SchemaTypes.String, maxlength: CLINIC_LOCATION_STREET_MAX},
-                postalCode: {type: SchemaTypes.String, maxlength: CLINIC_LOCATION_POSTAL_CODE_MAX},
-                latitude: {type: SchemaTypes.Number, min: -90, max: 90},
-                longitude: {type: SchemaTypes.Number, min: -180, max: 180},
+                country: {type: SchemaTypes.ObjectId, ref: "Country", refAllowlist: CountrySimpleSnippet, dynamicTableConfiguration: {hideColumn: true, filterable: false, sortable: false}},
+                city: {type: SchemaTypes.ObjectId, ref: "City", refAllowlist: CitySimpleSnippet, dynamicTableConfiguration: {hideColumn: true, filterable: false, sortable: false}},
+                street: {type: SchemaTypes.String, maxlength: CLINIC_LOCATION_STREET_MAX, dynamicTableConfiguration: {hideColumn: true, filterable: false, sortable: false}},
+                postalCode: {type: SchemaTypes.String, maxlength: CLINIC_LOCATION_POSTAL_CODE_MAX, dynamicTableConfiguration: {hideColumn: true, filterable: false, sortable: false}},
+                latitude: {type: SchemaTypes.Number, min: -90, max: 90, dynamicTableConfiguration: {hideColumn: true, filterable: false, sortable: false}},
+                longitude: {type: SchemaTypes.Number, min: -180, max: 180, dynamicTableConfiguration: {hideColumn: true, filterable: false, sortable: false}},
             },
             required: false,
             dynamicTableConfiguration: {filterable: false, sortable: false, cellType: COLUMN_TYPE.ADDRESS},
@@ -66,9 +66,9 @@ const ClinicLocationSchema = new Schema<IClinicLocation>(
         openingHours: {
             type: [{
                 _id: false,
-                dayOfWeek: {type: SchemaTypes.Number, required: true, min: 0, max: 6},
-                startTime: {type: SchemaTypes.String, required: true},
-                endTime: {type: SchemaTypes.String, required: true},
+                dayOfWeek: {type: SchemaTypes.Number, required: true, min: 0, max: 6, dynamicTableConfiguration: {hideColumn: true, filterable: false, sortable: false}},
+                startTime: {type: SchemaTypes.String, required: true, dynamicTableConfiguration: {hideColumn: true, filterable: false, sortable: false}},
+                endTime: {type: SchemaTypes.String, required: true, dynamicTableConfiguration: {hideColumn: true, filterable: false, sortable: false}},
             }],
             default: [],
             dynamicTableConfiguration: {hideColumn: true, filterable: false, sortable: false},
@@ -76,8 +76,8 @@ const ClinicLocationSchema = new Schema<IClinicLocation>(
         closures: {
             type: [{
                 _id: false,
-                date: {type: SchemaTypes.String, required: true},
-                reason: {type: SchemaTypes.String, maxlength: CLINIC_LOCATION_CLOSURE_REASON_MAX},
+                date: {type: SchemaTypes.String, required: true, dynamicTableConfiguration: {hideColumn: true, filterable: false, sortable: false}},
+                reason: {type: SchemaTypes.String, maxlength: CLINIC_LOCATION_CLOSURE_REASON_MAX, dynamicTableConfiguration: {hideColumn: true, filterable: false, sortable: false}},
             }],
             default: [],
             dynamicTableConfiguration: {hideColumn: true, filterable: false, sortable: false},

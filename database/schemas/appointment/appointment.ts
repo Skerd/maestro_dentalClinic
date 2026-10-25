@@ -85,6 +85,9 @@ const refField = (ref: string, refAllowlist: unknown, refDisplayKey: string[]) =
     dynamicTableConfiguration: {refDisplayKey},
 });
 
+/** Nested copies of a booking stay on the sheet. The list shows the booking itself. */
+const hiddenNestedColumn = {hideColumn: true, filterable: false, sortable: false};
+
 const AppointmentSchema = new Schema<IAppointment>(
     {
         number: {type: SchemaTypes.String, required: true, immutable: true, permissions: NoWritePermission},
@@ -115,10 +118,10 @@ const AppointmentSchema = new Schema<IAppointment>(
         blockedEnd: {type: SchemaTypes.Date, required: true, permissions: NoWritePermission, dynamicTableConfiguration: {hideColumn: true}},
         patient: {
             type: {
-                firstName: {type: SchemaTypes.String, required: true, trim: true},
-                lastName: {type: SchemaTypes.String, required: true, trim: true},
-                email: {type: SchemaTypes.String, required: true, trim: true, lowercase: true},
-                phone: {type: SchemaTypes.String, required: true, trim: true},
+                firstName: {type: SchemaTypes.String, required: true, trim: true, dynamicTableConfiguration: hiddenNestedColumn},
+                lastName: {type: SchemaTypes.String, required: true, trim: true, dynamicTableConfiguration: hiddenNestedColumn},
+                email: {type: SchemaTypes.String, required: true, trim: true, lowercase: true, dynamicTableConfiguration: hiddenNestedColumn},
+                phone: {type: SchemaTypes.String, required: true, trim: true, dynamicTableConfiguration: hiddenNestedColumn},
             },
             required: true,
             permissions: NoWritePermission,
@@ -127,14 +130,14 @@ const AppointmentSchema = new Schema<IAppointment>(
         note: {type: SchemaTypes.String, permissions: NoWritePermission, dynamicTableConfiguration: {hideColumn: true, filterable: false}},
         snapshot: {
             type: {
-                serviceName: {type: SchemaTypes.String, required: true},
-                durationMinutes: {type: SchemaTypes.Number, required: true},
-                priceType: {type: SchemaTypes.String, enum: CLINIC_SERVICE_PRICE_TYPES, required: true},
-                price: {type: SchemaTypes.Number},
-                practitionerName: {type: SchemaTypes.String, required: true},
-                locationName: {type: SchemaTypes.String, required: true},
-                locationAddress: {type: SchemaTypes.String},
-                timezone: {type: SchemaTypes.String, required: true},
+                serviceName: {type: SchemaTypes.String, required: true, dynamicTableConfiguration: hiddenNestedColumn},
+                durationMinutes: {type: SchemaTypes.Number, required: true, dynamicTableConfiguration: hiddenNestedColumn},
+                priceType: {type: SchemaTypes.String, enum: CLINIC_SERVICE_PRICE_TYPES, required: true, dynamicTableConfiguration: hiddenNestedColumn},
+                price: {type: SchemaTypes.Number, dynamicTableConfiguration: hiddenNestedColumn},
+                practitionerName: {type: SchemaTypes.String, required: true, dynamicTableConfiguration: hiddenNestedColumn},
+                locationName: {type: SchemaTypes.String, required: true, dynamicTableConfiguration: hiddenNestedColumn},
+                locationAddress: {type: SchemaTypes.String, dynamicTableConfiguration: hiddenNestedColumn},
+                timezone: {type: SchemaTypes.String, required: true, dynamicTableConfiguration: hiddenNestedColumn},
             },
             required: true,
             permissions: NoWritePermission,
@@ -149,8 +152,8 @@ const AppointmentSchema = new Schema<IAppointment>(
         },
         policy: {
             type: {
-                cancellationDeadlineHours: {type: SchemaTypes.Number, required: true},
-                rescheduleDeadlineHours: {type: SchemaTypes.Number, required: true},
+                cancellationDeadlineHours: {type: SchemaTypes.Number, required: true, dynamicTableConfiguration: hiddenNestedColumn},
+                rescheduleDeadlineHours: {type: SchemaTypes.Number, required: true, dynamicTableConfiguration: hiddenNestedColumn},
             },
             required: true,
             permissions: NoWritePermission,
@@ -158,8 +161,8 @@ const AppointmentSchema = new Schema<IAppointment>(
         },
         consent: {
             type: {
-                version: {type: SchemaTypes.String},
-                at: {type: SchemaTypes.Date, required: true},
+                version: {type: SchemaTypes.String, dynamicTableConfiguration: hiddenNestedColumn},
+                at: {type: SchemaTypes.Date, required: true, dynamicTableConfiguration: hiddenNestedColumn},
             },
             required: false,
             permissions: NoWritePermission,
@@ -169,10 +172,10 @@ const AppointmentSchema = new Schema<IAppointment>(
         timeline: {
             type: [{
                 _id: false,
-                event: {type: SchemaTypes.String, enum: APPOINTMENT_TIMELINE_EVENTS, required: true},
-                at: {type: SchemaTypes.Date, required: true},
-                by: {type: SchemaTypes.ObjectId, ref: "User"},
-                note: {type: SchemaTypes.String},
+                event: {type: SchemaTypes.String, enum: APPOINTMENT_TIMELINE_EVENTS, required: true, dynamicTableConfiguration: hiddenNestedColumn},
+                at: {type: SchemaTypes.Date, required: true, dynamicTableConfiguration: hiddenNestedColumn},
+                by: {type: SchemaTypes.ObjectId, ref: "User", dynamicTableConfiguration: hiddenNestedColumn},
+                note: {type: SchemaTypes.String, dynamicTableConfiguration: hiddenNestedColumn},
             }],
             default: [],
             permissions: NoWritePermission,

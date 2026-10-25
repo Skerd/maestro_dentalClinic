@@ -10,6 +10,7 @@ import ClinicService from "@dentalClinicModule/database/schemas/clinicService/cl
 import {clinicServiceService} from "@dentalClinicModule/database/schemas/clinicService/clinicService.service";
 import {clinicServiceToDTO, clinicServicesToDTO} from "@dentalClinicModule/utilities/mappers/clinicService/clinicServiceMapper.dto";
 import {clinicServicesToSelect} from "@dentalClinicModule/utilities/mappers/clinicService/clinicServiceMapper.select";
+import {ClinicServiceActions} from "@dentalClinicModule/database/schemas/clinicService/clinicService.actions";
 
 const mediaUpload = mediaUploadMW({fields: {images: 8}, maxFileSize: 20 * 1024 * 1024});
 
@@ -36,6 +37,7 @@ export const {router} = createCrudRouter({
     toSelect: clinicServicesToSelect,
     defaultSort: {sortOrder: 1, name: 1},
     extraSelectFilter: () => ({isActive: true}),
+    actions: ClinicServiceActions,
     createMiddleware: [mediaUpload],
     editMiddleware: [mediaUpload],
     buildCreateData: (params: any) => {
