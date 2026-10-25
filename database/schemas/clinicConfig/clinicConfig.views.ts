@@ -13,25 +13,6 @@ import {
 
 const API_URL = "/api/dentalClinic/clinicConfig";
 
-const numberField = (name: string, {min, max}: {min: number; max: number}) => ({
-    render: "#Field",
-    field: {
-        name,
-        widget: "#Input",
-        label: `form.${name}Label`,
-        placeholder: `form.${name}Placeholder`,
-        required: true,
-        widgetProps: {type: "number", min, max},
-    },
-    permissions: {read: name, write: name},
-});
-
-const switchField = (name: string) => ({
-    render: "#Field",
-    field: {name, widget: "#Switch", label: `form.${name}Label`},
-    permissions: {read: name, write: name},
-});
-
 /** Settings are edited in place from the settings page; there is no create form or sheet. */
 export const clinicConfigEditFormView: ViewConfig = {
     model: "clinicconfigs",
@@ -44,32 +25,207 @@ export const clinicConfigEditFormView: ViewConfig = {
         {
             render: "#TitleWithCollapse",
             props: {title: "form.bookingSectionTitle"},
+            permissions: {
+                readAny: [
+                    "publicBookingEnabled",
+                    "guestBookingAllowed",
+                    "requireStaffConfirmation",
+                    "currency",
+                    "slotIntervalMinutes",
+                    "minNoticeHours",
+                    "maxAdvanceDays",
+                    "cancellationDeadlineHours",
+                    "rescheduleDeadlineHours",
+                    "noShowGraceMinutes",
+                ],
+                writeAny: [
+                    "publicBookingEnabled",
+                    "guestBookingAllowed",
+                    "requireStaffConfirmation",
+                    "currency",
+                    "slotIntervalMinutes",
+                    "minNoticeHours",
+                    "maxAdvanceDays",
+                    "cancellationDeadlineHours",
+                    "rescheduleDeadlineHours",
+                    "noShowGraceMinutes",
+                ],
+            },
             children: [
                 {
                     render: "#FormGrid",
                     props: {columns: 3},
                     children: [
-                        switchField("publicBookingEnabled"),
-                        switchField("guestBookingAllowed"),
-                        switchField("requireStaffConfirmation"),
                         {
                             render: "#Field",
+                            permissions: {
+                                read: "publicBookingEnabled",
+                                write: "publicBookingEnabled",
+                            },
+                            field: {
+                                name: "publicBookingEnabled",
+                                widget: "#Switch",
+                                label: "form.publicBookingEnabledLabel",
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "guestBookingAllowed",
+                                write: "guestBookingAllowed",
+                            },
+                            field: {
+                                name: "guestBookingAllowed",
+                                widget: "#Switch",
+                                label: "form.guestBookingAllowedLabel",
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "requireStaffConfirmation",
+                                write: "requireStaffConfirmation",
+                            },
+                            field: {
+                                name: "requireStaffConfirmation",
+                                widget: "#Switch",
+                                label: "form.requireStaffConfirmationLabel",
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {read: "currency", write: "currency"},
                             field: {
                                 name: "currency",
                                 widget: "#ApiSelect",
                                 label: "form.currencyLabel",
                                 placeholder: "form.currencyPlaceholder",
                                 required: true,
-                                widgetProps: {apiUrl: "/api/finance/currency/select", method: "POST", pageSize: 50},
+                                widgetProps: {
+                                    apiUrl: "/api/finance/currency/select",
+                                    method: "POST",
+                                    pageSize: 50,
+                                },
                             },
-                            permissions: {read: "currency", write: "currency"},
                         },
-                        numberField("slotIntervalMinutes", CLINIC_SLOT_INTERVAL_MINUTES),
-                        numberField("minNoticeHours", CLINIC_NOTICE_HOURS),
-                        numberField("maxAdvanceDays", CLINIC_ADVANCE_DAYS),
-                        numberField("cancellationDeadlineHours", CLINIC_DEADLINE_HOURS),
-                        numberField("rescheduleDeadlineHours", CLINIC_DEADLINE_HOURS),
-                        numberField("noShowGraceMinutes", CLINIC_NO_SHOW_GRACE_MINUTES),
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "slotIntervalMinutes",
+                                write: "slotIntervalMinutes",
+                            },
+                            field: {
+                                name: "slotIntervalMinutes",
+                                widget: "#Input",
+                                label: "form.slotIntervalMinutesLabel",
+                                placeholder:
+                                    "form.slotIntervalMinutesPlaceholder",
+                                required: true,
+                                widgetProps: {
+                                    type: "number",
+                                    min: CLINIC_SLOT_INTERVAL_MINUTES.min,
+                                    max: CLINIC_SLOT_INTERVAL_MINUTES.max,
+                                },
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "minNoticeHours",
+                                write: "minNoticeHours",
+                            },
+                            field: {
+                                name: "minNoticeHours",
+                                widget: "#Input",
+                                label: "form.minNoticeHoursLabel",
+                                placeholder: "form.minNoticeHoursPlaceholder",
+                                required: true,
+                                widgetProps: {
+                                    type: "number",
+                                    min: CLINIC_NOTICE_HOURS.min,
+                                    max: CLINIC_NOTICE_HOURS.max,
+                                },
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "maxAdvanceDays",
+                                write: "maxAdvanceDays",
+                            },
+                            field: {
+                                name: "maxAdvanceDays",
+                                widget: "#Input",
+                                label: "form.maxAdvanceDaysLabel",
+                                placeholder: "form.maxAdvanceDaysPlaceholder",
+                                required: true,
+                                widgetProps: {
+                                    type: "number",
+                                    min: CLINIC_ADVANCE_DAYS.min,
+                                    max: CLINIC_ADVANCE_DAYS.max,
+                                },
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "cancellationDeadlineHours",
+                                write: "cancellationDeadlineHours",
+                            },
+                            field: {
+                                name: "cancellationDeadlineHours",
+                                widget: "#Input",
+                                label: "form.cancellationDeadlineHoursLabel",
+                                placeholder:
+                                    "form.cancellationDeadlineHoursPlaceholder",
+                                required: true,
+                                widgetProps: {
+                                    type: "number",
+                                    min: CLINIC_DEADLINE_HOURS.min,
+                                    max: CLINIC_DEADLINE_HOURS.max,
+                                },
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "rescheduleDeadlineHours",
+                                write: "rescheduleDeadlineHours",
+                            },
+                            field: {
+                                name: "rescheduleDeadlineHours",
+                                widget: "#Input",
+                                label: "form.rescheduleDeadlineHoursLabel",
+                                placeholder:
+                                    "form.rescheduleDeadlineHoursPlaceholder",
+                                required: true,
+                                widgetProps: {
+                                    type: "number",
+                                    min: CLINIC_DEADLINE_HOURS.min,
+                                    max: CLINIC_DEADLINE_HOURS.max,
+                                },
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "noShowGraceMinutes",
+                                write: "noShowGraceMinutes",
+                            },
+                            field: {
+                                name: "noShowGraceMinutes",
+                                widget: "#Input",
+                                label: "form.noShowGraceMinutesLabel",
+                                placeholder:
+                                    "form.noShowGraceMinutesPlaceholder",
+                                required: true,
+                                widgetProps: {
+                                    type: "number",
+                                    min: CLINIC_NO_SHOW_GRACE_MINUTES.min,
+                                    max: CLINIC_NO_SHOW_GRACE_MINUTES.max,
+                                },
+                            },
+                        },
                     ],
                 },
             ],
@@ -77,16 +233,102 @@ export const clinicConfigEditFormView: ViewConfig = {
         {
             render: "#TitleWithCollapse",
             props: {title: "form.patientSectionTitle"},
+            permissions: {
+                readAny: [
+                    "patientNoteEnabled",
+                    "includeServiceInMessages",
+                    "reminderSms",
+                    "reminderHoursBefore",
+                    "retentionMonths",
+                ],
+                writeAny: [
+                    "patientNoteEnabled",
+                    "includeServiceInMessages",
+                    "reminderSms",
+                    "reminderHoursBefore",
+                    "retentionMonths",
+                ],
+            },
             children: [
                 {
                     render: "#FormGrid",
                     props: {columns: 3},
                     children: [
-                        switchField("patientNoteEnabled"),
-                        switchField("includeServiceInMessages"),
-                        switchField("reminderSms"),
-                        numberField("reminderHoursBefore", CLINIC_REMINDER_HOURS),
-                        numberField("retentionMonths", CLINIC_RETENTION_MONTHS),
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "patientNoteEnabled",
+                                write: "patientNoteEnabled",
+                            },
+                            field: {
+                                name: "patientNoteEnabled",
+                                widget: "#Switch",
+                                label: "form.patientNoteEnabledLabel",
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "includeServiceInMessages",
+                                write: "includeServiceInMessages",
+                            },
+                            field: {
+                                name: "includeServiceInMessages",
+                                widget: "#Switch",
+                                label: "form.includeServiceInMessagesLabel",
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "reminderSms",
+                                write: "reminderSms",
+                            },
+                            field: {
+                                name: "reminderSms",
+                                widget: "#Switch",
+                                label: "form.reminderSmsLabel",
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "reminderHoursBefore",
+                                write: "reminderHoursBefore",
+                            },
+                            field: {
+                                name: "reminderHoursBefore",
+                                widget: "#Input",
+                                label: "form.reminderHoursBeforeLabel",
+                                placeholder:
+                                    "form.reminderHoursBeforePlaceholder",
+                                required: true,
+                                widgetProps: {
+                                    type: "number",
+                                    min: CLINIC_REMINDER_HOURS.min,
+                                    max: CLINIC_REMINDER_HOURS.max,
+                                },
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "retentionMonths",
+                                write: "retentionMonths",
+                            },
+                            field: {
+                                name: "retentionMonths",
+                                widget: "#Input",
+                                label: "form.retentionMonthsLabel",
+                                placeholder: "form.retentionMonthsPlaceholder",
+                                required: true,
+                                widgetProps: {
+                                    type: "number",
+                                    min: CLINIC_RETENTION_MONTHS.min,
+                                    max: CLINIC_RETENTION_MONTHS.max,
+                                },
+                            },
+                        },
                     ],
                 },
             ],
@@ -94,6 +336,10 @@ export const clinicConfigEditFormView: ViewConfig = {
         {
             render: "#TitleWithCollapse",
             props: {title: "form.privacySectionTitle"},
+            permissions: {
+                readAny: ["privacyNoticeVersion", "privacyNoticeText"],
+                writeAny: ["privacyNoticeVersion", "privacyNoticeText"],
+            },
             children: [
                 {
                     render: "#FormGrid",
@@ -105,10 +351,16 @@ export const clinicConfigEditFormView: ViewConfig = {
                                 name: "privacyNoticeVersion",
                                 widget: "#Input",
                                 label: "form.privacyNoticeVersionLabel",
-                                placeholder: "form.privacyNoticeVersionPlaceholder",
-                                widgetProps: {maxLength: CLINIC_PRIVACY_VERSION_MAX},
+                                placeholder:
+                                    "form.privacyNoticeVersionPlaceholder",
+                                widgetProps: {
+                                    maxLength: CLINIC_PRIVACY_VERSION_MAX,
+                                },
                             },
-                            permissions: {read: "privacyNoticeVersion", write: "privacyNoticeVersion"},
+                            permissions: {
+                                read: "privacyNoticeVersion",
+                                write: "privacyNoticeVersion",
+                            },
                         },
                         {
                             render: "#Field",
@@ -116,10 +368,19 @@ export const clinicConfigEditFormView: ViewConfig = {
                                 name: "privacyNoticeText",
                                 widget: "#Textarea",
                                 label: "form.privacyNoticeTextLabel",
-                                placeholder: "form.privacyNoticeTextPlaceholder",
-                                widgetProps: {rows: 10, maxLength: CLINIC_PRIVACY_TEXT_MAX, className: "field-sizing-fixed max-h-96 min-h-40 overflow-y-auto"},
+                                placeholder:
+                                    "form.privacyNoticeTextPlaceholder",
+                                widgetProps: {
+                                    rows: 10,
+                                    maxLength: CLINIC_PRIVACY_TEXT_MAX,
+                                    className:
+                                        "field-sizing-fixed max-h-96 min-h-40 overflow-y-auto",
+                                },
                             },
-                            permissions: {read: "privacyNoticeText", write: "privacyNoticeText"},
+                            permissions: {
+                                read: "privacyNoticeText",
+                                write: "privacyNoticeText",
+                            },
                         },
                     ],
                 },
@@ -128,6 +389,7 @@ export const clinicConfigEditFormView: ViewConfig = {
         {
             render: "#TitleWithCollapse",
             props: {title: "form.notificationsSectionTitle"},
+            permissions: {readAny: ["notifyUsers"], writeAny: ["notifyUsers"]},
             children: [
                 {
                     render: "#Field",
