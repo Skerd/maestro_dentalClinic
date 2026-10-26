@@ -11,6 +11,7 @@ export function clinicConfigToDTO(config: IClinicConfig): ClinicConfig {
     return {
         _id: config._id.toString(),
         publicBookingEnabled: config.publicBookingEnabled,
+        listedOnPortal: config.listedOnPortal,
         currency: mapSnippet<CurrencySimple>()(config.currency, CurrencySimpleSnippet),
         slotIntervalMinutes: config.slotIntervalMinutes,
         minNoticeHours: config.minNoticeHours,

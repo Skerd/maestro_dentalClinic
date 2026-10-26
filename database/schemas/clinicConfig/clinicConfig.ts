@@ -28,6 +28,8 @@ import {clinicConfigViews} from "./clinicConfig.views";
 
 export interface IClinicConfig extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields {
     publicBookingEnabled: boolean;
+    /** The company opts in to being listed and booked on the central portal. */
+    listedOnPortal: boolean;
     currency: ICurrency;
     slotIntervalMinutes: number;
     minNoticeHours: number;
@@ -50,6 +52,7 @@ export interface IClinicConfig extends Document, IOwnershipPluginFields, ISoftDe
 const ClinicConfigSchema = new Schema<IClinicConfig>(
     {
         publicBookingEnabled: {type: SchemaTypes.Boolean, default: false},
+        listedOnPortal: {type: SchemaTypes.Boolean, default: false},
         currency: {
             type: SchemaTypes.ObjectId,
             ref: "Currency",

@@ -28,6 +28,7 @@ export const clinicConfigEditFormView: ViewConfig = {
             permissions: {
                 readAny: [
                     "publicBookingEnabled",
+                    "listedOnPortal",
                     "guestBookingAllowed",
                     "requireStaffConfirmation",
                     "currency",
@@ -40,6 +41,7 @@ export const clinicConfigEditFormView: ViewConfig = {
                 ],
                 writeAny: [
                     "publicBookingEnabled",
+                    "listedOnPortal",
                     "guestBookingAllowed",
                     "requireStaffConfirmation",
                     "currency",
@@ -78,6 +80,18 @@ export const clinicConfigEditFormView: ViewConfig = {
                                 name: "guestBookingAllowed",
                                 widget: "#Switch",
                                 label: "form.guestBookingAllowedLabel",
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "listedOnPortal",
+                                write: "listedOnPortal",
+                            },
+                            field: {
+                                name: "listedOnPortal",
+                                widget: "#Switch",
+                                label: "form.listedOnPortalLabel",
                             },
                         },
                         {

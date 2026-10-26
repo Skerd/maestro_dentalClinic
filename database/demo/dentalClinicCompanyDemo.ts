@@ -24,14 +24,21 @@ import ClinicService, {type IClinicService} from "@dentalClinicModule/database/s
 import Practitioner from "@dentalClinicModule/database/schemas/practitioner/practitioner";
 import ScheduleException from "@dentalClinicModule/database/schemas/scheduleException/scheduleException";
 import {createAppointment, loadBookingTargets} from "@dentalClinicModule/utilities/services/appointmentBooking";
+import City from "@coreModule/database/schemas/city/city";
 
 const TIMEZONE = "Europe/Tirane";
 const LANGUAGE = "en-US";
 const WEEKDAYS = [1, 2, 3, 4, 5];
 
+/** The company's own City record by name; cities are seeded per company. */
+async function demoCityId(companyId: unknown, name: string) {
+    return (await City.findOne({company: companyId, name}).select("_id"))?._id;
+}
+
 const locations = [
     {
         name: "Blloku Dental Studio",
+        cityName: "Tirana",
         phone: "+355 69 000 2001",
         email: "blloku@clinic.demo",
         address: {street: "Rruga Pjetër Bogdani 7", postalCode: "1019", latitude: 41.3194, longitude: 19.8167},
@@ -42,6 +49,7 @@ const locations = [
     },
     {
         name: "Kombinat Family Dental",
+        cityName: "Tirana",
         phone: "+355 69 000 2002",
         email: "kombinat@clinic.demo",
         address: {street: "Rruga Teodor Keko 22", postalCode: "1023", latitude: 41.3237, longitude: 19.7711},
@@ -122,13 +130,14 @@ export async function seedDentalClinicDemoData(parentLogger: serverLogger | unde
     try {
         const created = await clinicConfigService.getOrCreateForCompany(company._id, {logger, languageCode: LANGUAGE});
         await ClinicConfig.updateOne({_id: created._id}, {
-            $set: {publicBookingEnabled: true, requireStaffConfirmation: false, patientNoteEnabled: true, privacyNoticeVersion: "demo-1"},
+            $set: {publicBookingEnabled: true, listedOnPortal: true, requireStaffConfirmation: false, patientNoteEnabled: true, privacyNoticeVersion: "demo-1"},
         });
 
         const locationDocs: IClinicLocation[] = [];
-        for (const location of locations) {
+        for (const {cityName, ...location} of locations) {
             locationDocs.push(await upsert(ClinicLocation, {company: company._id, name: location.name}, {
-                ...owned, ...location, timezone: TIMEZONE, closures: [], isActive: true,
+                ...owned, ...location, address: {...location.address, city: await demoCityId(company._id, cityName)},
+                timezone: TIMEZONE, closures: [], isActive: true,
             }) as unknown as IClinicLocation);
         }
 

@@ -43,6 +43,8 @@ export type PatientMessage = {
     /** Only when the clinic lets messages name the treatment. */
     serviceName?: string;
     manageToken: string;
+    /** Set when booked on the central portal: the manage link opens the clinic's portal page. */
+    portalSlug?: string;
 };
 
 function stringsFor(languageCode: string) {
@@ -53,8 +55,9 @@ function readTemplate(filename: string): string {
     return fs.readFileSync(path.join(TEMPLATE_DIR, filename), "utf8");
 }
 
-function manageUrl(token: string): string {
-    return `${clientHostFor("clinic")}/manage?token=${encodeURIComponent(token)}`;
+function manageUrl(token: string, portalSlug?: string): string {
+    const base = portalSlug ? `${clientHostFor("portal")}/dentists/${portalSlug}` : clientHostFor("clinic");
+    return `${base}/manage?token=${encodeURIComponent(token)}`;
 }
 
 /**
@@ -80,7 +83,7 @@ export async function sendPatientMail(data: PatientMessage): Promise<void> {
     const bodyInner = applyPlaceholders(readTemplate("body.html"), {
         intro: loc[`intro${suffix}`] ?? "",
         detailsSummary: summaryCardHtml(loc.summaryTitle ?? "", rows),
-        cta: ctaButtonHtml(loc.manageLinkText ?? "", manageUrl(data.manageToken), loc.fallbackLabel ?? ""),
+        cta: ctaButtonHtml(loc.manageLinkText ?? "", manageUrl(data.manageToken, data.portalSlug), loc.fallbackLabel ?? ""),
         closing: loc[closingKey] ?? "",
     });
 
@@ -103,6 +106,6 @@ export function patientSmsText(data: PatientMessage): string {
         companyName: data.companyName,
         when: data.when,
         practitionerName: data.practitionerName,
-        manageUrl: manageUrl(data.manageToken),
+        manageUrl: manageUrl(data.manageToken, data.portalSlug),
     });
 }

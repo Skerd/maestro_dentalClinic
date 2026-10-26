@@ -6,7 +6,11 @@ import {rateLimiter} from "@coreModule/utilities/middlewares/rateLimiter";
 import {validateFormZod} from "@coreModule/utilities/middlewares/validateFormZod";
 import {transactionHandler, type TransactionRequiredParams} from "@coreModule/utilities/middlewares/transactionUtils";
 import publicChatCustomerMW, {type PublicChatCustomerMWType} from "@coreModule/utilities/middlewares/publicChatCustomerMW";
+import {publicCustomerFor, requirePortalAccount} from "@coreModule/domain/publicChat/publicChatCustomer";
+import {companyIdsWithModule} from "@coreModule/utilities/modules/companyModules";
+import {portalCompanyRefs} from "@coreModule/utilities/marketing/portalCompanies";
 import {resolveCompanyByOrigin} from "@coreModule/utilities/marketing/resolveCompanyByOrigin";
+import {isPortalOrigin} from "@coreModule/utilities/marketing/platformShopOrigin";
 import {publicMediaUrl, publicMediaUrls} from "@coreModule/utilities/media/publicMediaUrl";
 import {validateRecordAccessToken} from "@coreModule/utilities/security/recordAccessToken";
 import {mapSnippet, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
@@ -30,6 +34,7 @@ import type {
 } from "armonia/src/modules/dentalClinic/api/dentalClinic/public/clinicStorefront/clinicStorefront.forms";
 import type {
     AppointmentBookingResponse,
+    MyAppointmentsResponse,
     ClinicSlotsResponse,
     ClinicStorefrontConfigResponse,
     PublicAppointmentResponse,
@@ -50,6 +55,8 @@ import {manageTokenFor, notifyClinicStaff, notifyPatient} from "@dentalClinicMod
 import {NotificationEventCodes} from "@dentalClinicModule/domain/notifications/notificationEventCodes";
 
 export const basePath = "/api/dentalClinic/clinicStorefront";
+
+const MY_APPOINTMENTS_MAX = 50;
 export const router = Router();
 
 type PublicParams<F> = NotAuthenticatedMWType & F;
@@ -60,6 +67,10 @@ async function storefrontContext(origin: string, languageCode: string): Promise<
     const config = await clinicConfigService.findForCompany(company._id, {languageCode});
     if (!config?.publicBookingEnabled) {
         throw apiValidationException("dental_clinic_not_configured", "", null, languageCode);
+    }
+    // On the portal, only clinics that opted in to being listed there.
+    if (isPortalOrigin(origin) && !config.listedOnPortal) {
+        throw apiValidationException("portal_company_not_listed", "", null, languageCode);
     }
     return {company, config};
 }
@@ -205,7 +216,7 @@ router.post(
     asyncHandler(async (params: TransactionRequiredParams & PublicParams<BookAppointmentFormType> & PublicChatCustomerMWType): Promise<AppointmentBookingResponse> => {
         const {origin, languageCode, session, logger} = params;
         const {company, config} = await storefrontContext(origin, languageCode);
-        const customer = params.customer && params.customer.companyId.equals(company._id) ? params.customer.user : undefined;
+        const customer = await publicCustomerFor(params.customer, company, origin);
         if (!customer && !config.guestBookingAllowed) {
             throw apiValidationException("appointment_guest_booking_disabled", "", null, languageCode);
         }
@@ -229,6 +240,7 @@ router.post(
                 note: params.note,
                 idempotencyKey: params.idempotencyKey,
                 source: "online",
+                bookedVia: isPortalOrigin(origin) ? "portal" : "site",
                 consentAt: new Date(),
             },
             ctx,
@@ -238,6 +250,35 @@ router.post(
             await notifyClinicStaff(NotificationEventCodes.APPOINTMENT_NEW, appointment, ctx);
         }
         return {data: {appointment: await publicAppointment(appointment), manageToken: manageTokenFor(appointment)}};
+    }),
+);
+
+/**
+ * A portal account's appointments at every clinic that still has the module, latest first.
+ * Each comes with the clinic's portal slug and a fresh manage token, so the existing
+ * manage/cancel/reschedule endpoints serve it under `x-site-company`.
+ */
+router.post(
+    "/mine",
+    authMW("public"),
+    rateLimiter({windowMs: 60000, max: 30}),
+    publicChatCustomerMW(),
+    asyncHandler(async (params: PublicParams<object> & PublicChatCustomerMWType): Promise<MyAppointmentsResponse> => {
+        const {origin, languageCode} = params;
+        const user = await requirePortalAccount(params.customer, origin, languageCode);
+        const appointments = await Appointment.find({
+            customer: user._id,
+            deletedAt: null,
+            anonymizedAt: null,
+            company: {$in: await companyIdsWithModule("dentalClinic")},
+        }).sort({startAt: -1}).limit(MY_APPOINTMENTS_MAX);
+        const companies = await portalCompanyRefs(appointments.map((appointment) => nestedEntityToRef(appointment.company)!));
+        const data = await Promise.all(appointments.map(async (appointment) => ({
+            appointment: await publicAppointment(appointment),
+            company: companies.get(String(nestedEntityToRef(appointment.company))) ?? {name: "", slug: ""},
+            manageToken: manageTokenFor(appointment),
+        })));
+        return {data};
     }),
 );
 
