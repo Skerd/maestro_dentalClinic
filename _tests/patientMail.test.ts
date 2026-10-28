@@ -27,6 +27,7 @@ const message = (kind: PatientMessageKind, languageCode = "en-US", serviceName?:
     location: "Zurich Centre, Bahnhofstrasse 1",
     serviceName,
     manageToken: "token",
+    manageUrl: "https://smile.arpeggio.al/dentists/manage",
 });
 
 beforeEach(() => {
@@ -40,7 +41,7 @@ describe("patient email", () => {
         expect(subject).toBe("Appointment AP-20261020-ABCD1234 confirmed — Smile Clinic");
         expect(html).toContain("Your appointment is booked");
         expect(html).toContain("Dr. Ana");
-        expect(html).toContain("/manage?token=token");
+        expect(html).toContain("https://smile.arpeggio.al/dentists/manage?token=token");
         expect(html).not.toContain("Treatment");
         expect(html).not.toMatch(/\{[a-zA-Z]+\}/);
         if (process.env.EMAIL_PREVIEW_DIR) fs.writeFileSync(`${process.env.EMAIL_PREVIEW_DIR}/patient-confirmed.html`, html);

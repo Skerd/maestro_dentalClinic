@@ -28,6 +28,7 @@ export interface IClinicService extends Document, IOwnershipPluginFields, ISoftD
     slug: string;
     description?: string;
     images: IMedia[];
+    videos: IMedia[];
     durationMinutes: number;
     bufferBeforeMinutes: number;
     bufferAfterMinutes: number;
@@ -45,6 +46,12 @@ const ClinicServiceSchema = new Schema<IClinicService>(
         slug: {type: SchemaTypes.String, required: true, trim: true, lowercase: true, minlength: 1, maxlength: CLINIC_SERVICE_SLUG_MAX},
         description: {type: SchemaTypes.String, maxlength: CLINIC_SERVICE_DESCRIPTION_MAX, dynamicTableConfiguration: {hideColumn: true}},
         images: {
+            type: [{type: SchemaTypes.ObjectId, ref: "Media"}],
+            default: [],
+            refAllowlist: MediaSimpleSnippet,
+            dynamicTableConfiguration: {sortable: false, filterable: false, hideColumn: true},
+        },
+        videos: {
             type: [{type: SchemaTypes.ObjectId, ref: "Media"}],
             default: [],
             refAllowlist: MediaSimpleSnippet,

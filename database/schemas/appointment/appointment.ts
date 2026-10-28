@@ -48,7 +48,6 @@ export interface IAppointment extends Document, IOwnershipPluginFields, ISoftDel
     status: AppointmentStatus;
     source: (typeof APPOINTMENT_SOURCES)[number];
     /** Where an online booking was made: the clinic's own site or the central portal. Emails link back there. */
-    bookedVia: "site" | "portal";
     service: IClinicService;
     location: IClinicLocation;
     practitioner: IPractitioner;
@@ -104,7 +103,6 @@ const AppointmentSchema = new Schema<IAppointment>(
             },
         },
         source: {type: SchemaTypes.String, enum: APPOINTMENT_SOURCES, required: true, immutable: true, permissions: NoWritePermission},
-        bookedVia: {type: SchemaTypes.String, enum: ["site", "portal"], default: "site", immutable: true, permissions: NoWritePermission},
         service: {...refField("ClinicService", ClinicServiceSimpleSnippet, ["name"]), immutable: true},
         location: {...refField("ClinicLocation", ClinicLocationSimpleSnippet, ["name"]), immutable: true},
         practitioner: refField("Practitioner", PractitionerSimpleSnippet, ["displayName"]),

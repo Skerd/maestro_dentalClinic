@@ -153,7 +153,6 @@ export type CreateAppointmentInput = {
     note?: string;
     idempotencyKey: string;
     source: "online" | "staff";
-    bookedVia?: "site" | "portal";
     /** Set for online bookings: the privacy notice the patient accepted. */
     consentAt?: Date;
     now?: Date;
@@ -165,7 +164,7 @@ export type CreateAppointmentInput = {
  * for staff when the clinic asks for that; everything else is confirmed at once.
  */
 export async function buildAppointment(input: CreateAppointmentInput, ctx: ClinicCtx): Promise<CreateInput<IAppointment>> {
-    const {companyId, config, service, location, patient, idempotencyKey, source, bookedVia} = input;
+    const {companyId, config, service, location, patient, idempotencyKey, source} = input;
     const now = input.now ?? new Date();
     const online = source === "online";
 
@@ -184,7 +183,6 @@ export async function buildAppointment(input: CreateAppointmentInput, ctx: Clini
         number: appointmentNumber(now),
         status: confirmed ? "confirmed" : "pending",
         source,
-        ...(bookedVia ? {bookedVia} : {}),
         service: service._id,
         location: location._id,
         ...scheduledFields(service, practitioner, start),

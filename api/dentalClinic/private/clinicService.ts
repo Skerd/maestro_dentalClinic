@@ -12,7 +12,14 @@ import {clinicServiceToDTO, clinicServicesToDTO} from "@dentalClinicModule/utili
 import {clinicServicesToSelect} from "@dentalClinicModule/utilities/mappers/clinicService/clinicServiceMapper.select";
 import {ClinicServiceActions} from "@dentalClinicModule/database/schemas/clinicService/clinicService.actions";
 
-const mediaUpload = mediaUploadMW({fields: {images: 8}, maxFileSize: 20 * 1024 * 1024});
+const mediaUpload = mediaUploadMW({
+    fields: {images: 8, videos: 3},
+    fieldMimeTypes: {
+        images: ["image/jpeg", "image/png", "image/webp"],
+        videos: ["video/mp4", "video/webm", "video/quicktime"],
+    },
+    maxFileSize: 250 * 1024 * 1024,
+});
 
 /** A shown price needs an amount; the Zod contract can't compare fields. */
 function assertPrice(data: {priceType?: string; price?: number}, existing: {priceType?: string; price?: number} | undefined, languageCode: string): void {

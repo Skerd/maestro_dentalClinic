@@ -10,7 +10,7 @@ import {publicCustomerFor, requirePortalAccount} from "@coreModule/domain/public
 import {companyIdsWithModule} from "@coreModule/utilities/modules/companyModules";
 import {portalCompanyRefs} from "@coreModule/utilities/marketing/portalCompanies";
 import {resolveCompanyByOrigin} from "@coreModule/utilities/marketing/resolveCompanyByOrigin";
-import {isPortalOrigin} from "@coreModule/utilities/marketing/platformShopOrigin";
+import {isPortalApexOrigin} from "@coreModule/utilities/marketing/portalOrigin";
 import {publicMediaUrl, publicMediaUrls} from "@coreModule/utilities/media/publicMediaUrl";
 import {validateRecordAccessToken} from "@coreModule/utilities/security/recordAccessToken";
 import {mapSnippet, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
@@ -69,7 +69,7 @@ async function storefrontContext(origin: string, languageCode: string): Promise<
         throw apiValidationException("dental_clinic_not_configured", "", null, languageCode);
     }
     // On the portal, only clinics that opted in to being listed there.
-    if (isPortalOrigin(origin) && !config.listedOnPortal) {
+    if (isPortalApexOrigin(origin) && !config.listedOnPortal) {
         throw apiValidationException("portal_company_not_listed", "", null, languageCode);
     }
     return {company, config};
@@ -147,6 +147,7 @@ router.post(
                     slug: service.slug,
                     description: service.description,
                     images: publicMediaUrls(service.images),
+                    videos: publicMediaUrls(service.videos),
                     durationMinutes: service.durationMinutes,
                     priceType: service.priceType,
                     price: service.priceType === "fixed" || service.priceType === "from" ? service.price : undefined,
@@ -240,7 +241,6 @@ router.post(
                 note: params.note,
                 idempotencyKey: params.idempotencyKey,
                 source: "online",
-                bookedVia: isPortalOrigin(origin) ? "portal" : "site",
                 consentAt: new Date(),
             },
             ctx,

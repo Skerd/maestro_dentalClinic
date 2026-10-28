@@ -1,7 +1,8 @@
 /**
  * Seeds a small dental clinic for local development: settings with public booking
- * on, two locations, five services, three practitioners with weekly schedules, an
- * afternoon off and four staff-booked appointments on the coming weekdays.
+ * on, two locations, five services with photos and videos, three practitioners
+ * with weekly schedules, an afternoon off and four staff-booked appointments on
+ * the coming weekdays.
  *
  * Every row is keyed by a natural key (location name, service slug, practitioner
  * name, exception note, appointment idempotency key), so running it twice changes
@@ -15,6 +16,8 @@
 import type {Model} from "mongoose";
 import {getLogger, serverLogger} from "@coreModule/loggers/serverLog";
 import {ICompany} from "@coreModule/database/schemas/company/company";
+import {resolveDemoImagesFromUnsplash, resolveDemoVideosFromUrls} from "@coreModule/database/demo/demoMedia";
+import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {runInTransaction} from "@coreModule/utilities/middlewares/runInTransaction";
 import {addLocalDays, localDateOf, localToUtc} from "@coreModule/utilities/time/timeWindows";
 import ClinicConfig from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig";
@@ -25,6 +28,14 @@ import Practitioner from "@dentalClinicModule/database/schemas/practitioner/prac
 import ScheduleException from "@dentalClinicModule/database/schemas/scheduleException/scheduleException";
 import {createAppointment, loadBookingTargets} from "@dentalClinicModule/utilities/services/appointmentBooking";
 import City from "@coreModule/database/schemas/city/city";
+import {
+    DEMO_VIDEO_URLS,
+    PRACTITIONER_PHOTO_SIZE,
+    PRACTITIONER_PHOTOS,
+    SERVICE_PHOTOS,
+    SERVICE_PHOTO_SIZE,
+    SERVICE_VIDEOS,
+} from "./dentalClinic.demo.media";
 
 const TIMEZONE = "Europe/Tirane";
 const LANGUAGE = "en-US";
@@ -58,15 +69,15 @@ const locations = [
 ];
 
 const services = [
-    {name: "Check-up & consultation", slug: "check-up", durationMinutes: 30, bufferAfterMinutes: 10, priceType: "fixed", price: 25, sortOrder: 1,
+    {name: "Check-up & consultation", slug: "check-up" as const, durationMinutes: 30, bufferAfterMinutes: 10, priceType: "fixed", price: 25, sortOrder: 1,
         description: "Examination, X-ray review and a treatment plan."},
-    {name: "Professional cleaning", slug: "cleaning", durationMinutes: 45, bufferAfterMinutes: 15, priceType: "fixed", price: 45, sortOrder: 2,
+    {name: "Professional cleaning", slug: "cleaning" as const, durationMinutes: 45, bufferAfterMinutes: 15, priceType: "fixed", price: 45, sortOrder: 2,
         description: "Scaling, polishing and fluoride."},
-    {name: "Tooth filling", slug: "filling", durationMinutes: 60, bufferAfterMinutes: 15, priceType: "from", price: 60, sortOrder: 3,
+    {name: "Tooth filling", slug: "filling" as const, durationMinutes: 60, bufferAfterMinutes: 15, priceType: "from", price: 60, sortOrder: 3,
         description: "Composite filling; the price depends on the size."},
-    {name: "Teeth whitening", slug: "whitening", durationMinutes: 60, bufferAfterMinutes: 10, priceType: "fixed", price: 150, sortOrder: 4,
+    {name: "Teeth whitening", slug: "whitening" as const, durationMinutes: 60, bufferAfterMinutes: 10, priceType: "fixed", price: 150, sortOrder: 4,
         description: "In-chair whitening in one visit."},
-    {name: "Orthodontic consultation", slug: "ortho-consult", durationMinutes: 45, bufferAfterMinutes: 0, priceType: "free", sortOrder: 5,
+    {name: "Orthodontic consultation", slug: "ortho-consult" as const, durationMinutes: 45, bufferAfterMinutes: 0, priceType: "free", sortOrder: 5,
         description: "Braces and aligners: is it right for you?"},
 ];
 
@@ -125,7 +136,12 @@ function workingDays(displayName: string, location: number): number[] {
 export async function seedDentalClinicDemoData(parentLogger: serverLogger | undefined, company: ICompany): Promise<void> {
     const logger = getLogger("dentalClinic_demo_data", parentLogger);
     logger.start(`Seeding dental clinic demo data for '${company.name}'...`);
-    const owned = {company: company._id, createdBy: company.createdBy};
+    const createdBy = nestedEntityToRef(company.createdBy);
+    if (!createdBy) {
+        logger.fail("Company has no createdBy; cannot seed dental clinic demo data.");
+        return;
+    }
+    const owned = {company: company._id, createdBy};
 
     try {
         const created = await clinicConfigService.getOrCreateForCompany(company._id, {logger, languageCode: LANGUAGE});
@@ -141,18 +157,30 @@ export async function seedDentalClinicDemoData(parentLogger: serverLogger | unde
             }) as unknown as IClinicLocation);
         }
 
+        const videoIds = await resolveDemoVideosFromUrls(DEMO_VIDEO_URLS, company, createdBy, logger);
+        const clips = (urls: string[]) => urls.flatMap((url) => videoIds.get(url) ?? []);
+
         const serviceBySlug = new Map<string, IClinicService>();
         for (const service of services) {
+            const {galleryIds} = await resolveDemoImagesFromUnsplash(
+                SERVICE_PHOTOS[service.slug], `${company._id}:${service.slug}`, service.name, company, createdBy, logger, "clinicService", SERVICE_PHOTO_SIZE,
+            );
             const doc = await upsert(ClinicService, {company: company._id, slug: service.slug}, {
-                bufferBeforeMinutes: 0, ...owned, ...service, onlineBookable: true, isPublic: true, isActive: true,
+                bufferBeforeMinutes: 0, ...owned, ...service, images: galleryIds, videos: clips(SERVICE_VIDEOS[service.slug]),
+                onlineBookable: true, isPublic: true, isActive: true,
             });
             serviceBySlug.set(service.slug, doc as unknown as IClinicService);
         }
 
         for (const {services: slugs, shifts, ...practitioner} of practitioners) {
             const usedLocations = [...new Set(shifts.map((shift) => shift.location))];
+            const {galleryIds} = await resolveDemoImagesFromUnsplash(
+                PRACTITIONER_PHOTOS[practitioner.displayName] ?? [], `${company._id}:${practitioner.displayName}`,
+                practitioner.displayName, company, createdBy, logger, "practitioner", PRACTITIONER_PHOTO_SIZE,
+            );
             await upsert(Practitioner, {company: company._id, displayName: practitioner.displayName}, {
                 ...owned, ...practitioner,
+                ...(galleryIds[0] ? {photo: galleryIds[0]} : {}),
                 services: slugs.map((slug) => serviceBySlug.get(slug)!._id),
                 locations: usedLocations.map((index) => locationDocs[index]._id),
                 schedule: shifts.flatMap((shift) => shift.days.map((dayOfWeek) => ({

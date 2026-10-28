@@ -10,6 +10,7 @@ export function clinicServiceToDTO(service: IClinicService): ClinicService {
         slug: service.slug,
         description: service.description,
         images: service.images?.length ? service.images.map(mapMedia).filter((media) => media !== undefined) : undefined,
+        videos: service.videos?.length ? service.videos.map(mapMedia).filter((media) => media !== undefined) : undefined,
         durationMinutes: service.durationMinutes,
         bufferBeforeMinutes: service.bufferBeforeMinutes ?? 0,
         bufferAfterMinutes: service.bufferAfterMinutes ?? 0,

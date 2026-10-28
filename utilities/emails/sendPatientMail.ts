@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import {CLIENT_SIDE, CONSTANTS, EMAIL, clientHostFor} from "@coreModule/environment";
+import {CLIENT_SIDE, CONSTANTS, EMAIL} from "@coreModule/environment";
 import {applyPlaceholders, loadEmailStrings} from "@coreModule/utilities/emails/emailLocale";
 import {
     ctaButtonHtml,
@@ -43,8 +43,8 @@ export type PatientMessage = {
     /** Only when the clinic lets messages name the treatment. */
     serviceName?: string;
     manageToken: string;
-    /** Set when booked on the central portal: the manage link opens the clinic's portal page. */
-    portalSlug?: string;
+    /** The manage page on the clinic's own site; the token is appended. */
+    manageUrl: string;
 };
 
 function stringsFor(languageCode: string) {
@@ -55,9 +55,8 @@ function readTemplate(filename: string): string {
     return fs.readFileSync(path.join(TEMPLATE_DIR, filename), "utf8");
 }
 
-function manageUrl(token: string, portalSlug?: string): string {
-    const base = portalSlug ? `${clientHostFor("portal")}/dentists/${portalSlug}` : clientHostFor("clinic");
-    return `${base}/manage?token=${encodeURIComponent(token)}`;
+function manageUrl(data: Pick<PatientMessage, "manageUrl" | "manageToken">): string {
+    return `${data.manageUrl}?token=${encodeURIComponent(data.manageToken)}`;
 }
 
 /**
@@ -83,7 +82,7 @@ export async function sendPatientMail(data: PatientMessage): Promise<void> {
     const bodyInner = applyPlaceholders(readTemplate("body.html"), {
         intro: loc[`intro${suffix}`] ?? "",
         detailsSummary: summaryCardHtml(loc.summaryTitle ?? "", rows),
-        cta: ctaButtonHtml(loc.manageLinkText ?? "", manageUrl(data.manageToken, data.portalSlug), loc.fallbackLabel ?? ""),
+        cta: ctaButtonHtml(loc.manageLinkText ?? "", manageUrl(data), loc.fallbackLabel ?? ""),
         closing: loc[closingKey] ?? "",
     });
 
@@ -106,6 +105,6 @@ export function patientSmsText(data: PatientMessage): string {
         companyName: data.companyName,
         when: data.when,
         practitionerName: data.practitionerName,
-        manageUrl: manageUrl(data.manageToken, data.portalSlug),
+        manageUrl: manageUrl(data),
     });
 }

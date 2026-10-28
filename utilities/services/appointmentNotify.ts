@@ -10,7 +10,7 @@ import type {IAppointment} from "@dentalClinicModule/database/schemas/appointmen
 import {clinicConfigService} from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig.service";
 import {NotificationEventCodes} from "@dentalClinicModule/domain/notifications/notificationEventCodes";
 import {sendPatientMail, patientSmsText, type PatientMessageKind} from "@dentalClinicModule/utilities/emails/sendPatientMail";
-import {portalSlug} from "@coreModule/utilities/marketing/portalCompanies";
+import {companySiteUrl} from "@coreModule/utilities/marketing/portalCompanies";
 
 function formatLocal(date: Date, timeZone: string, languageCode: string): string {
     return new Intl.DateTimeFormat(languageCode, {timeZone, dateStyle: "full", timeStyle: "short"}).format(date);
@@ -40,14 +40,15 @@ export async function notifyPatient(
     await runAfterCommit(ctx.session, async () => {
         const companyId = nestedEntityToRef(appointment.company);
         const [company, config] = await Promise.all([
-            Company.findById(companyId).select("name shopSlug"),
+            Company.findById(companyId).select("name siteSlug"),
             clinicConfigService.findForCompany(companyId, {languageCode: ctx.languageCode}),
         ]);
+        if (!company) return;
         const {snapshot, patient} = appointment;
         const message = {
             kind,
             companyId: String(companyId),
-            companyName: company?.name ?? "",
+            companyName: company.name,
             languageCode: ctx.languageCode,
             email: patient.email,
             fullName: `${patient.firstName} ${patient.lastName}`.trim(),
@@ -57,7 +58,7 @@ export async function notifyPatient(
             location: [snapshot.locationName, snapshot.locationAddress].filter(Boolean).join(", "),
             serviceName: config?.includeServiceInMessages ? snapshot.serviceName : undefined,
             manageToken: manageTokenFor(appointment),
-            portalSlug: appointment.bookedVia === "portal" && company ? portalSlug(company) : undefined,
+            manageUrl: companySiteUrl(company, "/dentists/manage"),
         };
         await sendPatientMail(message);
         if (kind === "reminder" && config?.reminderSms && patient.phone) {

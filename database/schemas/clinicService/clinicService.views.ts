@@ -33,7 +33,7 @@ export const clinicServiceSheetView: ViewConfig = {
             children: [
                 {
                     render: "#DisplayCard",
-                    permissions: {read: "images"},
+                    permissions: {readAny: ["images", "videos"]},
                     field: {
                         name: "images",
                         widget: "#GalleryCarousel",
@@ -41,6 +41,7 @@ export const clinicServiceSheetView: ViewConfig = {
                         widgetProps: {
                             icon: "#IconPhoto",
                             imageGalleryField: "images",
+                            videoGalleryField: "videos",
                             showThumbnails: false,
                             allowFullScreen: false,
                             coverAfterFirst: false,
@@ -235,6 +236,15 @@ const clinicServiceCreateFormNodes: ViewConfig["nodes"] = [
             widget: "#MediaField",
             label: "form.imagesLabel",
             widgetProps: {mediaType: "image", mode: "multiple", maxCount: 8},
+        },
+    },
+    {
+        render: "#Field",
+        field: {
+            name: "videos",
+            widget: "#MediaField",
+            label: "form.videosLabel",
+            widgetProps: {mediaType: "video", mode: "multiple", maxCount: 3},
         },
     },
     {
@@ -442,6 +452,16 @@ const clinicServiceEditFormNodes: ViewConfig["nodes"] = [
             widget: "#MediaField",
             label: "form.imagesLabel",
             widgetProps: {mediaType: "image", mode: "multiple", maxCount: 8},
+        },
+    },
+    {
+        render: "#Field",
+        permissions: {read: "videos", write: "videos"},
+        field: {
+            name: "videos",
+            widget: "#MediaField",
+            label: "form.videosLabel",
+            widgetProps: {mediaType: "video", mode: "multiple", maxCount: 3},
         },
     },
     {
