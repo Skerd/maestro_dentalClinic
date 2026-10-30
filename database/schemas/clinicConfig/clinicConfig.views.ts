@@ -425,6 +425,7 @@ export const clinicConfigEditFormView: ViewConfig = {
                         label: "form.notifyUsersLabel",
                         widgetProps: {
                             apiUrl: "/api/company/users/select",
+                            postBody: {administration: true},
                             method: "POST",
                             placeholderKey: "form.selectUser",
                             removeTooltipKey: "form.removeUser",
@@ -504,6 +505,7 @@ export const clinicConfigEditFormView: ViewConfig = {
                         label: "form.inquiryNotifyUsersLabel",
                         widgetProps: {
                             apiUrl: "/api/company/users/select",
+                            postBody: {administration: true},
                             method: "POST",
                             placeholderKey: "form.selectUser",
                             removeTooltipKey: "form.removeUser",

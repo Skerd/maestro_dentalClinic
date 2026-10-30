@@ -24,6 +24,9 @@ import {
     patientCaseFormSchema,
     patientInquiryFormSchema,
     patientMessageFormSchema,
+    patientMedicalHistoryFormSchema,
+    patientTripDetailsFormSchema,
+    payPlanDepositFormSchema,
 } from "armonia/src/modules/dentalClinic/api/dentalClinic/public/patientPortal/patientPortal.form.validators";
 import type {
     AcceptTreatmentPlanFormType,
@@ -32,11 +35,15 @@ import type {
     PatientCaseFormType,
     PatientInquiryFormType,
     PatientMessageFormType,
+    PatientMedicalHistoryFormType,
+    PatientTripDetailsFormType,
+    PayPlanDepositFormType,
 } from "armonia/src/modules/dentalClinic/api/dentalClinic/public/patientPortal/patientPortal.forms";
 import type {
     PatientCase,
     PatientCaseResponse,
     PatientCasesResponse,
+    PatientDepositPaymentResponse,
     PatientFile,
     PatientInquiry,
     PatientInquiryResponse,
@@ -44,6 +51,9 @@ import type {
     PatientPlansResponse,
     PatientRequestCreatedResponse,
     PatientThreadResponse,
+    PatientTripResponse,
+    PatientTripsResponse,
+    PatientTripView,
     PatientUploadResponse,
     RequestableClinicsResponse,
 } from "armonia/src/modules/dentalClinic/api/dentalClinic/public/patientPortal/patientPortal.response.types";
@@ -54,16 +64,42 @@ import ClinicInquiry, {type IClinicInquiry} from "@dentalClinicModule/database/s
 import ClinicMessage from "@dentalClinicModule/database/schemas/clinicMessage/clinicMessage";
 import {NotificationEventCodes} from "@dentalClinicModule/domain/notifications/notificationEventCodes";
 import {assertTreatments, claimPatientUploads, idsOf, openPatientRequest, requestableClinicIds} from "@dentalClinicModule/utilities/services/inquiryIntake";
-import {attachInquiryFiles, openInfoRequests, shareInquiryContact, withdrawInquiry} from "@dentalClinicModule/utilities/services/inquiryLifecycle";
+import {attachInquiryFiles, openInfoRequests, shareInquiryContact, submitMedicalHistory, withdrawInquiry} from "@dentalClinicModule/utilities/services/inquiryLifecycle";
+import {medicalHistoryToDTO} from "@dentalClinicModule/utilities/mappers/medicalHistory/medicalHistoryMapper.dto";
+import PatientTrip, {type IPatientTrip} from "@dentalClinicModule/database/schemas/patientTrip/patientTrip";
+import {tripsOfInquiries, updateTripDetails} from "@dentalClinicModule/utilities/services/patientTrips";
 import {postInquiryMessage, readThread} from "@dentalClinicModule/utilities/services/inquiryThread";
 import {notifyInquiryStaff, notifyRequestSent} from "@dentalClinicModule/utilities/services/inquiryNotify";
 import TreatmentPlan, {type ITreatmentPlan} from "@dentalClinicModule/database/schemas/treatmentPlan/treatmentPlan";
 import {treatmentPlanToPatient} from "@dentalClinicModule/utilities/mappers/treatmentPlan/treatmentPlanMapper.dto";
 import {acceptPlan} from "@dentalClinicModule/utilities/services/treatmentPlans";
 import {sendTreatmentPlanPdf} from "@dentalClinicModule/utilities/pdf/sendTreatmentPlanPdf";
+import {PAYMENTS} from "@financeModule/environment";
+import {registerPaymentSourceHandler} from "@financeModule/utilities/services/payment/paymentSourceHandlers";
+import {runInTransaction} from "@coreModule/utilities/middlewares/runInTransaction";
+import {failDepositPayment, onlinePaymentAvailable, settleDepositPayment, startDepositPayment} from "@dentalClinicModule/utilities/services/treatmentPlanPayments";
 
 export const basePath = "/api/dentalClinic/patientPortal";
 export const router = Router();
+
+/**
+ * Settles the online deposit when the payment webhook arrives. Each settlement runs in its own
+ * transaction (the webhook has none) and re-reads the plan inside it.
+ */
+registerPaymentSourceHandler(["treatmentPlan"], {
+    async succeeded(intent, {logger, languageCode}) {
+        await runInTransaction(logger, async (session) => {
+            const plan = await TreatmentPlan.findOne({stripePaymentIntentId: intent.id}).session(session);
+            if (plan) await settleDepositPayment(plan, intent, {session, logger, languageCode});
+        });
+    },
+    async failed(intent, {logger, languageCode}) {
+        await runInTransaction(logger, async (session) => {
+            const plan = await TreatmentPlan.findOne({stripePaymentIntentId: intent.id}).session(session);
+            if (plan) await failDepositPayment(plan, intent, {session, logger, languageCode});
+        });
+    },
+});
 
 const MY_CASES_MAX = 30;
 const HOUR = 3600 * 1000;
@@ -135,6 +171,11 @@ async function toPatientInquiries(inquiries: IClinicInquiry[]): Promise<PatientI
 /** One request as sent; every inquiry of a group carries the same request. */
 async function toPatientCase(inquiries: IClinicInquiry[]): Promise<PatientCase> {
     const [first] = inquiries;
+    // The latest questionnaire sent with the request (every clinic of it got the same one).
+    const history = inquiries
+        .map((inquiry) => inquiry.medicalHistory)
+        .filter((entry) => !!entry?.submittedAt)
+        .sort((a, b) => b!.submittedAt.getTime() - a!.submittedAt.getTime())[0];
     return {
         requestGroup: first.requestGroup ?? "",
         treatmentsWanted: [...first.treatmentsWanted],
@@ -143,6 +184,7 @@ async function toPatientCase(inquiries: IClinicInquiry[]): Promise<PatientCase> 
         travelTo: first.travelTo,
         createdAt: dateToISOString(first.createdAt),
         inquiries: await toPatientInquiries(inquiries),
+        medicalHistory: medicalHistoryToDTO(history),
     };
 }
 
@@ -426,6 +468,93 @@ router.post(
     }),
 );
 
+/** A trip as the patient sees it; its plan must be populated with `phases`. */
+function toPatientTrip(trip: IPatientTrip, clinicNames: Map<string, string>): PatientTripView {
+    const clinicId = String(nestedEntityToRef(trip.company));
+    const phases = (trip.plan as unknown as ITreatmentPlan | undefined)?.phases ?? [];
+    return {
+        _id: trip._id.toString(),
+        clinic: {_id: clinicId, name: clinicNames.get(clinicId) ?? ""},
+        phase: trip.phase,
+        phaseTitle: trip.phase ? phases[trip.phase - 1]?.title : undefined,
+        status: trip.status,
+        arrivalAt: dateToISOString(trip.arrivalAt),
+        departureAt: dateToISOString(trip.departureAt),
+        arrivalFlight: trip.arrivalFlight,
+        departureFlight: trip.departureFlight,
+        accommodation: trip.accommodation,
+        transfer: !!trip.transfer,
+    };
+}
+
+async function clinicNamesOf(trips: IPatientTrip[]): Promise<Map<string, string>> {
+    const cards = await portalCompanyCards(idsOf(trips.map((trip) => trip.company)), new Map());
+    return new Map(cards.map((card) => [card._id, card.name]));
+}
+
+/** The stays the chosen clinic planned for one request: dates, flights, hotel and pickup. */
+router.post(
+    "/trips",
+    authMW("public"),
+    rateLimiter({windowMs: 60000, max: 60}),
+    validateFormZod(patientCaseFormSchema),
+    publicChatCustomerMW(),
+    asyncHandler(async (params: PortalParams<PatientCaseFormType>): Promise<PatientTripsResponse> => {
+        const user = await requirePortalAccount(params.customer, params.origin, params.languageCode);
+        const inquiries = await ClinicInquiry.find({account: user._id, requestGroup: params.requestGroup, deletedAt: null}).select("_id");
+        const trips = await tripsOfInquiries(inquiries.map((inquiry) => inquiry._id), {});
+        const names = await clinicNamesOf(trips);
+        return {data: trips.map((trip) => toPatientTrip(trip, names))};
+    }),
+);
+
+/** The patient adds their flights and where they stay to a coming trip. */
+router.post(
+    "/tripDetails",
+    authMW("public"),
+    rateLimiter({windowMs: 60000, max: 20, failClosed: true}),
+    transactionHandler(),
+    validateFormZod(patientTripDetailsFormSchema),
+    publicChatCustomerMW(),
+    asyncHandler(async (params: TransactionRequiredParams & PortalParams<PatientTripDetailsFormType>): Promise<PatientTripResponse> => {
+        const {origin, languageCode, session, logger} = params;
+        const user = await requirePortalAccount(params.customer, origin, languageCode);
+        const trip = ObjectId.isValid(params.trip) ? await PatientTrip.findOne({_id: new ObjectId(params.trip), deletedAt: null}).session(session) : null;
+        const plan = trip?.plan ? await TreatmentPlan.findById(nestedEntityToRef(trip.plan)).select("inquiry").session(session) : null;
+        const own = plan && await ClinicInquiry.exists({_id: nestedEntityToRef(plan.inquiry), account: user._id, deletedAt: null}).session(session);
+        if (!trip || !own) throw apiValidationException("patient_trip_not_found", "", null, languageCode);
+        await updateTripDetails(
+            trip,
+            {arrivalFlight: params.arrivalFlight, departureFlight: params.departureFlight, accommodation: params.accommodation},
+            {session, logger, languageCode, auditUserId: user._id},
+        );
+        await trip.populate({path: "plan", select: "phases inquiry"});
+        return {data: toPatientTrip(trip, await clinicNamesOf([trip]))};
+    }),
+);
+
+/** The patient's signed medical history for one request, for every clinic of it. */
+router.post(
+    "/medicalHistory",
+    authMW("public"),
+    rateLimiter({windowMs: 60000, max: 10, failClosed: true}),
+    transactionHandler(),
+    validateFormZod(patientMedicalHistoryFormSchema),
+    publicChatCustomerMW(),
+    asyncHandler(async (params: TransactionRequiredParams & PortalParams<PatientMedicalHistoryFormType>): Promise<PatientCaseResponse> => {
+        const {origin, languageCode, session, logger} = params;
+        const user = await requirePortalAccount(params.customer, origin, languageCode);
+        const inquiries = await ClinicInquiry.find({account: user._id, requestGroup: params.requestGroup, deletedAt: null}).sort({createdAt: 1}).session(session);
+        if (!inquiries.length) throw apiValidationException("inquiry_not_found", "", null, languageCode);
+        await submitMedicalHistory(
+            inquiries,
+            {userId: user._id, answers: params.answers, medications: params.medications, signedName: params.signedName},
+            {session, logger, languageCode, auditUserId: user._id},
+        );
+        return {data: await toPatientCase(inquiries)};
+    }),
+);
+
 /**
  * A file of one of the patient's own requests: one they uploaded, or one a clinic attached
  * to a message to them. Sent with the portal login token.
@@ -487,7 +616,25 @@ router.post(
                 const clinicId = String(nestedEntityToRef(plan.company));
                 return treatmentPlanToPatient(plan, {_id: clinicId, name: names.get(clinicId) ?? ""});
             }),
+            onlinePayment: onlinePaymentAvailable(),
         };
+    }),
+);
+
+/** Starts the card payment of an accepted plan's deposit; the webhook records it once paid. */
+router.post(
+    "/payDeposit",
+    authMW("public"),
+    rateLimiter({windowMs: 60000, max: 10, failClosed: true}),
+    transactionHandler(),
+    validateFormZod(payPlanDepositFormSchema),
+    publicChatCustomerMW(),
+    asyncHandler(async (params: TransactionRequiredParams & PortalParams<PayPlanDepositFormType>): Promise<PatientDepositPaymentResponse> => {
+        const {origin, languageCode, session, logger} = params;
+        const user = await requirePortalAccount(params.customer, origin, languageCode);
+        const plan = await loadOwnPlan(user._id, params.plan, languageCode, session);
+        const {clientSecret, amount} = await startDepositPayment(plan, {session, logger, languageCode, auditUserId: user._id});
+        return {data: {clientSecret, publishableKey: PAYMENTS.STRIPE_PUBLISHABLE_KEY, amount}};
     }),
 );
 

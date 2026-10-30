@@ -13,10 +13,12 @@ import {validateSchemaDefAgainstMongoose} from "@coreModule/database/utilities/v
 import {
     DEPOSIT_TYPES,
     TREATMENT_PLAN_LINE_KINDS,
+    TREATMENT_PLAN_PAYMENT_STATUSES,
     TREATMENT_PLAN_STATUSES,
     TREATMENT_PLAN_TEXT_MAX,
     type DepositType,
     type TreatmentPlanLineKind,
+    type TreatmentPlanPaymentStatus,
     type TreatmentPlanStatus,
 } from "armonia/src/modules/dentalClinic/constants";
 import {
@@ -86,6 +88,11 @@ export interface ITreatmentPlan extends Document, IOwnershipPluginFields, ISoftD
     sentAt?: Date;
     /** The patient's signature: their typed name, when, from where, and a hash of what they accepted. */
     acceptance?: {name: string; at: Date; ip?: string; userAgent?: string; contentHash: string};
+    /** Follows from the payments; set by the payment service only. */
+    paymentStatus: TreatmentPlanPaymentStatus;
+    amountPaid: number;
+    /** The open online deposit payment the webhook settles. */
+    stripePaymentIntentId?: string;
     timeline: {event: TreatmentPlanTimelineEvent; at: Date; by?: Types.ObjectId; note?: string}[];
 }
 
@@ -191,6 +198,21 @@ const TreatmentPlanSchema = new Schema<ITreatmentPlan>(
             permissions: NoWritePermission,
             dynamicTableConfiguration: {filterable: false, sortable: false, hideColumn: true},
         },
+        paymentStatus: {
+            type: SchemaTypes.String,
+            enum: TREATMENT_PLAN_PAYMENT_STATUSES,
+            required: true,
+            default: "unpaid",
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {
+                enumTones: {
+                    unpaid: "neutral", pending: "info", failed: "danger", deposit_paid: "info", paid: "success", partially_refunded: "warning", refunded: "neutral",
+                },
+            },
+        },
+        // Writable by permission only: recording a payment or a refund gates on write:amountPaid.
+        amountPaid: {type: SchemaTypes.Number, default: 0},
+        stripePaymentIntentId: {type: SchemaTypes.String, permissions: NoWritePermission, dynamicTableConfiguration: {hideColumn: true}},
         timeline: {
             type: [{
                 _id: false,
@@ -217,5 +239,5 @@ normalizeSchemaPermissions(TreatmentPlan);
 export default TreatmentPlan;
 
 addModelData(TreatmentPlan, treatmentPlanViews);
-// Status and totals are set by the server (actions, computed from the lines), never by the form.
-validateSchemaDefAgainstMongoose(TreatmentPlanSchema, TreatmentPlanSchemaDef, "TreatmentPlan", ["status", "totals"]);
+// Status, totals and payment status are set by the server (actions, the lines, the payments), never by the form.
+validateSchemaDefAgainstMongoose(TreatmentPlanSchema, TreatmentPlanSchemaDef, "TreatmentPlan", ["status", "totals", "paymentStatus"]);

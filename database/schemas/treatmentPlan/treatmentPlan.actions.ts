@@ -6,17 +6,23 @@ import type {TransactionRequiredParams} from "@coreModule/utilities/middlewares/
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {validateSingleForm} from "armonia/src/modules/core/utilities/zod/shared.validator";
 import type {TreatmentPlan as TreatmentPlanDto} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/treatmentPlan/treatmentPlan.dto";
+import {recordPlanPaymentFormSchema, refundPlanPaymentFormSchema} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/treatmentPlan/treatmentPlan.form.validators";
+import type {RecordPlanPaymentFormType, RefundPlanPaymentFormType} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/treatmentPlan/treatmentPlan.schema-def";
 import TreatmentPlan, {type ITreatmentPlan} from "./treatmentPlan";
 import {treatmentPlanToDTO} from "@dentalClinicModule/utilities/mappers/treatmentPlan/treatmentPlanMapper.dto";
 import {revisePlan, sendPlan} from "@dentalClinicModule/utilities/services/treatmentPlans";
+import {recordClinicPayment, refundPlanPayments} from "@dentalClinicModule/utilities/services/treatmentPlanPayments";
 
 type ActionParams<F> = TransactionRequiredParams & F;
 
-/** Plan actions need write access to the plan's `status`, like the inquiry actions. */
-async function loadPlan(params: TransactionRequiredParams & {_id: string}): Promise<ITreatmentPlan> {
+/**
+ * Plan actions need write access to one field: the plan's `status` for the quote actions (like the
+ * inquiry actions), `amountPaid` for the payment ones.
+ */
+async function loadPlan(params: TransactionRequiredParams & {_id: string}, gate: "status" | "amountPaid" = "status"): Promise<ITreatmentPlan> {
     const {_id, company, session, languageCode, actionUserCtx} = params;
     const writeFields = SchemaGuard.sanitizeFields(TreatmentPlan, getModelCollectedData("treatmentplans").writeFields!, "write", actionUserCtx, languageCode);
-    if (!writeFields.status) throw apiValidationException("user_permissions_not_sufficient", "", null, languageCode);
+    if (!writeFields[gate]) throw apiValidationException("user_permissions_not_sufficient", "", null, languageCode);
     const plan = ObjectId.isValid(_id)
         ? await TreatmentPlan.findOne({_id: new ObjectId(_id), company: company._id, deletedAt: null}).session(session)
         : null;
@@ -51,5 +57,21 @@ export class TreatmentPlanActions {
         const plan = await loadPlan(params);
         const revision = await revisePlan(plan, {userId: params.actionUserCtx.userId}, ctxOf(params));
         return toDto(revision, params);
+    }
+
+    /** Money the clinic took itself (cash, card terminal, transfer), up to what is still due. */
+    @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 30}, schema: recordPlanPaymentFormSchema})
+    async recordPayment(params: ActionParams<RecordPlanPaymentFormType>): Promise<TreatmentPlanDto> {
+        const plan = await loadPlan(params, "amountPaid");
+        await recordClinicPayment(plan, {amount: params.amount, note: params.note, by: new ObjectId(params.actionUserCtx.userId)}, ctxOf(params));
+        return toDto(plan, params);
+    }
+
+    /** Gives back up to the amount asked: online charges through the gateway, the rest by hand. */
+    @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 10}, schema: refundPlanPaymentFormSchema})
+    async refund(params: ActionParams<RefundPlanPaymentFormType>): Promise<TreatmentPlanDto> {
+        const plan = await loadPlan(params, "amountPaid");
+        await refundPlanPayments(plan, {amount: params.amount, reason: params.reason, by: new ObjectId(params.actionUserCtx.userId)}, ctxOf(params));
+        return toDto(plan, params);
     }
 }

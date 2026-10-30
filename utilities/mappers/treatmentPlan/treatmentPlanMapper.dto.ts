@@ -14,6 +14,7 @@ import {PatientSimpleSnippet} from "@dentalClinicModule/database/schemas/patient
 import {TreatmentPlanSimpleSnippet} from "@dentalClinicModule/database/schemas/treatmentPlan/treatmentPlan.snippets";
 import {mapLifeCycleToDTO, mapOwnershipToDTO, mapSoftDeleteToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
 import {lineTotal} from "@dentalClinicModule/utilities/services/treatmentPlans";
+import {amountDue, depositDue} from "@dentalClinicModule/utilities/services/treatmentPlanPayments";
 
 // Subdocuments are copied field by field: spreading one would copy Mongoose's internal state.
 function phasesToDTO(plan: ITreatmentPlan): TreatmentPlanPhase[] {
@@ -64,6 +65,9 @@ export function treatmentPlanToDTO(plan: ITreatmentPlan): TreatmentPlan {
         terms: plan.terms,
         sentAt: plan.sentAt ? dateToISOString(plan.sentAt) : undefined,
         acceptance: plan.acceptance ? {name: plan.acceptance.name, at: dateToISOString(plan.acceptance.at)} : undefined,
+        paymentStatus: plan.paymentStatus ?? "unpaid",
+        amountPaid: plan.amountPaid ?? 0,
+        amountDue: amountDue(plan),
         timeline: (plan.timeline ?? []).map(({event, at, note}) => ({event, at: dateToISOString(at), note})),
         ...mapSoftDeleteToDTO(plan),
         ...mapOwnershipToDTO(plan),
@@ -96,5 +100,8 @@ export function treatmentPlanToPatient(plan: ITreatmentPlan, clinic: {_id: strin
         terms: plan.terms,
         sentAt: plan.sentAt ? dateToISOString(plan.sentAt) : undefined,
         acceptedAt: plan.acceptance ? dateToISOString(plan.acceptance.at) : undefined,
+        paymentStatus: plan.paymentStatus ?? "unpaid",
+        amountPaid: plan.amountPaid ?? 0,
+        depositDue: depositDue(plan),
     };
 }

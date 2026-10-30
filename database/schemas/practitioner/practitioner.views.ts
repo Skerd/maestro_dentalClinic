@@ -281,6 +281,7 @@ const practitionerCreateFormNodes: ViewConfig["nodes"] = [
                     placeholder: "form.staffUserPlaceholder",
                     widgetProps: {
                         apiUrl: "/api/company/users/select",
+                        postBody: {administration: true},
                         method: "POST",
                         pageSize: 50,
                     },
@@ -538,6 +539,7 @@ const practitionerEditFormNodes: ViewConfig["nodes"] = [
                     placeholder: "form.staffUserPlaceholder",
                     widgetProps: {
                         apiUrl: "/api/company/users/select",
+                        postBody: {administration: true},
                         method: "POST",
                         pageSize: 50,
                     },

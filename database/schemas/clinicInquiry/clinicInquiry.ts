@@ -35,6 +35,7 @@ import type {IPatient} from "../patient/patient";
 import {PatientSimpleSnippet} from "../patient/patient.snippets";
 import {applyClinicInquiryIndexes} from "./clinicInquiry.indexes";
 import {clinicInquiryViews} from "./clinicInquiry.views";
+import {medicalHistoryField, type IMedicalHistory} from "../shared/medicalHistory";
 
 /** Server-managed: written by intake, the lifecycle actions and the message thread only. */
 const NoWritePermission = {self: {write: "no-permission"}, others: {write: "no-permission"}};
@@ -72,6 +73,7 @@ export interface IClinicInquiry extends Document, IOwnershipPluginFields, ISoftD
     budgetCurrency?: ICurrency | Types.ObjectId;
     files: IMedia[];
     infoRequests: {kind: InfoRequestKind; note?: string; requestedAt: Date; requestedBy?: Types.ObjectId; fulfilledAt?: Date}[];
+    medicalHistory?: IMedicalHistory;
     assignedTo?: IUser;
     /** The folder opened from this inquiry. */
     patient?: IPatient;
@@ -175,6 +177,7 @@ const ClinicInquirySchema = new Schema<IClinicInquiry>(
             permissions: NoWritePermission,
             dynamicTableConfiguration: {filterable: false, sortable: false, hideColumn: true},
         },
+        medicalHistory: medicalHistoryField,
         assignedTo: {
             type: SchemaTypes.ObjectId,
             ref: "User",

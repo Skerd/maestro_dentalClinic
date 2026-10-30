@@ -78,5 +78,15 @@
   "subjectPlanAccepted": "Devis accepté — {companyName} ({number})",
   "preheaderPlanAccepted": "Le cabinet vous contactera pour organiser votre visite.",
   "introPlanAccepted": "Merci. Vous avez accepté le devis de {companyName}, qui dispose maintenant de vos coordonnées et vous contactera pour organiser votre visite.",
-  "closingPlanAccepted": "Vos autres cabinets ont été informés que vous en avez choisi un autre."
+  "closingPlanAccepted": "Vos autres cabinets ont été informés que vous en avez choisi un autre.",
+  "headingDepositPaid": "Acompte reçu",
+  "subjectDepositPaid": "Acompte reçu — {companyName} ({number})",
+  "preheaderDepositPaid": "Votre acompte a été payé.",
+  "introDepositPaid": "{companyName} a bien reçu votre acompte.",
+  "closingDepositPaid": "Le reste à payer figure dans votre demande sur le portail ; il se règle à la clinique.",
+  "headingTripPlanned": "Votre visite est planifiée",
+  "subjectTripPlanned": "Visite planifiée — {companyName} ({number})",
+  "preheaderTripPlanned": "La clinique a fixé les dates de votre séjour.",
+  "introTripPlanned": "{companyName} a fixé les dates de votre séjour.",
+  "closingTripPlanned": "Ouvrez votre demande pour voir les dates et ajouter vos vols et votre hébergement."
 }

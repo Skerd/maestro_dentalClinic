@@ -78,5 +78,15 @@
   "subjectPlanAccepted": "Kostenvoranschlag angenommen — {companyName} ({number})",
   "preheaderPlanAccepted": "Die Praxis meldet sich, um Ihren Besuch zu planen.",
   "introPlanAccepted": "Vielen Dank. Sie haben den Kostenvoranschlag von {companyName} angenommen. Die Praxis hat nun Ihre Kontaktdaten und meldet sich, um Ihren Besuch zu planen.",
-  "closingPlanAccepted": "Ihre anderen Praxen wurden informiert, dass Sie eine andere Praxis gewählt haben."
+  "closingPlanAccepted": "Ihre anderen Praxen wurden informiert, dass Sie eine andere Praxis gewählt haben.",
+  "headingDepositPaid": "Anzahlung erhalten",
+  "subjectDepositPaid": "Anzahlung erhalten — {companyName} ({number})",
+  "preheaderDepositPaid": "Ihre Anzahlung ist bezahlt.",
+  "introDepositPaid": "{companyName} hat Ihre Anzahlung erhalten.",
+  "closingDepositPaid": "Was noch offen ist, sehen Sie in Ihrer Anfrage im Portal; der Rest wird in der Klinik bezahlt.",
+  "headingTripPlanned": "Ihr Besuch ist geplant",
+  "subjectTripPlanned": "Besuch geplant — {companyName} ({number})",
+  "preheaderTripPlanned": "Die Klinik hat die Daten Ihres Aufenthalts festgelegt.",
+  "introTripPlanned": "{companyName} hat die Daten Ihres Aufenthalts festgelegt.",
+  "closingTripPlanned": "Öffnen Sie Ihre Anfrage, um die Daten zu sehen und Ihre Flüge und Unterkunft einzutragen."
 }

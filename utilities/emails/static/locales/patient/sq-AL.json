@@ -78,5 +78,15 @@
   "subjectPlanAccepted": "Oferta u pranua — {companyName} ({number})",
   "preheaderPlanAccepted": "Klinika do t'ju kontaktojë për të planifikuar vizitën.",
   "introPlanAccepted": "Faleminderit. Pranuat ofertën e {companyName}, e cila tani ka kontaktet tuaja dhe do t'ju kontaktojë për të planifikuar vizitën.",
-  "closingPlanAccepted": "Klinikat e tjera u njoftuan se zgjodhët një klinikë tjetër."
+  "closingPlanAccepted": "Klinikat e tjera u njoftuan se zgjodhët një klinikë tjetër.",
+  "headingDepositPaid": "Paradhënia u mor",
+  "subjectDepositPaid": "Paradhënia u mor — {companyName} ({number})",
+  "preheaderDepositPaid": "Paradhënia juaj u pagua.",
+  "introDepositPaid": "{companyName} e ka marrë paradhënien tuaj.",
+  "closingDepositPaid": "Sa ka mbetur për të paguar e shihni te kërkesa juaj në portal; pjesa tjetër paguhet në klinikë.",
+  "headingTripPlanned": "Vizita juaj është planifikuar",
+  "subjectTripPlanned": "Vizita u planifikua — {companyName} ({number})",
+  "preheaderTripPlanned": "Klinika caktoi datat e qëndrimit tuaj.",
+  "introTripPlanned": "{companyName} caktoi datat e qëndrimit tuaj.",
+  "closingTripPlanned": "Hapni kërkesën tuaj për të parë datat dhe për të shtuar fluturimet dhe vendin ku do të qëndroni."
 }

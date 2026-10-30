@@ -532,6 +532,7 @@ export const appointmentCreateFormView: ViewConfig = {
                                 placeholder: "form.customerPlaceholder",
                                 widgetProps: {
                                     apiUrl: "/api/company/users/select",
+                                    postBody: {administration: false},
                                     method: "POST",
                                     pageSize: 50,
                                     normalizeEmptyToUndefined: true,

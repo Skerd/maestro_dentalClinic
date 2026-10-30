@@ -498,6 +498,7 @@ const clinicInquiryCreateFormNodes: ViewConfig["nodes"] = [
             placeholder: "form.assignedToPlaceholder",
             widgetProps: {
                 apiUrl: "/api/company/users/select",
+                postBody: {administration: true},
                 method: "POST",
                 pageSize: 50,
                 normalizeEmptyToUndefined: true,

@@ -78,5 +78,15 @@
   "subjectPlanAccepted": "Preventivo accettato — {companyName} ({number})",
   "preheaderPlanAccepted": "La clinica ti contatterà per organizzare la visita.",
   "introPlanAccepted": "Grazie. Hai accettato il preventivo di {companyName}, che ora ha i tuoi contatti e ti contatterà per organizzare la visita.",
-  "closingPlanAccepted": "Le altre cliniche sono state informate che hai scelto un'altra clinica."
+  "closingPlanAccepted": "Le altre cliniche sono state informate che hai scelto un'altra clinica.",
+  "headingDepositPaid": "Acconto ricevuto",
+  "subjectDepositPaid": "Acconto ricevuto — {companyName} ({number})",
+  "preheaderDepositPaid": "Il tuo acconto è stato pagato.",
+  "introDepositPaid": "{companyName} ha ricevuto il tuo acconto.",
+  "closingDepositPaid": "Nella tua richiesta sul portale vedi quanto resta da pagare; il saldo si paga in clinica.",
+  "headingTripPlanned": "La tua visita è pianificata",
+  "subjectTripPlanned": "Visita pianificata — {companyName} ({number})",
+  "preheaderTripPlanned": "La clinica ha fissato le date del tuo soggiorno.",
+  "introTripPlanned": "{companyName} ha fissato le date del tuo soggiorno.",
+  "closingTripPlanned": "Apri la tua richiesta per vedere le date e aggiungere i voli e dove alloggerai."
 }

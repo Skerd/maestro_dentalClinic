@@ -78,5 +78,15 @@
   "subjectPlanAccepted": "Quote accepted — {companyName} ({number})",
   "preheaderPlanAccepted": "The clinic will contact you to plan your visit.",
   "introPlanAccepted": "Thank you. You accepted the quote from {companyName}, which now has your contact details and will contact you to plan your visit.",
-  "closingPlanAccepted": "Your other clinics have been told you chose another clinic."
+  "closingPlanAccepted": "Your other clinics have been told you chose another clinic.",
+  "headingDepositPaid": "Deposit received",
+  "subjectDepositPaid": "Deposit received — {companyName} ({number})",
+  "preheaderDepositPaid": "Your deposit was paid.",
+  "introDepositPaid": "{companyName} has received your deposit.",
+  "closingDepositPaid": "You can see what is left to pay, and pay it at the clinic, in your case on the portal.",
+  "headingTripPlanned": "Your visit is planned",
+  "subjectTripPlanned": "Your visit is planned — {companyName} ({number})",
+  "preheaderTripPlanned": "Your clinic set the dates of your stay.",
+  "introTripPlanned": "{companyName} has planned the dates of your stay.",
+  "closingTripPlanned": "Open your case to see the dates and add your flights and where you will stay."
 }

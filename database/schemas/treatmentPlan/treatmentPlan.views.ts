@@ -154,6 +154,33 @@ export const treatmentPlanSheetView: ViewConfig = {
                                 },
                             },
                         },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "paymentStatus"},
+                            field: {
+                                name: "paymentStatus",
+                                widget: "#DisplayCard",
+                                label: "paymentStatus",
+                                widgetProps: {
+                                    icon: "#IconCreditCard",
+                                    type: "enum",
+                                    languageKeyCategory: "paymentStatusValues",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "amountPaid"},
+                            field: {
+                                name: "amountPaid",
+                                widget: "#DisplayCard",
+                                label: "amountPaid",
+                                widgetProps: {
+                                    icon: "#IconReceipt",
+                                    type: "number",
+                                },
+                            },
+                        },
                     ],
                 },
             ],

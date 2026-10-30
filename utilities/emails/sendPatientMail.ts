@@ -109,7 +109,7 @@ export function patientSmsText(data: PatientMessage): string {
     });
 }
 
-export type InquiryMessageKind = "requestSent" | "infoRequested" | "clinicMessage" | "declined" | "quoteReceived" | "planAccepted";
+export type InquiryMessageKind = "requestSent" | "infoRequested" | "clinicMessage" | "declined" | "quoteReceived" | "planAccepted" | "depositPaid" | "tripPlanned";
 
 /** Copy suffix per kind: `subject{X}`, `heading{X}`, `preheader{X}`, `intro{X}`, `closing{X}`. */
 const INQUIRY_KIND_SUFFIX: Record<InquiryMessageKind, string> = {
@@ -119,6 +119,8 @@ const INQUIRY_KIND_SUFFIX: Record<InquiryMessageKind, string> = {
     declined: "Declined",
     quoteReceived: "QuoteReceived",
     planAccepted: "PlanAccepted",
+    depositPaid: "DepositPaid",
+    tripPlanned: "TripPlanned",
 };
 
 export type InquiryMessage = {

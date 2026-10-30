@@ -7,8 +7,7 @@ import {patientService} from "@dentalClinicModule/database/schemas/patient/patie
 import Company from "@coreModule/database/schemas/company/company";
 import Role from "@coreModule/database/schemas/role/role";
 import User from "@coreModule/database/schemas/user/user";
-import {defaultRoleSlug} from "@coreModule/database/schemas/role/role.defaults";
-import {clinicPatientRole} from "@dentalClinicModule/database/schemas/role/dentalClinic.role.defaults";
+import {copyMedicalHistory, type IMedicalHistory} from "@dentalClinicModule/database/schemas/shared/medicalHistory";
 import type {ClinicCtx} from "./appointmentBooking";
 
 /** Case-insensitive match on names, so "rossi" and "Rossi" are the same person. */
@@ -89,18 +88,17 @@ export async function findOrCreatePatient(
 }
 
 /**
- * Makes the account a member of the clinic with the Patient role, once it is tied to a patient
- * folder there. Someone already in the company (any role) is left as they are. A clinic created
- * before the role existed gets its default roles brought up to date first.
+ * Makes the account a member of the clinic with its signup role (Web Client), once it is tied to
+ * a patient folder there: a customer, so it stays off the staff lists and pickers. Someone
+ * already in the company (any role) is left as they are.
  */
 export async function ensurePatientMembership(companyId: ObjectId, accountId: ObjectId, ctx: ClinicCtx): Promise<void> {
     const company = await Company.findById(companyId).session(ctx.session);
     if (!company) return;
-    const slug = defaultRoleSlug(company.name, clinicPatientRole);
-    let role = await Role.findOne({company: companyId, slug}).select("_id").session(ctx.session);
+    let role = await Role.findOne({company: companyId, isSignupDefault: true}).select("_id").session(ctx.session);
     if (!role) {
         await company.createDefaultRoles(ctx.logger, ctx.session);
-        role = await Role.findOne({company: companyId, slug}).select("_id").session(ctx.session);
+        role = await Role.findOne({company: companyId, isSignupDefault: true}).select("_id").session(ctx.session);
     }
     if (!role) return;
     await User.updateOne(
@@ -130,4 +128,12 @@ export async function loadPatientOrThrow(companyId: ObjectId, patientId: string,
     const patient = await Patient.findOne({_id: new ObjectId(patientId), company: companyId, deletedAt: null}).session(ctx.session);
     if (!patient) throw apiValidationException("patient_not_found", "", null, ctx.languageCode);
     return patient;
+}
+
+/** Keeps the patient's latest questionnaire in their folder; an older one never replaces a newer one. */
+export async function keepMedicalHistory(patient: IPatient, history: IMedicalHistory | undefined, ctx: ClinicCtx): Promise<void> {
+    if (!history) return;
+    if (patient.medicalHistory && patient.medicalHistory.submittedAt >= history.submittedAt) return;
+    patient.set("medicalHistory", copyMedicalHistory(history));
+    await patient.save({session: ctx.session});
 }

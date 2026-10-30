@@ -4,8 +4,12 @@ import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {
     INFO_REQUEST_KINDS,
     INQUIRY_OPEN_STATUSES,
+    MEDICAL_HISTORY_QUESTIONS,
+    MEDICAL_HISTORY_VERSION,
     type InfoRequestKind,
     type InquiryStatus,
+    type MedicalHistoryAnswer,
+    type MedicalHistoryQuestion,
 } from "armonia/src/modules/dentalClinic/constants";
 import type {InquiryTimelineEvent} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicInquiry/clinicInquiry.dto";
 import type {IClinicInquiry} from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry";
@@ -13,7 +17,9 @@ import {NotificationEventCodes} from "@dentalClinicModule/domain/notifications/n
 import type {ClinicCtx} from "./appointmentBooking";
 import {claimPatientUploads, idsOf, inquiryCompanyId, shareFiles, unshareFiles} from "./inquiryIntake";
 import {notifyInquiryPatient, notifyInquiryStaff} from "./inquiryNotify";
-import {findOrCreatePatient} from "./patientRecords";
+import {findOrCreatePatient, keepMedicalHistory} from "./patientRecords";
+import Patient from "@dentalClinicModule/database/schemas/patient/patient";
+import type {IMedicalHistory} from "@dentalClinicModule/database/schemas/shared/medicalHistory";
 
 type Actor = {userId?: string | ObjectId; now?: Date};
 
@@ -177,9 +183,67 @@ export async function convertInquiry(inquiry: IClinicInquiry, actor: Actor, ctx:
         },
         ctx,
     );
+    await keepMedicalHistory(patient, inquiry.medicalHistory, ctx);
     inquiry.set("patient", patient._id);
     inquiry.status = "converted";
     inquiry.closedAt = record(inquiry, "converted", actor);
     markResponded(inquiry, inquiry.closedAt);
     await inquiry.save({session: ctx.session});
+}
+
+/**
+ * The patient's signed questionnaire for one request: every question answered once. It goes to
+ * each clinic still working the request (answering what they asked for), and to the folder of
+ * the clinic they already chose.
+ */
+export async function submitMedicalHistory(
+    inquiries: IClinicInquiry[],
+    input: Actor & {
+        answers: {question: string; answer: string; detail?: string}[];
+        medications?: string;
+        signedName: string;
+    },
+    ctx: ClinicCtx,
+): Promise<IMedicalHistory> {
+    const questions = new Set(input.answers.map((row) => row.question));
+    if (questions.size !== MEDICAL_HISTORY_QUESTIONS.length || MEDICAL_HISTORY_QUESTIONS.some((question) => !questions.has(question))) {
+        throw apiValidationException("medical_history_incomplete", "", null, ctx.languageCode);
+    }
+    const now = input.now ?? new Date();
+    const history: IMedicalHistory = {
+        version: MEDICAL_HISTORY_VERSION,
+        // In the questionnaire's order; a detail only where the answer is not "no".
+        answers: MEDICAL_HISTORY_QUESTIONS.map((question) => {
+            const row = input.answers.find((candidate) => candidate.question === question)!;
+            const detail = row.answer !== "no" ? row.detail?.trim() : undefined;
+            return {question: question as MedicalHistoryQuestion, answer: row.answer as MedicalHistoryAnswer, ...(detail ? {detail} : {})};
+        }),
+        ...(input.medications?.trim() ? {medications: input.medications.trim()} : {}),
+        signedName: input.signedName.trim(),
+        submittedAt: now,
+    };
+
+    const open = inquiries.filter(isOpenInquiry);
+    const chosen = inquiries.filter((inquiry) => inquiry.status === "converted" && inquiry.patient);
+    if (!open.length && !chosen.length) throw apiValidationException("inquiry_invalid_status", "", null, ctx.languageCode);
+    for (const inquiry of open) {
+        inquiry.set("medicalHistory", history);
+        const at = record(inquiry, "medical_history", {...input, now});
+        for (const request of inquiry.infoRequests) {
+            if (!request.fulfilledAt && request.kind === "medical_history") request.fulfilledAt = at;
+        }
+        if (inquiry.status === "info_requested" && !openInfoRequests(inquiry).length) inquiry.status = "in_review";
+        inquiry.unreadForClinic += 1;
+        await inquiry.save({session: ctx.session});
+        await notifyInquiryStaff(NotificationEventCodes.INQUIRY_MEDICAL_HISTORY, inquiry, ctx);
+    }
+    for (const inquiry of chosen) {
+        const patient = await Patient.findOne({_id: nestedEntityToRef(inquiry.patient), deletedAt: null}).session(ctx.session);
+        if (patient) await keepMedicalHistory(patient, history, ctx);
+        inquiry.set("medicalHistory", history);
+        record(inquiry, "medical_history", {...input, now});
+        await inquiry.save({session: ctx.session});
+        await notifyInquiryStaff(NotificationEventCodes.INQUIRY_MEDICAL_HISTORY, inquiry, ctx);
+    }
+    return history;
 }

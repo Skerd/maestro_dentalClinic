@@ -27,6 +27,7 @@ import {
 } from "armonia/src/modules/dentalClinic/api/dentalClinic/private/patient/patient.schema-def";
 import {applyPatientIndexes} from "./patient.indexes";
 import {patientViews} from "./patient.views";
+import {medicalHistoryField, type IMedicalHistory} from "../shared/medicalHistory";
 
 /** Server-managed: set when the folder is opened, never through the form. */
 const NoWritePermission = {self: {write: "no-permission"}, others: {write: "no-permission"}};
@@ -52,6 +53,7 @@ export interface IPatient extends Document, IOwnershipPluginFields, ISoftDeleteP
     notes?: string;
     /** The patient's own portal (or clinic-site) account. One folder per account per clinic. */
     account?: IUser;
+    medicalHistory?: IMedicalHistory;
 }
 
 const PatientSchema = new Schema<IPatient>(
@@ -113,6 +115,7 @@ const PatientSchema = new Schema<IPatient>(
             permissions: NoWritePermission,
             dynamicTableConfiguration: {hideColumn: true, refDisplayKey: ["name", "surname"]},
         },
+        medicalHistory: medicalHistoryField,
     },
     {accessMode: "loose"},
 );

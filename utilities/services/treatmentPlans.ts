@@ -18,7 +18,7 @@ import type {ClinicCtx} from "./appointmentBooking";
 import {idsOf, inquiryCompanyId, unshareFiles} from "./inquiryIntake";
 import {isOpenInquiry, markResponded} from "./inquiryLifecycle";
 import {notifyInquiryPatient, notifyInquiryStaff} from "./inquiryNotify";
-import {findOrCreatePatient} from "./patientRecords";
+import {findOrCreatePatient, keepMedicalHistory} from "./patientRecords";
 
 const DAY = 24 * 3600 * 1000;
 const UTC = "UTC";
@@ -288,6 +288,7 @@ export async function acceptPlan(
         },
         ctx,
     );
+    await keepMedicalHistory(patient, inquiry.medicalHistory, ctx);
     plan.set("patient", patient._id);
     await plan.save({session: ctx.session});
 

@@ -7,4 +7,6 @@ export function applyTreatmentPlanIndexes(schema: Schema): void {
     schema.index({company: 1, patient: 1, createdAt: -1});
     // Sent quotes past their date, for the expiry job.
     schema.index({status: 1, validUntil: 1});
+    // The payment webhook finds the plan by its open deposit payment.
+    schema.index({stripePaymentIntentId: 1}, {sparse: true});
 }

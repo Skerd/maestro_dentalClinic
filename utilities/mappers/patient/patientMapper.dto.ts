@@ -6,6 +6,7 @@ import {mapSnippet} from "@coreModule/utilities/mappers/common.mapper";
 import {CountrySimpleSnippet} from "@coreModule/database/schemas/country/country.snippets";
 import {SimpleBlankUserSnippet} from "@coreModule/database/schemas/user/user.snippets";
 import {mapLifeCycleToDTO, mapOwnershipToDTO, mapSoftDeleteToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
+import {medicalHistoryToDTO} from "@dentalClinicModule/utilities/mappers/medicalHistory/medicalHistoryMapper.dto";
 
 export function patientToDTO(patient: IPatient): Patient {
     return {
@@ -40,6 +41,7 @@ export function patientToDTO(patient: IPatient): Patient {
         tags: patient.tags ?? [],
         notes: patient.notes,
         account: mapSnippet<SimpleBlankUser>()(patient.account, SimpleBlankUserSnippet),
+        medicalHistory: medicalHistoryToDTO(patient.medicalHistory),
         ...mapSoftDeleteToDTO(patient),
         ...mapOwnershipToDTO(patient),
         ...mapLifeCycleToDTO(patient),
