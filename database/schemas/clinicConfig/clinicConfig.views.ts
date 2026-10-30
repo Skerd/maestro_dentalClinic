@@ -25,7 +25,11 @@ const profileLocaleOptions = PATIENT_LANGUAGES.map((value) => ({
     label: `form.language.${value}`,
 }));
 
-/** Settings are edited in place from the settings page; there is no create form or sheet. */
+/**
+ * One settings record, edited in place. Each collapse is its own page under
+ * Configurations → Dental clinic (`skipRenderWhenFormExtraNotTruthy`).
+ * Booking alerts and estimate-request alerts share the staff-alerts page.
+ */
 export const clinicConfigEditFormView: ViewConfig = {
     model: "clinicconfigs",
     viewType: "form",
@@ -36,7 +40,7 @@ export const clinicConfigEditFormView: ViewConfig = {
     nodes: [
         {
             render: "#TitleWithCollapse",
-            props: {title: "form.bookingSectionTitle"},
+            props: {title: "form.bookingSectionTitle", skipRenderWhenFormExtraNotTruthy: "sectionBooking"},
             permissions: {
                 readAny: [
                     "publicBookingEnabled",
@@ -258,7 +262,7 @@ export const clinicConfigEditFormView: ViewConfig = {
         },
         {
             render: "#TitleWithCollapse",
-            props: {title: "form.patientSectionTitle"},
+            props: {title: "form.patientSectionTitle", skipRenderWhenFormExtraNotTruthy: "sectionPatients"},
             permissions: {
                 readAny: [
                     "patientNoteEnabled",
@@ -361,7 +365,7 @@ export const clinicConfigEditFormView: ViewConfig = {
         },
         {
             render: "#TitleWithCollapse",
-            props: {title: "form.privacySectionTitle"},
+            props: {title: "form.privacySectionTitle", skipRenderWhenFormExtraNotTruthy: "sectionPrivacy"},
             permissions: {
                 readAny: ["privacyNoticeVersion", "privacyNoticeText"],
                 writeAny: ["privacyNoticeVersion", "privacyNoticeText"],
@@ -414,8 +418,11 @@ export const clinicConfigEditFormView: ViewConfig = {
         },
         {
             render: "#TitleWithCollapse",
-            props: {title: "form.notificationsSectionTitle"},
-            permissions: {readAny: ["notifyUsers"], writeAny: ["notifyUsers"]},
+            props: {title: "form.notificationsSectionTitle", skipRenderWhenFormExtraNotTruthy: "sectionAlerts"},
+            permissions: {
+                readAny: ["notifyUsers", "inquiryNotifyUsers"],
+                writeAny: ["notifyUsers", "inquiryNotifyUsers"],
+            },
             children: [
                 {
                     render: "#Field",
@@ -436,22 +443,36 @@ export const clinicConfigEditFormView: ViewConfig = {
                     },
                     permissions: {read: "notifyUsers", write: "notifyUsers"},
                 },
+                {
+                    render: "#Field",
+                    permissions: {
+                        read: "inquiryNotifyUsers",
+                        write: "inquiryNotifyUsers",
+                    },
+                    field: {
+                        name: "inquiryNotifyUsers",
+                        widget: "#ObjectIdChipsInput",
+                        label: "form.inquiryNotifyUsersLabel",
+                        widgetProps: {
+                            apiUrl: "/api/company/users/select",
+                            postBody: {administration: true},
+                            method: "POST",
+                            placeholderKey: "form.selectUser",
+                            removeTooltipKey: "form.removeUser",
+                            selectPageSizeCreate: 50,
+                            selectPageSizeEdit: 200,
+                            labelRefFormExtraKey: "inquiryNotifyUsers",
+                        },
+                    },
+                },
             ],
         },
         {
             render: "#TitleWithCollapse",
-            props: {title: "form.inquiriesSectionTitle"},
+            props: {title: "form.inquiriesSectionTitle", skipRenderWhenFormExtraNotTruthy: "sectionInquiries"},
             permissions: {
-                readAny: [
-                    "inquiriesEnabled",
-                    "responseTargetHours",
-                    "inquiryNotifyUsers",
-                ],
-                writeAny: [
-                    "inquiriesEnabled",
-                    "responseTargetHours",
-                    "inquiryNotifyUsers",
-                ],
+                readAny: ["inquiriesEnabled", "responseTargetHours", "quoteValidityDays", "quoteTerms"],
+                writeAny: ["inquiriesEnabled", "responseTargetHours", "quoteValidityDays", "quoteTerms"],
             },
             children: [
                 {
@@ -496,28 +517,6 @@ export const clinicConfigEditFormView: ViewConfig = {
                 {
                     render: "#Field",
                     permissions: {
-                        read: "inquiryNotifyUsers",
-                        write: "inquiryNotifyUsers",
-                    },
-                    field: {
-                        name: "inquiryNotifyUsers",
-                        widget: "#ObjectIdChipsInput",
-                        label: "form.inquiryNotifyUsersLabel",
-                        widgetProps: {
-                            apiUrl: "/api/company/users/select",
-                            postBody: {administration: true},
-                            method: "POST",
-                            placeholderKey: "form.selectUser",
-                            removeTooltipKey: "form.removeUser",
-                            selectPageSizeCreate: 50,
-                            selectPageSizeEdit: 200,
-                            labelRefFormExtraKey: "inquiryNotifyUsers",
-                        },
-                    },
-                },
-                {
-                    render: "#Field",
-                    permissions: {
                         read: "quoteValidityDays",
                         write: "quoteValidityDays",
                     },
@@ -554,7 +553,7 @@ export const clinicConfigEditFormView: ViewConfig = {
         },
         {
             render: "#TitleWithCollapse",
-            props: {title: "form.tourismSectionTitle"},
+            props: {title: "form.tourismSectionTitle", skipRenderWhenFormExtraNotTruthy: "sectionProfile"},
             permissions: {
                 readAny: [
                     "languagesSpoken",
