@@ -8,6 +8,7 @@ export function applyAppointmentIndexes(schema: Schema): void {
     schema.index({company: 1, number: 1}, {unique: true});
     schema.index({company: 1, location: 1, startAt: 1});
     schema.index({company: 1, customer: 1, startAt: -1});
+    schema.index({company: 1, patientRecord: 1, startAt: -1});
     // Reminders and the retention purge.
     schema.index({status: 1, startAt: 1});
     schema.index({endAt: 1, anonymizedAt: 1});

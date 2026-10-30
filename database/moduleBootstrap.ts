@@ -5,11 +5,16 @@ import ClinicService from "@dentalClinicModule/database/schemas/clinicService/cl
 import Practitioner from "@dentalClinicModule/database/schemas/practitioner/practitioner";
 import ScheduleException from "@dentalClinicModule/database/schemas/scheduleException/scheduleException";
 import Appointment from "@dentalClinicModule/database/schemas/appointment/appointment";
+import Patient from "@dentalClinicModule/database/schemas/patient/patient";
+import ClinicInquiry from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry";
+import ClinicMessage from "@dentalClinicModule/database/schemas/clinicMessage/clinicMessage";
+import TreatmentPlan from "@dentalClinicModule/database/schemas/treatmentPlan/treatmentPlan";
 import {registerDefaultRoles} from "@coreModule/database/schemas/role/role.defaults";
 import {registerPublicMediaBackfillSource} from "@coreModule/utilities/media/publicMediaBackfillRegistry";
 import {dentalClinicDefaultRoles} from "@dentalClinicModule/database/schemas/role/dentalClinic.role.defaults";
 import {ClinicServiceSchemaDef} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicService/clinicService.schema-def";
 import {PractitionerSchemaDef} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/practitioner/practitioner.schema-def";
+import {ClinicConfigSchemaDef} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicConfig/clinicConfig.schema-def";
 
 export const dentalClinicModels: Model<any>[] = [
     ClinicConfig,
@@ -17,7 +22,11 @@ export const dentalClinicModels: Model<any>[] = [
     ClinicService,
     Practitioner,
     ScheduleException,
+    Patient,
     Appointment,
+    ClinicInquiry,
+    ClinicMessage,
+    TreatmentPlan,
 ];
 
 export async function dropDentalClinicCollections(): Promise<void> {
@@ -40,6 +49,11 @@ registerPublicMediaBackfillSource({
     name: "Practitioner",
     schemaDef: PractitionerSchemaDef,
     loadModel: () => import("@dentalClinicModule/database/schemas/practitioner/practitioner").then((m) => m.default),
+});
+registerPublicMediaBackfillSource({
+    name: "ClinicConfig",
+    schemaDef: ClinicConfigSchemaDef,
+    loadModel: () => import("@dentalClinicModule/database/schemas/clinicConfig/clinicConfig").then((m) => m.default),
 });
 
 export const moduleBootstrap = {

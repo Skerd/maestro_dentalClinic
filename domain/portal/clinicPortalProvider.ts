@@ -10,11 +10,11 @@ import ClinicConfig from "@dentalClinicModule/database/schemas/clinicConfig/clin
 import ClinicLocation from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation";
 import ClinicService from "@dentalClinicModule/database/schemas/clinicService/clinicService";
 
-/** Clinics taking public bookings (and on the apex, opted in to the portal). */
+/** Clinics taking public bookings or estimate requests (and on the apex, opted in to the portal). */
 export function clinicPortalCompanyIds(scope: PortalScope) {
     return portalListedCompanyIds("dentalClinic", {
         configModel: ClinicConfig,
-        configFilter: {publicBookingEnabled: true},
+        configFilter: {$or: [{publicBookingEnabled: true}, {inquiriesEnabled: true}]},
         listedOn: {listedOnPortal: true},
     }, scope);
 }

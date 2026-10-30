@@ -3,6 +3,8 @@ import type {ObjectId} from "mongodb";
 import {createCrudRouter} from "@coreModule/api/crudRouterFactory";
 import {buildCreateDataFromSchemaDef, buildUpdateDataFromSchemaDef} from "@coreModule/api/buildUpdateDataFromSchemaDef";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
+import {mediaUploadMW} from "@coreModule/utilities/middlewares/mediaUploadMW";
+import {CLINIC_GALLERY_MAX_ITEMS} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicConfig/clinicConfig.schema-def";
 import {ClinicConfigSchemaDef} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicConfig/clinicConfig.schema-def";
 import {createClinicConfigFormSchema} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicConfig/createClinicConfig.form.validator";
 import {editClinicConfigFormSchema} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicConfig/editClinicConfig.form.validator";
@@ -37,6 +39,12 @@ async function assertReadyForPublicBooking(companyId: ObjectId, session: ClientS
     if (!practitioner) throw apiValidationException("clinic_setup_missing_practitioner", "", null, languageCode);
 }
 
+const galleryUpload = mediaUploadMW({
+    fields: {gallery: CLINIC_GALLERY_MAX_ITEMS},
+    fieldMimeTypes: {gallery: ["image/jpeg", "image/png", "image/webp"]},
+    maxFileSize: 20 * 1024 * 1024,
+});
+
 export const basePath = "/api/dentalClinic/clinicConfig";
 
 // One settings document per company (unique index); the settings page creates it through `ensure`.
@@ -52,6 +60,8 @@ export const {router} = createCrudRouter({
     toSelect: clinicConfigsToSelect,
     selectSearchField: "_id",
     actions: ClinicConfigActions,
+    createMiddleware: [galleryUpload],
+    editMiddleware: [galleryUpload],
     buildCreateData: buildCreateDataFromSchemaDef(ClinicConfigSchemaDef),
     buildUpdateData: async (params: any, writeFields) => {
         if (params.publicBookingEnabled === true && writeFields.publicBookingEnabled) {

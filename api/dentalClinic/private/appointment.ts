@@ -10,6 +10,7 @@ import {appointmentToDTO, appointmentsToDTO} from "@dentalClinicModule/utilities
 import {buildAppointment, loadBookingTargets} from "@dentalClinicModule/utilities/services/appointmentBooking";
 import {appointmentScopeFilter} from "@dentalClinicModule/utilities/services/clinicAccess";
 import {notifyPatient} from "@dentalClinicModule/utilities/services/appointmentNotify";
+import {findOrCreatePatient, loadPatientOrThrow} from "@dentalClinicModule/utilities/services/patientRecords";
 
 export const basePath = "/api/dentalClinic/appointment";
 
@@ -38,6 +39,11 @@ export const {router} = createCrudRouter({
         const ctx = {session, logger, languageCode, auditUserId: actionUserCtx.userId};
         const config = await clinicConfigService.getOrCreateForCompany(company._id, ctx);
         const {service, location} = await loadBookingTargets(company._id, params, {languageCode, online: false, session});
+        const customerId = params.customer ? new ObjectId(String(params.customer)) : undefined;
+        // Staff pick the folder when they know the patient; otherwise it is found or opened from the contact.
+        const patient = params.patientRecord
+            ? await loadPatientOrThrow(company._id, String(params.patientRecord), ctx)
+            : await findOrCreatePatient({companyId: company._id, accountId: customerId, contact: params.patient, source: "other"}, ctx);
         return buildAppointment(
             {
                 companyId: company._id,
@@ -48,7 +54,8 @@ export const {router} = createCrudRouter({
                 date: params.date,
                 time: params.time,
                 patient: params.patient,
-                customerId: params.customer ? new ObjectId(String(params.customer)) : undefined,
+                customerId,
+                patientId: patient._id,
                 note: params.note,
                 idempotencyKey: params.idempotencyKey,
                 source: "staff",

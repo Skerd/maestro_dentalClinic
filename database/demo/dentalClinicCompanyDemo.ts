@@ -69,15 +69,15 @@ const locations = [
 ];
 
 const services = [
-    {name: "Check-up & consultation", slug: "check-up" as const, durationMinutes: 30, bufferAfterMinutes: 10, priceType: "fixed", price: 25, sortOrder: 1,
+    {name: "Check-up & consultation", slug: "check-up" as const, category: "checkup" as const, durationMinutes: 30, bufferAfterMinutes: 10, priceType: "fixed", price: 25, sortOrder: 1,
         description: "Examination, X-ray review and a treatment plan."},
-    {name: "Professional cleaning", slug: "cleaning" as const, durationMinutes: 45, bufferAfterMinutes: 15, priceType: "fixed", price: 45, sortOrder: 2,
+    {name: "Professional cleaning", slug: "cleaning" as const, category: "hygiene" as const, durationMinutes: 45, bufferAfterMinutes: 15, priceType: "fixed", price: 45, sortOrder: 2,
         description: "Scaling, polishing and fluoride."},
-    {name: "Tooth filling", slug: "filling" as const, durationMinutes: 60, bufferAfterMinutes: 15, priceType: "from", price: 60, sortOrder: 3,
+    {name: "Tooth filling", slug: "filling" as const, category: "filling" as const, durationMinutes: 60, bufferAfterMinutes: 15, priceType: "from", price: 60, sortOrder: 3,
         description: "Composite filling; the price depends on the size."},
-    {name: "Teeth whitening", slug: "whitening" as const, durationMinutes: 60, bufferAfterMinutes: 10, priceType: "fixed", price: 150, sortOrder: 4,
+    {name: "Teeth whitening", slug: "whitening" as const, category: "whitening" as const, durationMinutes: 60, bufferAfterMinutes: 10, priceType: "fixed", price: 150, sortOrder: 4,
         description: "In-chair whitening in one visit."},
-    {name: "Orthodontic consultation", slug: "ortho-consult" as const, durationMinutes: 45, bufferAfterMinutes: 0, priceType: "free", sortOrder: 5,
+    {name: "Orthodontic consultation", slug: "ortho-consult" as const, category: "orthodontics" as const, durationMinutes: 45, bufferAfterMinutes: 0, priceType: "free", sortOrder: 5,
         description: "Braces and aligners: is it right for you?"},
 ];
 

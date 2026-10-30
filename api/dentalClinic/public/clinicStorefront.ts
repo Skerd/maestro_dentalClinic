@@ -37,6 +37,7 @@ import type {
     MyAppointmentsResponse,
     ClinicSlotsResponse,
     ClinicStorefrontConfigResponse,
+    ClinicStorefrontProfile,
     PublicAppointmentResponse,
     RescheduledAppointmentResponse,
 } from "armonia/src/modules/dentalClinic/api/dentalClinic/public/clinicStorefront/clinicStorefront.response.types";
@@ -61,11 +62,15 @@ export const router = Router();
 
 type PublicParams<F> = NotAuthenticatedMWType & F;
 
-/** The tenant behind the site and its clinic settings; 404 until public booking is switched on. */
-async function storefrontContext(origin: string, languageCode: string): Promise<{company: ICompany; config: IClinicConfig}> {
+/**
+ * The tenant behind the site and its clinic settings. Booking needs public booking switched on;
+ * the site itself is also up for a clinic that only takes estimate requests.
+ */
+async function storefrontContext(origin: string, languageCode: string, purpose: "booking" | "site" = "booking"): Promise<{company: ICompany; config: IClinicConfig}> {
     const company = await resolveCompanyByOrigin(origin, languageCode);
     const config = await clinicConfigService.findForCompany(company._id, {languageCode});
-    if (!config?.publicBookingEnabled) {
+    const open = purpose === "site" ? config?.publicBookingEnabled || config?.inquiriesEnabled : config?.publicBookingEnabled;
+    if (!config || !open) {
         throw apiValidationException("dental_clinic_not_configured", "", null, languageCode);
     }
     // On the portal, only clinics that opted in to being listed there.
@@ -73,6 +78,23 @@ async function storefrontContext(origin: string, languageCode: string): Promise<
         throw apiValidationException("portal_company_not_listed", "", null, languageCode);
     }
     return {company, config};
+}
+
+/** The profile texts in the visitor's language, else the first language the clinic wrote. */
+function storefrontProfile(config: IClinicConfig, languageCode: string): ClinicStorefrontProfile {
+    const texts = config.profileTexts ?? [];
+    const text = texts.find((row) => row.locale === languageCode) ?? texts[0];
+    return {
+        headline: text?.headline,
+        description: text?.description,
+        warrantyPolicy: text?.warrantyPolicy,
+        travelInfo: text?.travelInfo,
+        languagesSpoken: config.languagesSpoken ?? [],
+        implantBrands: config.implantBrands ?? [],
+        nearestAirport: config.nearestAirport,
+        accreditations: (config.accreditations ?? []).map(({title, issuer, year}) => ({title, issuer, year})),
+        gallery: publicMediaUrls(config.gallery),
+    };
 }
 
 async function currencyOf(config: IClinicConfig, languageCode: string): Promise<CurrencySimple> {
@@ -105,7 +127,7 @@ router.post(
     authMW("public"),
     rateLimiter({windowMs: 60000, max: 60}),
     asyncHandler(async ({origin, languageCode}: NotAuthenticatedMWType): Promise<ClinicStorefrontConfigResponse> => {
-        const {company, config} = await storefrontContext(origin, languageCode);
+        const {company, config} = await storefrontContext(origin, languageCode, "site");
         const [locations, services, practitioners, currency] = await Promise.all([
             ClinicLocation.find({company: company._id, isActive: true, deletedAt: null}).populate([{path: "address.city", select: "name"}]).sort({name: 1}),
             ClinicService.find({company: company._id, isActive: true, isPublic: true, deletedAt: null}).sort({sortOrder: 1, name: 1}),
@@ -116,6 +138,7 @@ router.post(
         return {
             data: {
                 company: {
+                    _id: company._id.toString(),
                     name: company.name,
                     logo: publicMediaUrl(company.logo),
                     email: company.email,
@@ -123,6 +146,9 @@ router.post(
                     website: company.website,
                 },
                 currency,
+                publicBookingEnabled: config.publicBookingEnabled,
+                inquiriesEnabled: config.inquiriesEnabled,
+                profile: storefrontProfile(config, languageCode),
                 guestBookingAllowed: config.guestBookingAllowed,
                 requireStaffConfirmation: config.requireStaffConfirmation,
                 patientNoteEnabled: config.patientNoteEnabled,
@@ -145,6 +171,7 @@ router.post(
                     _id: service._id.toString(),
                     name: service.name,
                     slug: service.slug,
+                    category: service.category,
                     description: service.description,
                     images: publicMediaUrls(service.images),
                     videos: publicMediaUrls(service.videos),

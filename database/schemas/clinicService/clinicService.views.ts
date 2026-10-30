@@ -8,12 +8,18 @@ import {
     CLINIC_SERVICE_PRICE_TYPES,
     CLINIC_SERVICE_SLUG_MAX,
 } from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicService/clinicService.schema-def";
+import {TREATMENT_CATEGORIES} from "armonia/src/modules/dentalClinic/constants";
 
 const API_URL = "/api/dentalClinic/clinicService";
 
 const priceTypeOptions = CLINIC_SERVICE_PRICE_TYPES.map((value) => ({
     value,
     label: `form.priceType.${value}`,
+}));
+
+const categoryOptions = TREATMENT_CATEGORIES.map((value) => ({
+    value,
+    label: `form.category.${value}`,
 }));
 
 export const clinicServiceSheetView: ViewConfig = {
@@ -52,6 +58,33 @@ export const clinicServiceSheetView: ViewConfig = {
                     render: "#SheetGrid",
                     props: {columns: 3},
                     children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "category"},
+                            field: {
+                                name: "category",
+                                widget: "#DisplayCard",
+                                label: "category",
+                                widgetProps: {
+                                    icon: "#IconCategory",
+                                    type: "enum",
+                                    languageKeyCategory: "categoryValues",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "perTooth"},
+                            field: {
+                                name: "perTooth",
+                                widget: "#DisplayCard",
+                                label: "perTooth",
+                                widgetProps: {
+                                    icon: "#IconDental",
+                                    type: "boolean",
+                                },
+                            },
+                        },
                         {
                             render: "#DisplayCard",
                             permissions: {read: "slug"},
@@ -228,6 +261,34 @@ const clinicServiceCreateFormNodes: ViewConfig["nodes"] = [
                     "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
             },
         },
+    },
+    {
+        render: "#FormGrid",
+        props: {columns: 2},
+        children: [
+            {
+                render: "#Field",
+                field: {
+                    name: "category",
+                    widget: "#Select",
+                    label: "form.categoryLabel",
+                    placeholder: "form.categoryPlaceholder",
+                    required: true,
+                    widgetProps: {
+                        options: categoryOptions,
+                        className: "grow w-full",
+                    },
+                },
+            },
+            {
+                render: "#Field",
+                field: {
+                    name: "perTooth",
+                    widget: "#Switch",
+                    label: "form.perToothLabel",
+                },
+            },
+        ],
     },
     {
         render: "#Field",
@@ -443,6 +504,40 @@ const clinicServiceEditFormNodes: ViewConfig["nodes"] = [
                     "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
             },
         },
+    },
+    {
+        render: "#FormGrid",
+        props: {columns: 2},
+        permissions: {
+            readAny: ["category", "perTooth"],
+            writeAny: ["category", "perTooth"],
+        },
+        children: [
+            {
+                render: "#Field",
+                permissions: {read: "category", write: "category"},
+                field: {
+                    name: "category",
+                    widget: "#Select",
+                    label: "form.categoryLabel",
+                    placeholder: "form.categoryPlaceholder",
+                    required: true,
+                    widgetProps: {
+                        options: categoryOptions,
+                        className: "grow w-full",
+                    },
+                },
+            },
+            {
+                render: "#Field",
+                permissions: {read: "perTooth", write: "perTooth"},
+                field: {
+                    name: "perTooth",
+                    widget: "#Switch",
+                    label: "form.perToothLabel",
+                },
+            },
+        ],
     },
     {
         render: "#Field",

@@ -20,6 +20,7 @@ import {
     ClinicServiceSchemaDef,
     type ClinicServicePriceType,
 } from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicService/clinicService.schema-def";
+import {TREATMENT_CATEGORIES, type TreatmentCategory} from "armonia/src/modules/dentalClinic/constants";
 import {applyClinicServiceIndexes} from "./clinicService.indexes";
 import {clinicServiceViews} from "./clinicService.views";
 
@@ -27,6 +28,8 @@ export interface IClinicService extends Document, IOwnershipPluginFields, ISoftD
     name: string;
     slug: string;
     description?: string;
+    category: TreatmentCategory;
+    perTooth: boolean;
     images: IMedia[];
     videos: IMedia[];
     durationMinutes: number;
@@ -45,6 +48,8 @@ const ClinicServiceSchema = new Schema<IClinicService>(
         name: {type: SchemaTypes.String, required: true, trim: true, minlength: 1, maxlength: CLINIC_SERVICE_NAME_MAX},
         slug: {type: SchemaTypes.String, required: true, trim: true, lowercase: true, minlength: 1, maxlength: CLINIC_SERVICE_SLUG_MAX},
         description: {type: SchemaTypes.String, maxlength: CLINIC_SERVICE_DESCRIPTION_MAX, dynamicTableConfiguration: {hideColumn: true}},
+        category: {type: SchemaTypes.String, enum: TREATMENT_CATEGORIES, required: true, default: "other"},
+        perTooth: {type: SchemaTypes.Boolean, default: false},
         images: {
             type: [{type: SchemaTypes.ObjectId, ref: "Media"}],
             default: [],

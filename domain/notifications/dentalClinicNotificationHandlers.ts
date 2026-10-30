@@ -7,11 +7,25 @@ import {NotificationEventCodes} from "@dentalClinicModule/domain/notifications/n
 
 type ClinicCode = (typeof NotificationEventCodes)[keyof typeof NotificationEventCodes];
 
-// Staff alerts carry the booking number and time only, never patient or treatment details.
+// Staff alerts carry the reference (and booking time) only, never patient or treatment details.
 const DESCRIPTIONS: Record<ClinicCode, (payload: Record<string, unknown>) => string> = {
     [NotificationEventCodes.APPOINTMENT_NEW]: (p) => `New appointment ${p.number ?? ""} on ${p.when ?? ""}`,
     [NotificationEventCodes.APPOINTMENT_CANCELLED]: (p) => `Appointment ${p.number ?? ""} on ${p.when ?? ""} was cancelled by the patient`,
+    [NotificationEventCodes.INQUIRY_NEW]: (p) => `New estimate request ${p.number ?? ""}`,
+    [NotificationEventCodes.INQUIRY_MESSAGE]: (p) => `New patient message on request ${p.number ?? ""}`,
+    [NotificationEventCodes.INQUIRY_FILES_ADDED]: (p) => `The patient added files to request ${p.number ?? ""}`,
+    [NotificationEventCodes.INQUIRY_WITHDRAWN]: (p) => `Request ${p.number ?? ""} was withdrawn by the patient`,
+    [NotificationEventCodes.INQUIRY_UNANSWERED]: (p) => `Request ${p.number ?? ""} is still unanswered`,
+    [NotificationEventCodes.INQUIRY_CHOSE_ANOTHER_CLINIC]: (p) => `The patient of request ${p.number ?? ""} chose another clinic`,
+    [NotificationEventCodes.PLAN_ACCEPTED]: (p) => `The patient accepted your quote on request ${p.number ?? ""}`,
 };
+
+/** What the notification opens: the appointment or the estimate request. */
+function contentOf(payload: Record<string, unknown>): Record<string, unknown> {
+    return payload.inquiryId
+        ? {inquiryId: payload.inquiryId, number: payload.number}
+        : {appointmentId: payload.appointmentId, number: payload.number};
+}
 
 function bindHandler(code: ClinicCode): void {
     notificationEventBus.on(code, async (event: NotificationEvent) => {
@@ -24,7 +38,7 @@ function bindHandler(code: ClinicCode): void {
                         company: new ObjectId(payload.companyId as string),
                         code,
                         description: DESCRIPTIONS[code](payload),
-                        content: {appointmentId: payload.appointmentId, number: payload.number},
+                        content: contentOf(payload),
                         importance: NotificationImportance.HIGH,
                         category: NotificationCategory.SYSTEM,
                     },
@@ -38,6 +52,5 @@ function bindHandler(code: ClinicCode): void {
 }
 
 export function registerDentalClinicNotificationHandlers(): void {
-    bindHandler(NotificationEventCodes.APPOINTMENT_NEW);
-    bindHandler(NotificationEventCodes.APPOINTMENT_CANCELLED);
+    for (const code of Object.values(NotificationEventCodes)) bindHandler(code);
 }

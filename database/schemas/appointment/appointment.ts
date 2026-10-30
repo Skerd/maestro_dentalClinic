@@ -23,9 +23,11 @@ import {CLINIC_SERVICE_PRICE_TYPES, type ClinicServicePriceType} from "armonia/s
 import type {IClinicService} from "../clinicService/clinicService";
 import type {IClinicLocation} from "../clinicLocation/clinicLocation";
 import type {IPractitioner} from "../practitioner/practitioner";
+import type {IPatient} from "../patient/patient";
 import {ClinicServiceSimpleSnippet} from "../clinicService/clinicService.snippets";
 import {ClinicLocationSimpleSnippet} from "../clinicLocation/clinicLocation.snippets";
 import {PractitionerSimpleSnippet} from "../practitioner/practitioner.snippets";
+import {PatientSimpleSnippet} from "../patient/patient.snippets";
 import {applyAppointmentIndexes} from "./appointment.indexes";
 import {appointmentViews} from "./appointment.views";
 
@@ -47,11 +49,12 @@ export interface IAppointment extends Document, IOwnershipPluginFields, ISoftDel
     number: string;
     status: AppointmentStatus;
     source: (typeof APPOINTMENT_SOURCES)[number];
-    /** Where an online booking was made: the clinic's own site or the central portal. Emails link back there. */
     service: IClinicService;
     location: IClinicLocation;
     practitioner: IPractitioner;
     customer?: IUser;
+    /** The clinic's folder for this patient. `patient` stays as the contact given for this booking. */
+    patientRecord?: IPatient;
     /** The treatment itself, as the patient sees it. */
     startAt: Date;
     endAt: Date;
@@ -112,6 +115,13 @@ const AppointmentSchema = new Schema<IAppointment>(
             refAllowlist: SimpleBlankUserSnippet,
             permissions: NoWritePermission,
             dynamicTableConfiguration: {refDisplayKey: ["name", "surname"]},
+        },
+        patientRecord: {
+            type: SchemaTypes.ObjectId,
+            ref: "Patient",
+            refAllowlist: PatientSimpleSnippet,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {refDisplayKey: ["firstName", "lastName"]},
         },
         startAt: {type: SchemaTypes.Date, required: true, permissions: NoWritePermission, dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATETIME}},
         endAt: {type: SchemaTypes.Date, required: true, permissions: NoWritePermission, dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATETIME}},

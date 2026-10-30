@@ -113,6 +113,16 @@ export const appointmentSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            permissions: {read: "patientRecord"},
+                            field: {
+                                name: "patientRecord.number",
+                                widget: "#DisplayCard",
+                                label: "patientRecord",
+                                widgetProps: {icon: "#IconFolder"},
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
                             permissions: {read: "customer"},
                             field: {
                                 name: "customer.name",
@@ -495,6 +505,21 @@ export const appointmentCreateFormView: ViewConfig = {
                                 required: true,
                                 widgetProps: {
                                     maxLength: APPOINTMENT_PATIENT_PHONE_MAX,
+                                },
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            field: {
+                                name: "patientRecord",
+                                widget: "#ApiSelect",
+                                label: "form.patientRecordLabel",
+                                placeholder: "form.patientRecordPlaceholder",
+                                widgetProps: {
+                                    apiUrl: "/api/dentalClinic/patient/select",
+                                    method: "POST",
+                                    pageSize: 50,
+                                    normalizeEmptyToUndefined: true,
                                 },
                             },
                         },

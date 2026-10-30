@@ -108,3 +108,74 @@ export function patientSmsText(data: PatientMessage): string {
         manageUrl: manageUrl(data),
     });
 }
+
+export type InquiryMessageKind = "requestSent" | "infoRequested" | "clinicMessage" | "declined" | "quoteReceived" | "planAccepted";
+
+/** Copy suffix per kind: `subject{X}`, `heading{X}`, `preheader{X}`, `intro{X}`, `closing{X}`. */
+const INQUIRY_KIND_SUFFIX: Record<InquiryMessageKind, string> = {
+    requestSent: "RequestSent",
+    infoRequested: "InfoRequested",
+    clinicMessage: "ClinicMessage",
+    declined: "Declined",
+    quoteReceived: "QuoteReceived",
+    planAccepted: "PlanAccepted",
+};
+
+export type InquiryMessage = {
+    kind: InquiryMessageKind;
+    /** Whose SMTP sends it: the clinic, or the platform for a request to several clinics. */
+    senderCompanyId: string;
+    /** The clinic named in the subject, or the platform for a request to several. */
+    companyName: string;
+    languageCode: string;
+    email: string;
+    fullName: string;
+    /** The clinic's reference; absent on the confirmation of a request to several clinics. */
+    number?: string;
+    clinics?: string[];
+    /** Info request kinds, as `infoKind.<kind>` keys resolve them. */
+    requested?: string[];
+    note?: string;
+    /** The patient's case on the portal. */
+    caseUrl: string;
+};
+
+/**
+ * Sends an estimate-request email to a portal patient. Health details stay out of it: the
+ * patient reads the clinic's message and files on the portal, behind their login.
+ */
+export async function sendInquiryMail(data: InquiryMessage): Promise<void> {
+    if (!EMAIL.ENABLED) return;
+    const pageName = CLIENT_SIDE.NAME ?? "";
+    const strings = stringsFor(data.languageCode);
+    const loc = strings as Record<string, string>;
+    const suffix = INQUIRY_KIND_SUFFIX[data.kind];
+
+    const rows: SummaryRow[] = [];
+    pushRow(rows, loc.labelReference, data.number);
+    pushRow(rows, loc.labelClinics, data.clinics?.join(", "));
+    pushRow(rows, loc.labelRequested, data.requested?.map((kind) => loc[`infoKind.${kind}`] ?? kind).join(", "));
+    pushRow(rows, loc.labelNote, data.note);
+
+    const bodyInner = applyPlaceholders(readTemplate("body.html"), {
+        intro: localized(strings, `intro${suffix}`, {companyName: escapeHtml(data.companyName)}),
+        detailsSummary: rows.length ? summaryCardHtml(loc.summaryTitleInquiry ?? "", rows) : "",
+        cta: ctaButtonHtml(loc.caseLinkText ?? "", data.caseUrl, loc.fallbackLabel ?? ""),
+        closing: loc[`closing${suffix}`] ?? "",
+    });
+
+    let html = applyPlaceholders(
+        readTemplate("patient.html"),
+        layoutStrings({...strings, footerNote: loc.footerNoteInquiry ?? ""}, `heading${suffix}`, `preheader${suffix}`),
+    );
+    html = applyPlaceholders(html, {
+        greeting: localized(strings, "greeting", {fullName: escapeHtml(data.fullName)}),
+        bodyInner,
+        companyName: escapeHtml(data.companyName),
+        pageName,
+        year: currentYear(),
+    });
+    const subject = applyPlaceholders(loc[`subject${suffix}`] ?? "", {number: data.number ?? "", companyName: data.companyName});
+
+    await sendMail(data.senderCompanyId, {to: data.email, subject, html});
+}

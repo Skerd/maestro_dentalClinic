@@ -12,7 +12,14 @@ vi.mock("@coreModule/environment", async (importOriginal) => {
     return {...actual, EMAIL: {...actual.EMAIL, ENABLED: true}, CLIENT_SIDE: {...actual.CLIENT_SIDE, NAME: "Arpeggio"}};
 });
 
-import {patientSmsText, sendPatientMail, type PatientMessage, type PatientMessageKind} from "@dentalClinicModule/utilities/emails/sendPatientMail";
+import {
+    patientSmsText,
+    sendInquiryMail,
+    sendPatientMail,
+    type InquiryMessageKind,
+    type PatientMessage,
+    type PatientMessageKind,
+} from "@dentalClinicModule/utilities/emails/sendPatientMail";
 
 const message = (kind: PatientMessageKind, languageCode = "en-US", serviceName?: string): PatientMessage => ({
     kind,
@@ -59,5 +66,51 @@ describe("patient email", () => {
         }
         expect(sent).toHaveLength(25);
         for (const {html} of sent) expect(html).not.toMatch(/\{[a-zA-Z]+\}/);
+    });
+});
+
+describe("estimate request email", () => {
+    it("names what the clinic asked for and links to the patient's case", async () => {
+        await sendInquiryMail({
+            kind: "infoRequested",
+            senderCompanyId: "6ad653ec4b21ee6f13d1083a",
+            companyName: "Smile Clinic",
+            languageCode: "it-IT",
+            email: "giulia@example.com",
+            fullName: "Giulia Bianchi",
+            number: "INQ-20261029-ABC123",
+            requested: ["opg", "photos"],
+            caseUrl: "https://arpeggio.al/account?case=abc",
+        });
+        const {subject, html} = sent[0];
+        expect(subject).toBe("Smile Clinic ha bisogno di altre informazioni (INQ-20261029-ABC123)");
+        expect(html).toContain("Panoramica (OPG), Foto dei denti");
+        expect(html).toContain("https://arpeggio.al/account?case=abc");
+    });
+
+    it("renders every kind in every language without leftovers", async () => {
+        const kinds: InquiryMessageKind[] = ["requestSent", "infoRequested", "clinicMessage", "declined", "quoteReceived", "planAccepted"];
+        for (const languageCode of ["en-US", "de-CH", "fr-FR", "it-IT", "sq-AL"]) {
+            for (const kind of kinds) {
+                await sendInquiryMail({
+                    kind,
+                    senderCompanyId: "6ad653ec4b21ee6f13d1083a",
+                    companyName: "Smile Clinic",
+                    languageCode,
+                    email: "giulia@example.com",
+                    fullName: "Giulia Bianchi",
+                    number: kind === "requestSent" ? undefined : "INQ-20261029-ABC123",
+                    clinics: kind === "requestSent" ? ["Smile Clinic", "Tirana Dental"] : undefined,
+                    requested: kind === "infoRequested" ? ["cbct"] : undefined,
+                    caseUrl: "https://arpeggio.al/account?case=abc",
+                });
+            }
+        }
+        expect(sent).toHaveLength(30);
+        for (const {subject, html} of sent) {
+            expect(subject).not.toMatch(/\{[a-zA-Z]+\}/);
+            expect(html).not.toMatch(/\{[a-zA-Z]+\}/);
+            expect(html).not.toContain("infoKind.");
+        }
     });
 });

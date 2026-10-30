@@ -6,12 +6,14 @@ import type {SimpleBlankUser} from "armonia/src/modules/core/dto/user.dto";
 import type {ClinicLocationSimple} from "armonia/src/modules/dentalClinic/dto/clinicLocation.dto";
 import type {ClinicServiceSimple} from "armonia/src/modules/dentalClinic/dto/clinicService.dto";
 import type {PractitionerSimple} from "armonia/src/modules/dentalClinic/dto/practitioner.dto";
+import type {PatientSimple} from "armonia/src/modules/dentalClinic/dto/patient.dto";
 import {dateToISOString, mapSnippet, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {CurrencySimpleSnippet} from "@coreModule/database/schemas/currency/currency.snippets";
 import {SimpleBlankUserSnippet} from "@coreModule/database/schemas/user/user.snippets";
 import {ClinicLocationSimpleSnippet} from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation.snippets";
 import {ClinicServiceSimpleSnippet} from "@dentalClinicModule/database/schemas/clinicService/clinicService.snippets";
 import {PractitionerSimpleSnippet} from "@dentalClinicModule/database/schemas/practitioner/practitioner.snippets";
+import {PatientSimpleSnippet} from "@dentalClinicModule/database/schemas/patient/patient.snippets";
 import {mapLifeCycleToDTO, mapOwnershipToDTO, mapSoftDeleteToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
 import {cancelUntil, rescheduleUntil} from "@dentalClinicModule/utilities/services/appointmentLifecycle";
 
@@ -37,6 +39,7 @@ export function appointmentToDTO(appointment: IAppointment): Appointment {
         location: mapSnippet<ClinicLocationSimple>()(appointment.location, ClinicLocationSimpleSnippet),
         practitioner: mapSnippet<PractitionerSimple>()(appointment.practitioner, PractitionerSimpleSnippet),
         customer: mapSnippet<SimpleBlankUser>()(appointment.customer, SimpleBlankUserSnippet),
+        patientRecord: mapSnippet<PatientSimple>()(appointment.patientRecord, PatientSimpleSnippet),
         startAt: dateToISOString(appointment.startAt),
         endAt: dateToISOString(appointment.endAt),
         patient: patientToDTO(appointment.patient),

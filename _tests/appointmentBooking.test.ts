@@ -33,6 +33,7 @@ import ClinicService from "@dentalClinicModule/database/schemas/clinicService/cl
 import Practitioner from "@dentalClinicModule/database/schemas/practitioner/practitioner";
 import ScheduleException from "@dentalClinicModule/database/schemas/scheduleException/scheduleException";
 import Appointment from "@dentalClinicModule/database/schemas/appointment/appointment";
+import Patient from "@dentalClinicModule/database/schemas/patient/patient";
 import {runAppointmentRetention} from "@dentalClinicModule/utilities/cronJobs/appointmentRetentionJob";
 
 // Transactions need a replica set; WiredTiger so concurrent requests really conflict
@@ -72,7 +73,7 @@ const manage = (path: string, body: Record<string, unknown>) =>
 beforeAll(async () => {
     replSet = await MongoMemoryReplSet.create({replSet: {count: 1, storageEngine: "wiredTiger"}});
     await mongoose.connect(replSet.getUri());
-    await Promise.all([Appointment.init(), Practitioner.init(), ClinicConfig.init()]);
+    await Promise.all([Appointment.init(), Practitioner.init(), ClinicConfig.init(), Patient.init()]);
     const permissions = allPermissionTags([Appointment, ScheduleException]);
     admin = {userId: adminId.toString(), companyId: companyId.toString(), isAdmin: true, permissions};
     outsider = {...admin, companyId: otherCompanyId.toString()};
@@ -87,7 +88,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
     // Raw collection deletes: the soft-delete plugin would only mark the rows deleted
-    await Promise.all([ClinicConfig, ClinicLocation, ClinicService, Practitioner, ScheduleException, Appointment, Currency]
+    await Promise.all([ClinicConfig, ClinicLocation, ClinicService, Practitioner, ScheduleException, Appointment, Patient, Currency]
         .map((model) => model.collection.deleteMany({})));
     mail.sent = [];
     const currency = await Currency.create({name: "Swiss franc", symbol: "CHF", abbreviation: "CHF", decimalPlaces: 2, company: companyId});
@@ -253,5 +254,36 @@ describe("staff and dentists", {timeout: 60000}, () => {
         expect(stored!.anonymizedAt).toBeInstanceOf(Date);
         expect(stored!.patient.email).toBe("—");
         expect(stored!.timeline.at(-1)?.event).toBe("anonymized");
+    });
+});
+
+describe("patient folders", {timeout: 60000}, () => {
+    it("files a returning patient's bookings in one folder, and a namesake's email user in their own", async () => {
+        await book({time: "09:00"});
+        await book({time: "10:00", patient: {...patient, email: "ADA@example.com", lastName: "lovelace"}});
+        await book({time: "11:00", patient: {...patient, firstName: "Byron"}});
+
+        const folders = await Patient.find({company: companyId}).sort({firstName: 1});
+        expect(folders.map((folder) => folder.firstName)).toEqual(["Ada", "Byron"]);
+        expect(folders[0].source).toBe("booking");
+        const ada = await Appointment.find({patientRecord: folders[0]._id});
+        expect(ada).toHaveLength(2);
+    });
+
+    it("lets staff book into an existing folder, but only one of their own clinic", async () => {
+        const folder = await Patient.create({company: companyId, number: "PT-1", firstName: "Ada", lastName: "Lovelace", preferredLanguage: "it-IT", source: "phone"});
+        const foreign = await Patient.create({company: otherCompanyId, number: "PT-2", firstName: "Eve", lastName: "Other", preferredLanguage: "en-US", source: "phone"});
+        const staffBook = (patientRecord: string, time: string) => request(app).put("/api/dentalClinic/appointment").set(callerHeader(admin)).send({
+            service: serviceId, location: locationId, practitioner: anaId, date: DATE, time, patient, patientRecord, idempotencyKey: `key-${new ObjectId().toString()}`,
+        });
+
+        const refused = await staffBook(foreign._id.toString(), "09:00");
+        expect(refused.body.error_code).toBe("patient_not_found");
+
+        const booked = await staffBook(folder._id.toString(), "09:00");
+        expect(booked.status).toBe(200);
+        const stored = await Appointment.findById(booked.body._id);
+        expect(String(stored!.patientRecord)).toBe(folder._id.toString());
+        expect(await Patient.countDocuments({company: companyId})).toBe(1);
     });
 });

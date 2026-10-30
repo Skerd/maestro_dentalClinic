@@ -14,6 +14,7 @@ import Practitioner, {type IPractitioner} from "@dentalClinicModule/database/sch
 import Appointment, {type IAppointment} from "@dentalClinicModule/database/schemas/appointment/appointment";
 import {appointmentService} from "@dentalClinicModule/database/schemas/appointment/appointment.service";
 import {blockedWindow, blockingAppointmentFilter, eligiblePractitioners, isStartFree, treatmentWindow} from "./clinicAvailability";
+import {findOrCreatePatient} from "./patientRecords";
 
 const HOUR = 3600 * 1000;
 const DAY = 24 * HOUR;
@@ -150,6 +151,8 @@ export type CreateAppointmentInput = {
     time: string;
     patient: {firstName: string; lastName: string; email: string; phone: string};
     customerId?: ObjectId;
+    /** The clinic's patient folder; online bookings find or create it in {@link createAppointment}. */
+    patientId?: ObjectId;
     note?: string;
     idempotencyKey: string;
     source: "online" | "staff";
@@ -187,6 +190,7 @@ export async function buildAppointment(input: CreateAppointmentInput, ctx: Clini
         location: location._id,
         ...scheduledFields(service, practitioner, start),
         ...(input.customerId ? {customer: input.customerId} : {}),
+        ...(input.patientId ? {patientRecord: input.patientId} : {}),
         patient,
         ...(note ? {note} : {}),
         snapshot: {
@@ -217,7 +221,11 @@ export async function createAppointment(input: CreateAppointmentInput, ctx: Clin
     const existing = await Appointment.findOne({company: input.companyId, idempotencyKey: input.idempotencyKey}).session(ctx.session);
     if (existing) return {appointment: existing, created: false};
 
-    const data = await buildAppointment(input, ctx);
+    const patientId = input.patientId ?? (await findOrCreatePatient(
+        {companyId: input.companyId, accountId: input.customerId, contact: input.patient, source: "booking", now: input.now},
+        ctx,
+    ))._id;
+    const data = await buildAppointment({...input, patientId}, ctx);
     const appointment = await appointmentService.create(data, {
         session: ctx.session,
         logger: ctx.logger,
