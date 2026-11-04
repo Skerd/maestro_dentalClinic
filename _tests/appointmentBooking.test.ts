@@ -1,4 +1,8 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
+
+vi.hoisted(() => {
+    process.env.TENANT_SCOPE_ENFORCE = "dentalClinic";
+});
 import {MongoMemoryReplSet} from "mongodb-memory-server";
 import mongoose from "mongoose";
 import {ObjectId} from "mongodb";
@@ -10,10 +14,17 @@ vi.mock("@coreModule/utilities/middlewares/authMW", async () =>
 vi.mock("@coreModule/utilities/middlewares/rateLimiter", () => ({
     rateLimiter: () => (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
-const {originCompany} = vi.hoisted(() => ({originCompany: {current: null as unknown}}));
-vi.mock("@coreModule/utilities/marketing/resolveCompanyByOrigin", () => ({
-    resolveCompanyByOrigin: async () => originCompany.current,
-}));
+const {originCompany} = vi.hoisted(() => ({originCompany: {current: null as {_id: {toString(): string}; name?: string} | null}}));
+vi.mock("@coreModule/utilities/marketing/resolveCompanyByOrigin", async () => {
+    // Records the tenant like the real resolver (D16).
+    const {setRequestTenant} = await import("@coreModule/utilities/endpoints/tenantScope");
+    return {
+        resolveCompanyByOrigin: async () => {
+            if (originCompany.current) setRequestTenant(originCompany.current._id.toString());
+            return originCompany.current;
+        },
+    };
+});
 const {mail} = vi.hoisted(() => ({mail: {sent: [] as {kind: string; serviceName?: string}[]}}));
 vi.mock("@dentalClinicModule/utilities/emails/sendPatientMail", () => ({
     sendPatientMail: vi.fn(async (message: {kind: string; serviceName?: string}) => {
@@ -43,7 +54,8 @@ const companyId = new ObjectId();
 const otherCompanyId = new ObjectId();
 const adminId = new ObjectId();
 const dentistUserId = new ObjectId();
-const app = appFor([appointmentRoute, scheduleExceptionRoute, storefrontRoute]);
+// dentalClinic routes run with tenant scoping enforced (D16), as in the dev profiles.
+const app = appFor([appointmentRoute, scheduleExceptionRoute, storefrontRoute].map((route) => ({...route, module: "dentalClinic"})));
 
 let admin: TestCaller;
 let outsider: TestCaller;

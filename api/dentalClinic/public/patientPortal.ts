@@ -77,6 +77,7 @@ import {sendTreatmentPlanPdf} from "@dentalClinicModule/utilities/pdf/sendTreatm
 import {PAYMENTS} from "@financeModule/environment";
 import {registerPaymentSourceHandler} from "@financeModule/utilities/services/payment/paymentSourceHandlers";
 import {runInTransaction} from "@coreModule/utilities/middlewares/runInTransaction";
+import {asCrossTenant, setRequestTenant, withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import {failDepositPayment, onlinePaymentAvailable, settleDepositPayment, startDepositPayment} from "@dentalClinicModule/utilities/services/treatmentPlanPayments";
 
 export const basePath = "/api/dentalClinic/patientPortal";
@@ -89,17 +90,31 @@ export const router = Router();
 registerPaymentSourceHandler(["treatmentPlan"], {
     async succeeded(intent, {logger, languageCode}) {
         await runInTransaction(logger, async (session) => {
-            const plan = await TreatmentPlan.findOne({stripePaymentIntentId: intent.id}).session(session);
-            if (plan) await settleDepositPayment(plan, intent, {session, logger, languageCode});
+            const plan = await planOfPaymentIntent(intent.id, session);
+            if (plan) await withTenant(nestedEntityToRef(plan.company)!, () => settleDepositPayment(plan, intent, {session, logger, languageCode}), "dentalClinic");
         });
     },
     async failed(intent, {logger, languageCode}) {
         await runInTransaction(logger, async (session) => {
-            const plan = await TreatmentPlan.findOne({stripePaymentIntentId: intent.id}).session(session);
-            if (plan) await failDepositPayment(plan, intent, {session, logger, languageCode});
+            const plan = await planOfPaymentIntent(intent.id, session);
+            if (plan) await withTenant(nestedEntityToRef(plan.company)!, () => failDepositPayment(plan, intent, {session, logger, languageCode}), "dentalClinic");
         });
     },
 });
+
+/** The webhook names only the payment intent, so the plan is looked up across clinics (D16). */
+function planOfPaymentIntent(intentId: string, session: TransactionRequiredParams["session"]): Promise<ITreatmentPlan | null> {
+    return asCrossTenant("a payment webhook names only the payment intent", () =>
+        TreatmentPlan.findOne({stripePaymentIntentId: intentId}).session(session));
+}
+
+/**
+ * A portal patient works on their own requests at every clinic they wrote to (D16). These handlers
+ * reach records only through the patient's own account (`loadOwnInquiry`, `loadOwnPlan`, `account`
+ * filters), which is what keeps one patient out of another's data.
+ */
+const asPatient = <A extends unknown[], R>(handler: (...args: A) => Promise<R>) =>
+    (...args: A): Promise<R> => asCrossTenant("a portal patient's own requests at every clinic", () => handler(...args));
 
 const MY_CASES_MAX = 30;
 const HOUR = 3600 * 1000;
@@ -220,6 +235,7 @@ const asPortalUploader = () => async (req: Request, _res: Response, next: (error
         const user = await requirePortalAccount(customer, origin, languageCode);
         req.body.userInfo = {_id: user._id};
         req.body.user = {company: {_id: customer.companyId}};
+        setRequestTenant(customer.companyId, languageCode);
         next();
     } catch (error) {
         next(error);
@@ -239,7 +255,7 @@ router.post(
     "/clinics",
     authMW("public"),
     rateLimiter({windowMs: 60000, max: 60}),
-    asyncHandler(async ({origin, languageCode}: NotAuthenticatedMWType): Promise<RequestableClinicsResponse> => {
+    asyncHandler(async ({origin, languageCode}: NotAuthenticatedMWType): Promise<RequestableClinicsResponse> => asCrossTenant("the public clinic directory lists every clinic", async () => {
         const companyIds = await requestableClinicIds(await requestScope(origin, languageCode));
         const [cities, configs, services, responseHours] = await Promise.all([
             addressCitiesByCompany(ClinicLocation, companyIds),
@@ -269,7 +285,7 @@ router.post(
                 };
             }),
         };
-    }),
+    })),
 );
 
 /** Files for a request or a message, uploaded first; the request or message then names them. */
@@ -294,7 +310,7 @@ router.post(
     transactionHandler(),
     validateFormZod(createPatientRequestFormSchema),
     publicChatCustomerMW(),
-    asyncHandler(async (params: TransactionRequiredParams & PortalParams<CreatePatientRequestFormType>): Promise<PatientRequestCreatedResponse> => {
+    asyncHandler(asPatient(async (params: TransactionRequiredParams & PortalParams<CreatePatientRequestFormType>): Promise<PatientRequestCreatedResponse> => {
         const {origin, languageCode, session, logger} = params;
         const {user, platformCompanyId} = await portalAccount(params);
         if (!params.acceptConsent) throw apiValidationException("inquiry_consent_required", "", null, languageCode);
@@ -329,7 +345,7 @@ router.post(
             for (const inquiry of inquiries) await notifyInquiryStaff(NotificationEventCodes.INQUIRY_NEW, inquiry, ctx);
         }
         return {data: {requestGroup, inquiries: inquiries.length}};
-    }),
+    })),
 );
 
 /** The signed-in patient's requests, newest first, each with every clinic's answer so far. */
@@ -338,7 +354,7 @@ router.post(
     authMW("public"),
     rateLimiter({windowMs: 60000, max: 60}),
     publicChatCustomerMW(),
-    asyncHandler(async (params: PortalParams<object>): Promise<PatientCasesResponse> => {
+    asyncHandler(asPatient(async (params: PortalParams<object>): Promise<PatientCasesResponse> => {
         const user = await requirePortalAccount(params.customer, params.origin, params.languageCode);
         const inquiries = await ClinicInquiry.find({account: user._id, requestGroup: {$ne: null}, deletedAt: null}).sort({createdAt: -1});
         const groups = new Map<string, IClinicInquiry[]>();
@@ -348,7 +364,7 @@ router.post(
             groups.set(key, [...(groups.get(key) ?? []), inquiry]);
         }
         return {data: await Promise.all([...groups.values()].map(toPatientCase))};
-    }),
+    })),
 );
 
 router.post(
@@ -357,12 +373,12 @@ router.post(
     rateLimiter({windowMs: 60000, max: 60}),
     validateFormZod(patientCaseFormSchema),
     publicChatCustomerMW(),
-    asyncHandler(async (params: PortalParams<PatientCaseFormType>): Promise<PatientCaseResponse> => {
+    asyncHandler(asPatient(async (params: PortalParams<PatientCaseFormType>): Promise<PatientCaseResponse> => {
         const user = await requirePortalAccount(params.customer, params.origin, params.languageCode);
         const inquiries = await ClinicInquiry.find({account: user._id, requestGroup: params.requestGroup, deletedAt: null}).sort({createdAt: 1});
         if (!inquiries.length) throw apiValidationException("inquiry_not_found", "", null, params.languageCode);
         return {data: await toPatientCase(inquiries)};
-    }),
+    })),
 );
 
 /** The thread with one clinic; opening it marks the clinic's messages read. */
@@ -373,7 +389,7 @@ router.post(
     transactionHandler(),
     validateFormZod(patientInquiryFormSchema),
     publicChatCustomerMW(),
-    asyncHandler(async (params: TransactionRequiredParams & PortalParams<PatientInquiryFormType>): Promise<PatientThreadResponse> => {
+    asyncHandler(asPatient(async (params: TransactionRequiredParams & PortalParams<PatientInquiryFormType>): Promise<PatientThreadResponse> => {
         const {origin, languageCode, session, logger} = params;
         const user = await requirePortalAccount(params.customer, origin, languageCode);
         const inquiry = await loadOwnInquiry(user._id, params.inquiry, languageCode, session);
@@ -389,7 +405,7 @@ router.post(
                 createdAt: dateToISOString(message.createdAt),
             })),
         };
-    }),
+    })),
 );
 
 router.post(
@@ -399,7 +415,7 @@ router.post(
     transactionHandler(),
     validateFormZod(patientMessageFormSchema),
     publicChatCustomerMW(),
-    asyncHandler(async (params: TransactionRequiredParams & PortalParams<PatientMessageFormType>): Promise<{data: {sent: true}}> => {
+    asyncHandler(asPatient(async (params: TransactionRequiredParams & PortalParams<PatientMessageFormType>): Promise<{data: {sent: true}}> => {
         const {languageCode, session, logger} = params;
         const {user, platformCompanyId} = await portalAccount(params);
         const inquiry = await loadOwnInquiry(user._id, params.inquiry, languageCode, session);
@@ -407,7 +423,7 @@ router.post(
         const attachments = await claimPatientUploads(params.attachments ?? [], {accountId: user._id, platformCompanyId}, ctx);
         await postInquiryMessage(inquiry, {from: "patient", authorId: user._id, body: params.body, attachments}, ctx);
         return {data: {sent: true}};
-    }),
+    })),
 );
 
 /** More files for one clinic, optionally answering what it asked for. */
@@ -418,7 +434,7 @@ router.post(
     transactionHandler(),
     validateFormZod(patientAttachFilesFormSchema),
     publicChatCustomerMW(),
-    asyncHandler(async (params: TransactionRequiredParams & PortalParams<PatientAttachFilesFormType>): Promise<PatientInquiryResponse> => {
+    asyncHandler(asPatient(async (params: TransactionRequiredParams & PortalParams<PatientAttachFilesFormType>): Promise<PatientInquiryResponse> => {
         const {languageCode, session, logger} = params;
         const {user, platformCompanyId} = await portalAccount(params);
         const inquiry = await loadOwnInquiry(user._id, params.inquiry, languageCode, session);
@@ -429,7 +445,7 @@ router.post(
         );
         const [mapped] = await toPatientInquiries([inquiry]);
         return {data: mapped};
-    }),
+    })),
 );
 
 /** Lets this clinic see the patient's full name, email and phone numbers. */
@@ -440,14 +456,14 @@ router.post(
     transactionHandler(),
     validateFormZod(patientInquiryFormSchema),
     publicChatCustomerMW(),
-    asyncHandler(async (params: TransactionRequiredParams & PortalParams<PatientInquiryFormType>): Promise<PatientInquiryResponse> => {
+    asyncHandler(asPatient(async (params: TransactionRequiredParams & PortalParams<PatientInquiryFormType>): Promise<PatientInquiryResponse> => {
         const {origin, languageCode, session, logger} = params;
         const user = await requirePortalAccount(params.customer, origin, languageCode);
         const inquiry = await loadOwnInquiry(user._id, params.inquiry, languageCode, session);
         await shareInquiryContact(inquiry, {userId: user._id}, {session, logger, languageCode, auditUserId: user._id});
         const [mapped] = await toPatientInquiries([inquiry]);
         return {data: mapped};
-    }),
+    })),
 );
 
 /** The patient no longer wants this clinic's answer; the clinic loses access to the files. */
@@ -458,14 +474,14 @@ router.post(
     transactionHandler(),
     validateFormZod(patientInquiryFormSchema),
     publicChatCustomerMW(),
-    asyncHandler(async (params: TransactionRequiredParams & PortalParams<PatientInquiryFormType>): Promise<PatientInquiryResponse> => {
+    asyncHandler(asPatient(async (params: TransactionRequiredParams & PortalParams<PatientInquiryFormType>): Promise<PatientInquiryResponse> => {
         const {origin, languageCode, session, logger} = params;
         const user = await requirePortalAccount(params.customer, origin, languageCode);
         const inquiry = await loadOwnInquiry(user._id, params.inquiry, languageCode, session);
         await withdrawInquiry(inquiry, {userId: user._id}, {session, logger, languageCode, auditUserId: user._id});
         const [mapped] = await toPatientInquiries([inquiry]);
         return {data: mapped};
-    }),
+    })),
 );
 
 /** A trip as the patient sees it; its plan must be populated with `phases`. */
@@ -499,13 +515,13 @@ router.post(
     rateLimiter({windowMs: 60000, max: 60}),
     validateFormZod(patientCaseFormSchema),
     publicChatCustomerMW(),
-    asyncHandler(async (params: PortalParams<PatientCaseFormType>): Promise<PatientTripsResponse> => {
+    asyncHandler(asPatient(async (params: PortalParams<PatientCaseFormType>): Promise<PatientTripsResponse> => {
         const user = await requirePortalAccount(params.customer, params.origin, params.languageCode);
         const inquiries = await ClinicInquiry.find({account: user._id, requestGroup: params.requestGroup, deletedAt: null}).select("_id");
         const trips = await tripsOfInquiries(inquiries.map((inquiry) => inquiry._id), {});
         const names = await clinicNamesOf(trips);
         return {data: trips.map((trip) => toPatientTrip(trip, names))};
-    }),
+    })),
 );
 
 /** The patient adds their flights and where they stay to a coming trip. */
@@ -516,7 +532,7 @@ router.post(
     transactionHandler(),
     validateFormZod(patientTripDetailsFormSchema),
     publicChatCustomerMW(),
-    asyncHandler(async (params: TransactionRequiredParams & PortalParams<PatientTripDetailsFormType>): Promise<PatientTripResponse> => {
+    asyncHandler(asPatient(async (params: TransactionRequiredParams & PortalParams<PatientTripDetailsFormType>): Promise<PatientTripResponse> => {
         const {origin, languageCode, session, logger} = params;
         const user = await requirePortalAccount(params.customer, origin, languageCode);
         const trip = ObjectId.isValid(params.trip) ? await PatientTrip.findOne({_id: new ObjectId(params.trip), deletedAt: null}).session(session) : null;
@@ -530,7 +546,7 @@ router.post(
         );
         await trip.populate({path: "plan", select: "phases inquiry"});
         return {data: toPatientTrip(trip, await clinicNamesOf([trip]))};
-    }),
+    })),
 );
 
 /** The patient's signed medical history for one request, for every clinic of it. */
@@ -541,7 +557,7 @@ router.post(
     transactionHandler(),
     validateFormZod(patientMedicalHistoryFormSchema),
     publicChatCustomerMW(),
-    asyncHandler(async (params: TransactionRequiredParams & PortalParams<PatientMedicalHistoryFormType>): Promise<PatientCaseResponse> => {
+    asyncHandler(asPatient(async (params: TransactionRequiredParams & PortalParams<PatientMedicalHistoryFormType>): Promise<PatientCaseResponse> => {
         const {origin, languageCode, session, logger} = params;
         const user = await requirePortalAccount(params.customer, origin, languageCode);
         const inquiries = await ClinicInquiry.find({account: user._id, requestGroup: params.requestGroup, deletedAt: null}).sort({createdAt: 1}).session(session);
@@ -552,7 +568,7 @@ router.post(
             {session, logger, languageCode, auditUserId: user._id},
         );
         return {data: await toPatientCase(inquiries)};
-    }),
+    })),
 );
 
 /**
@@ -564,7 +580,7 @@ router.get(
     authMW("public"),
     rateLimiter({windowMs: 60000, max: 120}),
     publicChatCustomerMW(),
-    asyncHandler(async (params: PortalParams<object>, queryParams: {mediaId: string}, req: Request, res: Response) => {
+    asyncHandler(asPatient(async (params: PortalParams<object>, queryParams: {mediaId: string}, req: Request, res: Response) => {
         const {origin, languageCode} = params;
         const user = await requirePortalAccount(params.customer, origin, languageCode);
         if (!ObjectId.isValid(queryParams.mediaId)) throw apiValidationException("media_not_found", "", null, languageCode);
@@ -583,7 +599,7 @@ router.get(
                 return !!(await ClinicMessage.exists({inquiry: {$in: inquiries.map((inquiry) => inquiry._id)}, attachments: mediaId, deletedAt: null}));
             },
         });
-    }),
+    })),
 );
 
 /** One of the patient's quotes; drafts stay with the clinic. */
@@ -603,7 +619,7 @@ router.post(
     rateLimiter({windowMs: 60000, max: 60}),
     validateFormZod(patientCaseFormSchema),
     publicChatCustomerMW(),
-    asyncHandler(async (params: PortalParams<PatientCaseFormType>): Promise<PatientPlansResponse> => {
+    asyncHandler(asPatient(async (params: PortalParams<PatientCaseFormType>): Promise<PatientPlansResponse> => {
         const user = await requirePortalAccount(params.customer, params.origin, params.languageCode);
         const inquiries = await ClinicInquiry.find({account: user._id, requestGroup: params.requestGroup, deletedAt: null}).select("_id company");
         const plans = await TreatmentPlan.find({inquiry: {$in: inquiries.map((inquiry) => inquiry._id)}, status: {$ne: "draft"}, deletedAt: null})
@@ -618,7 +634,7 @@ router.post(
             }),
             onlinePayment: onlinePaymentAvailable(),
         };
-    }),
+    })),
 );
 
 /** Starts the card payment of an accepted plan's deposit; the webhook records it once paid. */
@@ -629,13 +645,13 @@ router.post(
     transactionHandler(),
     validateFormZod(payPlanDepositFormSchema),
     publicChatCustomerMW(),
-    asyncHandler(async (params: TransactionRequiredParams & PortalParams<PayPlanDepositFormType>): Promise<PatientDepositPaymentResponse> => {
+    asyncHandler(asPatient(async (params: TransactionRequiredParams & PortalParams<PayPlanDepositFormType>): Promise<PatientDepositPaymentResponse> => {
         const {origin, languageCode, session, logger} = params;
         const user = await requirePortalAccount(params.customer, origin, languageCode);
         const plan = await loadOwnPlan(user._id, params.plan, languageCode, session);
         const {clientSecret, amount} = await startDepositPayment(plan, {session, logger, languageCode, auditUserId: user._id});
         return {data: {clientSecret, publishableKey: PAYMENTS.STRIPE_PUBLISHABLE_KEY, amount}};
-    }),
+    })),
 );
 
 /**
@@ -649,7 +665,7 @@ router.post(
     transactionHandler(),
     validateFormZod(acceptTreatmentPlanFormSchema),
     publicChatCustomerMW(),
-    asyncHandler(async (params: TransactionRequiredParams & PortalParams<AcceptTreatmentPlanFormType>, _query: unknown, req: Request): Promise<PatientPlanAcceptedResponse> => {
+    asyncHandler(asPatient(async (params: TransactionRequiredParams & PortalParams<AcceptTreatmentPlanFormType>, _query: unknown, req: Request): Promise<PatientPlanAcceptedResponse> => {
         const {origin, languageCode, session, logger} = params;
         const user = await requirePortalAccount(params.customer, origin, languageCode);
         if (!params.acceptTerms) throw apiValidationException("treatment_plan_terms_required", "", null, languageCode);
@@ -662,7 +678,7 @@ router.post(
         await plan.populate({path: "currency", select: "name symbol abbreviation"});
         const [clinic] = await portalCompanyCards(idsOf([plan.company]), new Map());
         return {data: {plan: treatmentPlanToPatient(plan, {_id: clinic?._id ?? "", name: clinic?.name ?? ""})}};
-    }),
+    })),
 );
 
 /** One of the patient's quotes as a PDF. */
@@ -671,9 +687,9 @@ router.get(
     authMW("public"),
     rateLimiter({windowMs: 60000, max: 30}),
     publicChatCustomerMW(),
-    asyncHandler(async (params: PortalParams<object>, queryParams: {planId: string}, _req: Request, res: Response) => {
+    asyncHandler(asPatient(async (params: PortalParams<object>, queryParams: {planId: string}, _req: Request, res: Response) => {
         const user = await requirePortalAccount(params.customer, params.origin, params.languageCode);
         const plan = await loadOwnPlan(user._id, queryParams.planId, params.languageCode);
         await sendTreatmentPlanPdf(plan, res, params.languageCode);
-    }),
+    })),
 );

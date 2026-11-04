@@ -1,4 +1,8 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
+
+vi.hoisted(() => {
+    process.env.TENANT_SCOPE_ENFORCE = "dentalClinic";
+});
 import {MongoMemoryReplSet} from "mongodb-memory-server";
 import mongoose from "mongoose";
 import {ObjectId} from "mongodb";
@@ -65,7 +69,8 @@ const clinicB = new ObjectId();
 const clinicC = new ObjectId();
 const accountId = new ObjectId();
 const otherAccountId = new ObjectId();
-const app = appFor([inquiryRoute, portalRoute]);
+// dentalClinic routes run with tenant scoping enforced (D16), as in the dev profiles.
+const app = appFor([inquiryRoute, portalRoute].map((route) => ({...route, module: "dentalClinic"})));
 
 let staffA: TestCaller;
 let staffB: TestCaller;
