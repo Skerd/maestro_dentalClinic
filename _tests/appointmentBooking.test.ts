@@ -23,6 +23,7 @@ vi.mock("@dentalClinicModule/utilities/emails/sendPatientMail", () => ({
 }));
 
 import {allPermissionTags, appFor, callerHeader, type TestCaller} from "@coreModule/_tests/httpHarness";
+import Company from "@coreModule/database/schemas/company/company";
 import Currency from "@coreModule/database/schemas/currency/currency";
 import * as appointmentRoute from "@dentalClinicModule/api/dentalClinic/private/appointment";
 import * as scheduleExceptionRoute from "@dentalClinicModule/api/dentalClinic/private/scheduleException";
@@ -79,6 +80,8 @@ beforeAll(async () => {
     outsider = {...admin, companyId: otherCompanyId.toString()};
     dentist = {userId: dentistUserId.toString(), companyId: companyId.toString(), isAdmin: false, permissions};
     originCompany.current = {_id: companyId, name: "Smile Clinic"};
+    // Patient messages look the clinic's company up (name, site slug) after commit.
+    await Company.collection.insertOne({_id: companyId, name: "Smile Clinic", vat: "VAT-1"});
 }, 120000);
 
 afterAll(async () => {
