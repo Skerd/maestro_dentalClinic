@@ -1,5 +1,10 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
 
+// dentalClinic enforces action permissions (D14 rollout, D54), as in the dev profiles.
+vi.hoisted(() => {
+    process.env.ACTION_PERMISSION_ENFORCE = "dentalClinic";
+});
+
 import {MongoMemoryReplSet} from "mongodb-memory-server";
 import mongoose from "mongoose";
 import {ObjectId} from "mongodb";
@@ -194,6 +199,10 @@ describe("booking an appointment", {timeout: 60000}, () => {
         const {body} = await book();
         expect(body.data.appointment.status).toBe("pending");
         expect(mail.sent[0].kind).toBe("requested");
+        // A role that can see appointments but not confirm them is stopped before the action (D14).
+        const viewer: TestCaller = {...admin, isAdmin: false, permissions: admin.permissions!.filter((tag) => !tag.includes("[action:"))};
+        const refused = await request(app).post("/api/dentalClinic/appointment/confirm").set(callerHeader(viewer)).send({_id: body.data.appointment._id});
+        expect(refused.body.error_code).toBe("user_permissions_not_sufficient");
         const confirmed = await request(app).post("/api/dentalClinic/appointment/confirm").set(callerHeader(admin)).send({_id: body.data.appointment._id});
         expect(confirmed.body.status).toBe("confirmed");
     }));

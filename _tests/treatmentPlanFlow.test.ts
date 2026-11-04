@@ -1,5 +1,10 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
 
+// dentalClinic enforces action permissions (D14 rollout, D54), as in the dev profiles.
+vi.hoisted(() => {
+    process.env.ACTION_PERMISSION_ENFORCE = "dentalClinic";
+});
+
 import {MongoMemoryReplSet} from "mongodb-memory-server";
 import mongoose from "mongoose";
 import {ObjectId} from "mongodb";
