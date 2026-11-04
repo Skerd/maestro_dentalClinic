@@ -1,8 +1,5 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
 
-vi.hoisted(() => {
-    process.env.TENANT_SCOPE_ENFORCE = "dentalClinic";
-});
 import {MongoMemoryReplSet} from "mongodb-memory-server";
 import mongoose from "mongoose";
 import {ObjectId} from "mongodb";
@@ -61,6 +58,7 @@ import ClinicConfig from "@dentalClinicModule/database/schemas/clinicConfig/clin
 import ClinicInquiry from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry";
 import ClinicMessage from "@dentalClinicModule/database/schemas/clinicMessage/clinicMessage";
 import Patient from "@dentalClinicModule/database/schemas/patient/patient";
+import {asCrossTenant} from "@coreModule/utilities/endpoints/tenantScope";
 
 let replSet: MongoMemoryReplSet;
 const platformId = new ObjectId();
@@ -69,6 +67,8 @@ const clinicB = new ObjectId();
 const clinicC = new ObjectId();
 const accountId = new ObjectId();
 const otherAccountId = new ObjectId();
+/** Fixtures and direct checks span several companies; each route call still runs as its caller's company (D16). */
+const acrossCompanies = <T>(fn: () => PromiseLike<T>): Promise<T> => asCrossTenant("test fixtures span companies", fn);
 // dentalClinic routes run with tenant scoping enforced (D16), as in the dev profiles.
 const app = appFor([inquiryRoute, portalRoute].map((route) => ({...route, module: "dentalClinic"})));
 
@@ -127,16 +127,16 @@ afterAll(async () => {
     await replSet.stop();
 });
 
-beforeEach(async () => {
+beforeEach(() => acrossCompanies(async () => {
     await Promise.all([ClinicInquiry, ClinicMessage, Patient, ClinicConfig, Media].map((model) => model.collection.deleteMany({})));
     mail.sent = [];
     // Emails name the clinic, so the companies must exist; only their names are read.
     await Company.collection.deleteMany({});
     await Company.collection.insertMany([clinicA, clinicB, clinicC, platformId].map((_id, index) => ({_id, name: `Company ${index}`, vat: `VAT-${index}`})));
-});
+}));
 
 describe("a patient's request to several clinics", {timeout: 60000}, () => {
-    it("opens one inquiry per clinic, shares the X-ray with exactly those clinics, and answers a retry with the same request", async () => {
+    it("opens one inquiry per clinic, shares the X-ray with exactly those clinics, and answers a retry with the same request", () => acrossCompanies(async () => {
         const opg = await upload("opg.jpg");
         const key = `key-${new ObjectId().toString()}`;
         const first = await sendRequest({files: [opg._id.toString()], idempotencyKey: key});
@@ -155,20 +155,20 @@ describe("a patient's request to several clinics", {timeout: 60000}, () => {
         const retry = await sendRequest({files: [opg._id.toString()], idempotencyKey: key});
         expect(retry.body.data.requestGroup).toBe(first.body.data.requestGroup);
         expect(await ClinicInquiry.countDocuments({})).toBe(2);
-    });
+    }));
 
-    it("refuses clinics that do not take requests here, someone else's files, and a request without consent", async () => {
+    it("refuses clinics that do not take requests here, someone else's files, and a request without consent", () => acrossCompanies(async () => {
         expect((await sendRequest({clinics: [clinicC.toString()]})).body.error_code).toBe("inquiry_clinic_not_available");
         const foreign = await upload("theirs.jpg", otherAccountId);
         expect((await sendRequest({files: [foreign._id.toString()]})).body.error_code).toBe("inquiry_file_not_found");
         expect((await sendRequest({acceptConsent: false})).body.error_code).toBe("inquiry_consent_required");
         expect((await sendRequest({treatmentsWanted: ["teleportation"]})).body.error_code).toBe("inquiry_invalid_treatments");
         expect(await ClinicInquiry.countDocuments({})).toBe(0);
-    });
+    }));
 });
 
 describe("working the request at a clinic", {timeout: 60000}, () => {
-    it("hides the patient's contact until they share it, and opens their folder only then", async () => {
+    it("hides the patient's contact until they share it, and opens their folder only then", () => acrossCompanies(async () => {
         const {body} = await sendRequest();
         const inquiry = await ClinicInquiry.findOne({requestGroup: body.data.requestGroup, company: clinicA});
 
@@ -188,9 +188,9 @@ describe("working the request at a clinic", {timeout: 60000}, () => {
         expect(String(folder!.account)).toBe(accountId.toString());
         // The other clinic still sees a masked request.
         expect((await ClinicInquiry.findOne({company: clinicB}))!.contactShared).toBe(false);
-    });
+    }));
 
-    it("asks for a panoramic X-ray, which the patient sends to that clinic only", async () => {
+    it("asks for a panoramic X-ray, which the patient sends to that clinic only", () => acrossCompanies(async () => {
         const {body} = await sendRequest();
         const atA = await ClinicInquiry.findOne({requestGroup: body.data.requestGroup, company: clinicA});
 
@@ -206,9 +206,9 @@ describe("working the request at a clinic", {timeout: 60000}, () => {
 
         // Another account cannot touch this inquiry.
         expect((await asPatient("/attach", {inquiry: atA!._id.toString(), files: [opg._id.toString()]}, otherAccountId)).body.error_code).toBe("inquiry_not_found");
-    });
+    }));
 
-    it("takes a declining clinic's access to the files away and tells the patient", async () => {
+    it("takes a declining clinic's access to the files away and tells the patient", () => acrossCompanies(async () => {
         const opg = await upload("opg.jpg");
         const {body} = await sendRequest({files: [opg._id.toString()]});
         const atB = await ClinicInquiry.findOne({requestGroup: body.data.requestGroup, company: clinicB});
@@ -218,9 +218,9 @@ describe("working the request at a clinic", {timeout: 60000}, () => {
         expect((await Media.findById(opg._id))!.sharedWithCompanies.map(String)).toEqual([clinicA.toString()]);
         expect(mail.sent.at(-1)).toMatchObject({kind: "declined"});
         expect((await asClinic(staffB, "/requestInfo", {_id: atB!._id.toString(), kinds: ["cbct"]})).body.error_code).toBe("inquiry_invalid_status");
-    });
+    }));
 
-    it("keeps a thread with unread counts on both sides", async () => {
+    it("keeps a thread with unread counts on both sides", () => acrossCompanies(async () => {
         const {body} = await sendRequest();
         const atA = await ClinicInquiry.findOne({requestGroup: body.data.requestGroup, company: clinicA});
         const id = atA!._id.toString();
@@ -239,9 +239,9 @@ describe("working the request at a clinic", {timeout: 60000}, () => {
         const staffThread = await asClinic(staffA, "/thread", {_id: id});
         expect(staffThread.body.data.map((message: {from: string}) => message.from)).toEqual(["clinic", "patient"]);
         expect((await ClinicInquiry.findById(id))!.unreadForClinic).toBe(0);
-    });
+    }));
 
-    it("lets the patient withdraw from one clinic and lists the request with each clinic's status", async () => {
+    it("lets the patient withdraw from one clinic and lists the request with each clinic's status", () => acrossCompanies(async () => {
         const {body} = await sendRequest();
         const atB = await ClinicInquiry.findOne({requestGroup: body.data.requestGroup, company: clinicB});
         expect((await asPatient("/withdraw", {inquiry: atB!._id.toString()})).body.data.status).toBe("withdrawn");
@@ -251,11 +251,11 @@ describe("working the request at a clinic", {timeout: 60000}, () => {
         expect(cases.body.data[0].treatmentsWanted).toEqual(["implant", "crown"]);
         expect(cases.body.data[0].inquiries.map((inquiry: {status: string}) => inquiry.status).sort()).toEqual(["new", "withdrawn"]);
         expect((await asPatient("/cases", {}, otherAccountId)).body.data).toEqual([]);
-    });
+    }));
 });
 
 describe("leads the clinic enters itself", {timeout: 60000}, () => {
-    it("records a phone lead with its contact visible", async () => {
+    it("records a phone lead with its contact visible", () => acrossCompanies(async () => {
         const created = await request(app).put("/api/dentalClinic/clinicInquiry").set(callerHeader(staffA)).send({
             contact: {firstName: "Marco", lastName: "Rossi", phone: "+39 333 111 2222", preferredLanguage: "it-IT"},
             source: "phone",
@@ -266,5 +266,5 @@ describe("leads the clinic enters itself", {timeout: 60000}, () => {
         const converted = await asClinic(staffA, "/convert", {_id: created.body._id});
         expect(converted.body.status).toBe("converted");
         expect(await Patient.countDocuments({company: clinicA, lastName: "Rossi"})).toBe(1);
-    });
+    }));
 });

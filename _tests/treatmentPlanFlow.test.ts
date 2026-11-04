@@ -1,8 +1,5 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
 
-vi.hoisted(() => {
-    process.env.TENANT_SCOPE_ENFORCE = "dentalClinic";
-});
 import {MongoMemoryReplSet} from "mongodb-memory-server";
 import mongoose from "mongoose";
 import {ObjectId} from "mongodb";
@@ -85,6 +82,7 @@ import TreatmentPlan from "@dentalClinicModule/database/schemas/treatmentPlan/tr
 import {expirePlans, planTotals} from "@dentalClinicModule/utilities/services/treatmentPlans";
 import {generateTreatmentPlanPdf} from "@dentalClinicModule/utilities/pdf/treatmentPlanPdf";
 import {treatmentPlanToDTO} from "@dentalClinicModule/utilities/mappers/treatmentPlan/treatmentPlanMapper.dto";
+import {asCrossTenant} from "@coreModule/utilities/endpoints/tenantScope";
 
 let replSet: MongoMemoryReplSet;
 const webhookLogger = getLogger("treatment_plan_payment_test");
@@ -92,6 +90,8 @@ const platformId = new ObjectId();
 const clinicA = new ObjectId();
 const clinicB = new ObjectId();
 const accountId = new ObjectId();
+/** Fixtures and direct checks span several companies; each route call still runs as its caller's company (D16). */
+const acrossCompanies = <T>(fn: () => PromiseLike<T>): Promise<T> => asCrossTenant("test fixtures span companies", fn);
 // dentalClinic routes run with tenant scoping enforced (D16), as in the dev profiles.
 const app = appFor([inquiryRoute, planRoute, portalRoute, tripRoute].map((route) => ({...route, module: "dentalClinic"})));
 
@@ -185,7 +185,7 @@ afterAll(async () => {
     await replSet.stop();
 });
 
-beforeEach(async () => {
+beforeEach(() => acrossCompanies(async () => {
     await Promise.all([ClinicInquiry, ClinicMessage, Patient, ClinicConfig, TreatmentPlan, Media, Currency, PaymentTransaction, PatientTrip].map((model) => model.collection.deleteMany({})));
     await Company.collection.deleteMany({});
     await Company.collection.insertMany([clinicA, clinicB, platformId].map((_id, index) => ({_id, name: `Company ${index}`, vat: `VAT-${index}`})));
@@ -200,10 +200,10 @@ beforeEach(async () => {
         const currency = await Currency.create({name: "Euro", symbol: "€", abbreviation: "EUR", decimalPlaces: 2, company});
         await ClinicConfig.create({company, currency: currency._id, inquiriesEnabled: true, quoteValidityDays: 14, quoteTerms: "Payment at the clinic."});
     }
-});
+}));
 
 describe("a clinic's quote", {timeout: 60000}, () => {
-    it("computes the totals and deposit itself, and refuses unknown teeth or phases", async () => {
+    it("computes the totals and deposit itself, and refuses unknown teeth or phases", () => acrossCompanies(async () => {
         const {atA} = await requestToBoth();
         const created = await asStaff(staffA, "put", "", plan(atA));
         expect(created.body).toMatchObject({status: "draft", currency: {abbreviation: "EUR"}, terms: "Payment at the clinic."});
@@ -214,9 +214,9 @@ describe("a clinic's quote", {timeout: 60000}, () => {
         expect(badTooth.body.error_code).toBe("treatment_plan_tooth_invalid");
         const badPhase = await asStaff(staffA, "put", "", plan(atA, {lines: [{phase: 3, kind: "treatment", name: "Crown", quantity: 1, unitPrice: 1}]}));
         expect(badPhase.body.error_code).toBe("treatment_plan_line_phase_invalid");
-    });
+    }));
 
-    it("answers the request when sent, shows the patient only sent quotes, and replaces a quote with its revision", async () => {
+    it("answers the request when sent, shows the patient only sent quotes, and replaces a quote with its revision", () => acrossCompanies(async () => {
         const {atA, requestGroup} = await requestToBoth();
         await asStaff(staffA, "put", "", plan(atA, {optionLabel: "Still a draft"}));
         const first = await sentPlan(staffA, atA);
@@ -239,11 +239,11 @@ describe("a clinic's quote", {timeout: 60000}, () => {
         offers = await asPatient("/plans", {requestGroup});
         expect(offers.body.data.map((offer: {status: string}) => offer.status)).toEqual(["superseded", "sent"]);
         expect((await asStaff(staffA, "patch", "", {...plan(atA), _id: first})).body.error_code).toBe("treatment_plan_invalid_status");
-    });
+    }));
 });
 
 describe("the patient accepting a quote", {timeout: 60000}, () => {
-    it("makes them this clinic's patient, closes their other clinics and moves the X-ray to the chosen clinic", async () => {
+    it("makes them this clinic's patient, closes their other clinics and moves the X-ray to the chosen clinic", () => acrossCompanies(async () => {
         const {atA, atB, requestGroup, opg} = await requestToBoth();
         const chosen = await sentPlan(staffA, atA);
         const alternative = await sentPlan(staffA, atA, {optionLabel: "Osstem"});
@@ -287,9 +287,9 @@ describe("the patient accepting a quote", {timeout: 60000}, () => {
 
         expect((await asPatient("/acceptPlan", {plan: elsewhere, signedName: "Giulia Bianchi", acceptTerms: true})).body.error_code).toBe("treatment_plan_invalid_status");
         expect((await asPatient("/plans", {requestGroup})).body.data.filter((offer: {status: string}) => offer.status === "accepted")).toHaveLength(1);
-    });
+    }));
 
-    it("lets only one of two simultaneous acceptances at different clinics through", async () => {
+    it("lets only one of two simultaneous acceptances at different clinics through", () => acrossCompanies(async () => {
         const {atA, atB} = await requestToBoth();
         const atClinicA = await sentPlan(staffA, atA);
         const atClinicB = await sentPlan(staffB, atB);
@@ -301,15 +301,15 @@ describe("the patient accepting a quote", {timeout: 60000}, () => {
         expect(await TreatmentPlan.countDocuments({status: "accepted"})).toBe(1);
         expect(await ClinicInquiry.countDocuments({status: "converted"})).toBe(1);
         expect(await ClinicInquiry.countDocuments({status: "lost"})).toBe(1);
-    });
+    }));
 
-    it("refuses an expired quote", async () => {
+    it("refuses an expired quote", () => acrossCompanies(async () => {
         const {atA} = await requestToBoth();
         const id = await sentPlan(staffA, atA, {validUntil: "2020-01-01"});
         expect(await expirePlans(clinicA)).toBe(1);
         expect((await TreatmentPlan.findById(id))!.status).toBe("expired");
         expect((await asPatient("/acceptPlan", {plan: id, signedName: "Giulia Bianchi", acceptTerms: true})).body.error_code).toBe("treatment_plan_invalid_status");
-    });
+    }));
 });
 
 describe("the medical history", {timeout: 60000}, () => {
@@ -318,7 +318,7 @@ describe("the medical history", {timeout: 60000}, () => {
         "high_blood_pressure", "bleeding_disorder", "infectious_disease", "pregnancy", "smoking",
     ].map((question) => ({question, answer: overrides[question] ?? "no", detail: "only kept where the answer is not no"}));
 
-    it("goes to every clinic of the request, answers what they asked for, and follows the patient to the chosen clinic", async () => {
+    it("goes to every clinic of the request, answers what they asked for, and follows the patient to the chosen clinic", () => acrossCompanies(async () => {
         const {atA, atB, requestGroup} = await requestToBoth();
         await request(app).post("/api/dentalClinic/clinicInquiry/requestInfo").set(callerHeader(staffB)).send({_id: atB, kinds: ["medical_history"]});
 
@@ -348,11 +348,11 @@ describe("the medical history", {timeout: 60000}, () => {
         const updated = await Patient.findById(folder!._id);
         expect(updated!.medicalHistory!.answers.find((row) => row.question === "diabetes")!.answer).toBe("yes");
         expect((await ClinicInquiry.findById(atB))!.medicalHistory!.answers.find((row) => row.question === "diabetes")!.answer).toBe("no");
-    });
+    }));
 });
 
 describe("the patient's trips", {timeout: 60000}, () => {
-    it("keeps a later phase after the plan's healing time, and lets the patient add flights and hotel", async () => {
+    it("keeps a later phase after the plan's healing time, and lets the patient add flights and hotel", () => acrossCompanies(async () => {
         const {atA, requestGroup} = await requestToBoth();
         const id = await sentPlan(staffA, atA);
         await asPatient("/acceptPlan", {plan: id, signedName: "Giulia Bianchi", acceptTerms: true});
@@ -380,11 +380,11 @@ describe("the patient's trips", {timeout: 60000}, () => {
         expect(details.body.data).toMatchObject({arrivalFlight: "W6 4567", accommodation: "Hotel Rogner", transfer: true});
         await PatientTrip.updateOne({_id: first.body._id}, {$set: {status: "completed"}});
         expect((await asPatient("/tripDetails", {trip: first.body._id, arrivalFlight: "X"})).body.error_code).toBe("patient_trip_closed");
-    });
+    }));
 });
 
 describe("paying for an accepted plan", {timeout: 60000}, () => {
-    it("takes the deposit by card once, then records the clinic's payments and refunds newest first", async () => {
+    it("takes the deposit by card once, then records the clinic's payments and refunds newest first", () => acrossCompanies(async () => {
         const {atA, requestGroup} = await requestToBoth();
         const id = await sentPlan(staffA, atA);
         // Not before acceptance
@@ -433,11 +433,11 @@ describe("paying for an accepted plan", {timeout: 60000}, () => {
         expect(offers.body.data[0]).toMatchObject({paymentStatus: "partially_refunded", amountPaid: 1710, depositDue: 0});
         stored = await TreatmentPlan.findById(id);
         expect(stored!.timeline.map((entry) => entry.event)).toEqual(expect.arrayContaining(["payment_received", "refunded"]));
-    });
+    }));
 });
 
 describe("the quote document", () => {
-    it("renders a PDF in the patient's language", async () => {
+    it("renders a PDF in the patient's language", () => acrossCompanies(async () => {
         const doc = new TreatmentPlan({
             company: clinicA,
             number: "TP-1",
@@ -454,5 +454,5 @@ describe("the quote document", () => {
         const pdf = await generateTreatmentPlanPdf({plan: treatmentPlanToDTO(doc), clinicName: "Smile Tirana", patientName: "Giulia Bianchi", languageCode: "it-IT"});
         expect(pdf.subarray(0, 4).toString()).toBe("%PDF");
         expect(pdf.length).toBeGreaterThan(1000);
-    });
+    }));
 });

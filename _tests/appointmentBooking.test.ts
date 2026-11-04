@@ -1,8 +1,5 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
 
-vi.hoisted(() => {
-    process.env.TENANT_SCOPE_ENFORCE = "dentalClinic";
-});
 import {MongoMemoryReplSet} from "mongodb-memory-server";
 import mongoose from "mongoose";
 import {ObjectId} from "mongodb";
@@ -47,10 +44,13 @@ import ScheduleException from "@dentalClinicModule/database/schemas/scheduleExce
 import Appointment from "@dentalClinicModule/database/schemas/appointment/appointment";
 import Patient from "@dentalClinicModule/database/schemas/patient/patient";
 import {runAppointmentRetention} from "@dentalClinicModule/utilities/cronJobs/appointmentRetentionJob";
+import {withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 
 // Transactions need a replica set; WiredTiger so concurrent requests really conflict
 let replSet: MongoMemoryReplSet;
 const companyId = new ObjectId();
+/** The tests act on this company's data, as its requests and jobs do (D16). */
+const asCompany = <T>(fn: () => PromiseLike<T>): Promise<T> => withTenant(companyId, fn);
 const otherCompanyId = new ObjectId();
 const adminId = new ObjectId();
 const dentistUserId = new ObjectId();
@@ -101,7 +101,7 @@ afterAll(async () => {
     await replSet.stop();
 });
 
-beforeEach(async () => {
+beforeEach(() => asCompany(async () => {
     // Raw collection deletes: the soft-delete plugin would only mark the rows deleted
     await Promise.all([ClinicConfig, ClinicLocation, ClinicService, Practitioner, ScheduleException, Appointment, Patient, Currency]
         .map((model) => model.collection.deleteMany({})));
@@ -128,10 +128,10 @@ beforeEach(async () => {
     serviceId = service._id.toString();
     anaId = ana._id.toString();
     benId = ben._id.toString();
-});
+}));
 
 describe("booking an appointment", {timeout: 60000}, () => {
-    it("confirms a booking with the treatment time, the busy window and a snapshot", async () => {
+    it("confirms a booking with the treatment time, the busy window and a snapshot", () => asCompany(async () => {
         const response = await book();
         expect(response.status).toBe(200);
         expect(response.body.data.appointment).toMatchObject({status: "confirmed", serviceName: "Check-up", practitionerName: "Dr. Ana", price: 120});
@@ -144,9 +144,9 @@ describe("booking an appointment", {timeout: 60000}, () => {
         expect(stored!.consent?.at).toBeInstanceOf(Date);
         // Messages leave the treatment out unless the clinic opts in
         expect(mail.sent).toEqual([expect.objectContaining({kind: "confirmed", serviceName: undefined})]);
-    });
+    }));
 
-    it("books one dentist's slot exactly once when three patients try at the same moment", async () => {
+    it("books one dentist's slot exactly once when three patients try at the same moment", () => asCompany(async () => {
         const responses = await Promise.all([book(), book(), book()]);
         expect(responses.map((response) => response.status).sort()).toEqual([200, 409, 409]);
         // A loser either sees the winner's appointment or runs out of retries while the winner commits
@@ -154,59 +154,59 @@ describe("booking an appointment", {timeout: 60000}, () => {
             expect(["appointment_slot_unavailable", "concurrent_request_retry"]).toContain(failed.body.error_code);
         }
         expect(await Appointment.countDocuments({})).toBe(1);
-    });
+    }));
 
-    it("gives 'anyone' bookings to different dentists until nobody is free", async () => {
+    it("gives 'anyone' bookings to different dentists until nobody is free", () => asCompany(async () => {
         const [first, second] = await Promise.all([book({practitioner: undefined}), book({practitioner: undefined})]);
         expect([first.status, second.status]).toEqual([200, 200]);
         const names = [first.body.data.appointment.practitionerName, second.body.data.appointment.practitionerName].sort();
         expect(names).toEqual(["Dr. Ana", "Dr. Ben"]);
         expect((await book({practitioner: undefined})).body.error_code).toBe("appointment_no_practitioner_available");
-    });
+    }));
 
-    it("keeps the clean-up buffer free and only offers grid times online", async () => {
+    it("keeps the clean-up buffer free and only offers grid times online", () => asCompany(async () => {
         expect((await book()).status).toBe(200);
         // 09:00 + 30 min + 15 min clean-up: 09:30 is taken, 10:00 is free
         expect((await book({time: "09:30"})).body.error_code).toBe("appointment_slot_unavailable");
         expect((await book({time: "10:00"})).status).toBe(200);
         expect((await book({time: "10:10"})).body.error_code).toBe("appointment_slot_unavailable");
-    });
+    }));
 
-    it("lists free times per day and leaves out booked ones", async () => {
+    it("lists free times per day and leaves out booked ones", () => asCompany(async () => {
         await book();
         const {body} = await request(app).post("/api/dentalClinic/clinicStorefront/slots").set(callerHeader(admin))
             .send({service: serviceId, location: locationId, practitioner: anaId, fromDate: DATE, days: 1});
         expect(body.data.timezone).toBe("Europe/Zurich");
         // 08:30 would run its clean-up into the 09:00 appointment; 09:00 and 09:30 are taken
         expect(body.data.days[0].slots.map((slot: {time: string}) => slot.time)).toEqual(["08:00", "10:00", "10:30", "11:00", "11:30"]);
-    });
+    }));
 
-    it("returns the same appointment for a retried request", async () => {
+    it("returns the same appointment for a retried request", () => asCompany(async () => {
         const idempotencyKey = `key-${new ObjectId().toString()}`;
         const first = await book({idempotencyKey});
         const second = await book({idempotencyKey});
         expect(second.body.data.appointment._id).toBe(first.body.data.appointment._id);
         expect(await Appointment.countDocuments({})).toBe(1);
-    });
+    }));
 
-    it("waits for the clinic when it reviews online bookings", async () => {
+    it("waits for the clinic when it reviews online bookings", () => asCompany(async () => {
         await ClinicConfig.updateOne({company: companyId}, {$set: {requireStaffConfirmation: true}});
         const {body} = await book();
         expect(body.data.appointment.status).toBe("pending");
         expect(mail.sent[0].kind).toBe("requested");
         const confirmed = await request(app).post("/api/dentalClinic/appointment/confirm").set(callerHeader(admin)).send({_id: body.data.appointment._id});
         expect(confirmed.body.status).toBe("confirmed");
-    });
+    }));
 
-    it("refuses bookings without privacy consent, and before public booking is on", async () => {
+    it("refuses bookings without privacy consent, and before public booking is on", () => asCompany(async () => {
         expect((await book({acceptPrivacy: false})).body.error_code).toBe("appointment_privacy_not_accepted");
         await ClinicConfig.updateOne({company: companyId}, {$set: {publicBookingEnabled: false}});
         expect((await book()).body.error_code).toBe("dental_clinic_not_configured");
-    });
+    }));
 });
 
 describe("the patient's manage link", {timeout: 60000}, () => {
-    it("moves the appointment, invalidating the old link, then cancels it", async () => {
+    it("moves the appointment, invalidating the old link, then cancels it", () => asCompany(async () => {
         const {body} = await book();
         const oldToken = body.data.manageToken;
         const moved = await manage("/reschedule", {token: oldToken, date: DATE, time: "10:30"});
@@ -218,36 +218,36 @@ describe("the patient's manage link", {timeout: 60000}, () => {
         expect(cancelled.body.data.status).toBe("cancelled");
         // The freed time can be booked again
         expect((await book({time: "10:30"})).status).toBe(200);
-    });
+    }));
 
-    it("refuses an online cancellation after the deadline", async () => {
+    it("refuses an online cancellation after the deadline", () => asCompany(async () => {
         const {body} = await book();
         await Appointment.updateOne({}, {$set: {startAt: new Date(Date.now() + 3600 * 1000)}});
         const response = await manage("/cancel", {token: body.data.manageToken});
         expect(response.body.error_code).toBe("appointment_cancel_deadline_passed");
-    });
+    }));
 });
 
 describe("staff and dentists", {timeout: 60000}, () => {
-    it("never shows one company's appointment to another", async () => {
+    it("never shows one company's appointment to another", () => asCompany(async () => {
         const {body} = await book();
         const id = body.data.appointment._id;
         expect((await request(app).post("/api/dentalClinic/appointment/single").set(callerHeader(admin)).send({_id: id})).status).toBe(200);
         expect((await request(app).post("/api/dentalClinic/appointment/single").set(callerHeader(outsider)).send({_id: id})).status).not.toBe(200);
         const foreignCancel = await request(app).post("/api/dentalClinic/appointment/cancel").set(callerHeader(outsider)).send({_id: id});
         expect(foreignCancel.body.error_code).toBe("appointment_not_found");
-    });
+    }));
 
-    it("shows a linked dentist only their own appointments", async () => {
+    it("shows a linked dentist only their own appointments", () => asCompany(async () => {
         const own = await book();
         const other = await book({practitioner: benId});
         const list = await request(app).post("/api/dentalClinic/appointment").set(callerHeader(dentist)).send({limit: 20, offset: 0});
         expect(list.body.data.map((row: {_id: string}) => row._id)).toEqual([own.body.data.appointment._id]);
         const foreign = await request(app).post("/api/dentalClinic/appointment/cancel").set(callerHeader(dentist)).send({_id: other.body.data.appointment._id});
         expect(foreign.body.error_code).toBe("user_permissions_not_sufficient");
-    });
+    }));
 
-    it("lets staff book off the grid but refuses time off over an appointment", async () => {
+    it("lets staff book off the grid but refuses time off over an appointment", () => asCompany(async () => {
         const staff = await request(app).put("/api/dentalClinic/appointment").set(callerHeader(admin)).send({
             service: serviceId, location: locationId, practitioner: anaId, date: DATE, time: "09:10", patient, idempotencyKey: `key-${new ObjectId().toString()}`,
         });
@@ -258,9 +258,9 @@ describe("staff and dentists", {timeout: 60000}, () => {
             practitioner: anaId, startAt: "2027-06-09T06:00:00.000Z", endAt: "2027-06-09T10:00:00.000Z",
         });
         expect(timeOff.body.error_code).toBe("schedule_exception_overlaps_appointments");
-    });
+    }));
 
-    it("removes patient details once the retention period has passed", async () => {
+    it("removes patient details once the retention period has passed", () => asCompany(async () => {
         await book();
         const longAgo = new Date(Date.now() - 30 * 31 * 24 * 3600 * 1000);
         await Appointment.updateOne({}, {$set: {status: "completed", startAt: longAgo, endAt: longAgo}});
@@ -269,11 +269,11 @@ describe("staff and dentists", {timeout: 60000}, () => {
         expect(stored!.anonymizedAt).toBeInstanceOf(Date);
         expect(stored!.patient.email).toBe("—");
         expect(stored!.timeline.at(-1)?.event).toBe("anonymized");
-    });
+    }));
 });
 
 describe("patient folders", {timeout: 60000}, () => {
-    it("files a returning patient's bookings in one folder, and a namesake's email user in their own", async () => {
+    it("files a returning patient's bookings in one folder, and a namesake's email user in their own", () => asCompany(async () => {
         await book({time: "09:00"});
         await book({time: "10:00", patient: {...patient, email: "ADA@example.com", lastName: "lovelace"}});
         await book({time: "11:00", patient: {...patient, firstName: "Byron"}});
@@ -283,11 +283,11 @@ describe("patient folders", {timeout: 60000}, () => {
         expect(folders[0].source).toBe("booking");
         const ada = await Appointment.find({patientRecord: folders[0]._id});
         expect(ada).toHaveLength(2);
-    });
+    }));
 
-    it("lets staff book into an existing folder, but only one of their own clinic", async () => {
+    it("lets staff book into an existing folder, but only one of their own clinic", () => asCompany(async () => {
         const folder = await Patient.create({company: companyId, number: "PT-1", firstName: "Ada", lastName: "Lovelace", preferredLanguage: "it-IT", source: "phone"});
-        const foreign = await Patient.create({company: otherCompanyId, number: "PT-2", firstName: "Eve", lastName: "Other", preferredLanguage: "en-US", source: "phone"});
+        const foreign = await withTenant(otherCompanyId, () => Patient.create({company: otherCompanyId, number: "PT-2", firstName: "Eve", lastName: "Other", preferredLanguage: "en-US", source: "phone"}));
         const staffBook = (patientRecord: string, time: string) => request(app).put("/api/dentalClinic/appointment").set(callerHeader(admin)).send({
             service: serviceId, location: locationId, practitioner: anaId, date: DATE, time, patient, patientRecord, idempotencyKey: `key-${new ObjectId().toString()}`,
         });
@@ -300,5 +300,5 @@ describe("patient folders", {timeout: 60000}, () => {
         const stored = await Appointment.findById(booked.body._id);
         expect(String(stored!.patientRecord)).toBe(folder._id.toString());
         expect(await Patient.countDocuments({company: companyId})).toBe(1);
-    });
+    }));
 });
