@@ -220,6 +220,19 @@ describe("working the request at a clinic", {timeout: 60000}, () => {
         expect((await asClinic(staffB, "/requestInfo", {_id: atB!._id.toString(), kinds: ["cbct"]})).body.error_code).toBe("inquiry_invalid_status");
     }));
 
+    it("keeps X-rays out of the request list; the request's own read returns them (SEC-06)", () => acrossCompanies(async () => {
+        const opg = await upload("opg.jpg");
+        const {body} = await sendRequest({files: [opg._id.toString()]});
+        const atA = await ClinicInquiry.findOne({requestGroup: body.data.requestGroup, company: clinicA});
+
+        const listed = await request(app).post("/api/dentalClinic/clinicInquiry").set(callerHeader(staffA)).send({limit: 10, offset: 0});
+        expect(listed.body.data).toHaveLength(1);
+        expect(listed.body.data[0].files).toBeUndefined();
+
+        const opened = await asClinic(staffA, "/single", {_id: atA!._id.toString()});
+        expect(opened.body.files).toHaveLength(1);
+    }));
+
     it("keeps a thread with unread counts on both sides", () => acrossCompanies(async () => {
         const {body} = await sendRequest();
         const atA = await ClinicInquiry.findOne({requestGroup: body.data.requestGroup, company: clinicA});
