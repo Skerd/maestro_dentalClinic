@@ -137,7 +137,7 @@ export const scheduleExceptionCreateFormView: ViewConfig = {
                         label: "form.startAtLabel",
                         placeholder: "form.startAtPlaceholder",
                         required: true,
-                        widgetProps: {valueFormat: "yyyy-MM-dd HH:mm"},
+                        widgetProps: {valueFormat: "YYYY-MM-DD HH:mm"},
                     },
                 },
                 {
@@ -148,7 +148,7 @@ export const scheduleExceptionCreateFormView: ViewConfig = {
                         label: "form.endAtLabel",
                         placeholder: "form.endAtPlaceholder",
                         required: true,
-                        widgetProps: {valueFormat: "yyyy-MM-dd HH:mm"},
+                        widgetProps: {valueFormat: "YYYY-MM-DD HH:mm"},
                     },
                 },
             ],

@@ -383,7 +383,7 @@ const patientCreateFormNodes: ViewConfig["nodes"] = [
                     widget: "#DateInput",
                     label: "form.dateOfBirthLabel",
                     placeholder: "form.dateOfBirthPlaceholder",
-                    widgetProps: {valueFormat: "yyyy-MM-dd"},
+                    widgetProps: {valueFormat: "YYYY-MM-DD"},
                 },
             },
             {
@@ -707,7 +707,7 @@ const patientEditFormNodes: ViewConfig["nodes"] = [
                     widget: "#DateInput",
                     label: "form.dateOfBirthLabel",
                     placeholder: "form.dateOfBirthPlaceholder",
-                    widgetProps: {valueFormat: "yyyy-MM-dd"},
+                    widgetProps: {valueFormat: "YYYY-MM-DD"},
                 },
             },
             {

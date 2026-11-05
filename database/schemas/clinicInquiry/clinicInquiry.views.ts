@@ -447,7 +447,7 @@ const clinicInquiryCreateFormNodes: ViewConfig["nodes"] = [
                             widget: "#DateInput",
                             label: "form.travelFromLabel",
                             placeholder: "form.travelFromPlaceholder",
-                            widgetProps: {valueFormat: "yyyy-MM-dd"},
+                            widgetProps: {valueFormat: "YYYY-MM-DD"},
                         },
                     },
                     {
@@ -457,7 +457,7 @@ const clinicInquiryCreateFormNodes: ViewConfig["nodes"] = [
                             widget: "#DateInput",
                             label: "form.travelToLabel",
                             placeholder: "form.travelToPlaceholder",
-                            widgetProps: {valueFormat: "yyyy-MM-dd"},
+                            widgetProps: {valueFormat: "YYYY-MM-DD"},
                         },
                     },
                     {

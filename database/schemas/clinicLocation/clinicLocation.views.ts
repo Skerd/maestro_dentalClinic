@@ -494,7 +494,7 @@ const clinicLocationCreateFormNodes: ViewConfig["nodes"] = [
                                     widget: "#DateInput",
                                     label: "form.closureDateLabel",
                                     required: true,
-                                    widgetProps: {valueFormat: "yyyy-MM-dd"},
+                                    widgetProps: {valueFormat: "YYYY-MM-DD"},
                                 },
                             },
                             {
@@ -831,7 +831,7 @@ const clinicLocationEditFormNodes: ViewConfig["nodes"] = [
                                     widget: "#DateInput",
                                     label: "form.closureDateLabel",
                                     required: true,
-                                    widgetProps: {valueFormat: "yyyy-MM-dd"},
+                                    widgetProps: {valueFormat: "YYYY-MM-DD"},
                                 },
                             },
                             {

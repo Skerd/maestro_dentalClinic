@@ -230,7 +230,7 @@ const patientTripCreateFormNodes: ViewConfig["nodes"] = [
                     label: "form.arrivalAtLabel",
                     placeholder: "form.arrivalAtPlaceholder",
                     required: true,
-                    widgetProps: {valueFormat: "yyyy-MM-dd HH:mm"},
+                    widgetProps: {valueFormat: "YYYY-MM-DD HH:mm"},
                 },
             },
             {
@@ -241,7 +241,7 @@ const patientTripCreateFormNodes: ViewConfig["nodes"] = [
                     label: "form.departureAtLabel",
                     placeholder: "form.departureAtPlaceholder",
                     required: true,
-                    widgetProps: {valueFormat: "yyyy-MM-dd HH:mm"},
+                    widgetProps: {valueFormat: "YYYY-MM-DD HH:mm"},
                 },
             },
             {
@@ -373,7 +373,7 @@ const patientTripEditFormNodes: ViewConfig["nodes"] = [
                     label: "form.arrivalAtLabel",
                     placeholder: "form.arrivalAtPlaceholder",
                     required: true,
-                    widgetProps: {valueFormat: "yyyy-MM-dd HH:mm"},
+                    widgetProps: {valueFormat: "YYYY-MM-DD HH:mm"},
                 },
             },
             {
@@ -385,7 +385,7 @@ const patientTripEditFormNodes: ViewConfig["nodes"] = [
                     label: "form.departureAtLabel",
                     placeholder: "form.departureAtPlaceholder",
                     required: true,
-                    widgetProps: {valueFormat: "yyyy-MM-dd HH:mm"},
+                    widgetProps: {valueFormat: "YYYY-MM-DD HH:mm"},
                 },
             },
             {

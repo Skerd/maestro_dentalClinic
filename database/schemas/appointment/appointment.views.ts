@@ -429,7 +429,7 @@ export const appointmentCreateFormView: ViewConfig = {
                                 widget: "#DateInput",
                                 label: "form.dateLabel",
                                 required: true,
-                                widgetProps: {valueFormat: "yyyy-MM-dd"},
+                                widgetProps: {valueFormat: "YYYY-MM-DD"},
                             },
                         },
                         {
