@@ -2,7 +2,7 @@ import type {ObjectId} from "mongodb";
 import type {ClientSession} from "mongoose";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import type {TreatmentPlanPaymentStatus} from "armonia/src/modules/dentalClinic/constants";
-import {roundMoney} from "@coreModule/utilities/helpers/money";
+import {addMoney, roundToCurrency, subtractMoney} from "armonia/src/modules/core/helpers/money";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import Currency from "@coreModule/database/schemas/currency/currency";
 import {PAYMENTS} from "@financeModule/environment";
@@ -21,13 +21,13 @@ type Payable = Pick<ITreatmentPlan, "status" | "totals" | "amountPaid">;
 
 /** The plan's total less what was paid. */
 export function amountDue(plan: Payable): number {
-    return roundMoney(Math.max(0, plan.totals.total - (plan.amountPaid ?? 0)));
+    return Math.max(0, subtractMoney(plan.totals.total, plan.amountPaid ?? 0));
 }
 
 /** What the patient can still pay online: the deposit less what was paid, once the plan is accepted. */
 export function depositDue(plan: Payable): number {
     if (plan.status !== "accepted") return 0;
-    return roundMoney(Math.max(0, Math.min(plan.totals.deposit, plan.totals.total) - (plan.amountPaid ?? 0)));
+    return Math.max(0, subtractMoney(Math.min(plan.totals.deposit, plan.totals.total), plan.amountPaid ?? 0));
 }
 
 /** Payment status that follows from what was paid and refunded; never set it any other way. */
@@ -125,7 +125,7 @@ export async function settleDepositPayment(plan: ITreatmentPlan, intent: Settled
         ctx.logger.err(`Deposit payment ${intent.id} does not match plan ${plan.number}; left for staff to review`);
         return;
     }
-    plan.amountPaid = roundMoney((plan.amountPaid ?? 0) + charge.amount);
+    plan.amountPaid = addMoney(plan.amountPaid ?? 0, charge.amount);
     plan.paymentStatus = paymentStatusFor(plan, false);
     plan.stripePaymentIntentId = undefined;
     plan.timeline.push({event: "payment_received", at: now, note: `online ${charge.amount}`});
@@ -154,9 +154,9 @@ export async function recordClinicPayment(
         throw apiValidationException("treatment_plan_payment_exceeds_due", "", null, ctx.languageCode, [String(due)]);
     }
     await recordManualCharge(await planSource(plan, ctx.session), input.amount, input.note, ctx);
-    plan.amountPaid = roundMoney((plan.amountPaid ?? 0) + input.amount);
+    plan.amountPaid = addMoney(plan.amountPaid ?? 0, input.amount);
     plan.paymentStatus = paymentStatusFor(plan, false);
-    plan.timeline.push({event: "payment_received", at: now, by: input.by, note: input.note ?? `manual ${roundMoney(input.amount)}`});
+    plan.timeline.push({event: "payment_received", at: now, by: input.by, note: input.note ?? `manual ${roundToCurrency(input.amount)}`});
     await plan.save({session: ctx.session});
 }
 
@@ -176,7 +176,7 @@ export async function refundPlanPayments(
         ctx,
     );
     if (refunded > 0) {
-        plan.amountPaid = roundMoney(paid - refunded);
+        plan.amountPaid = subtractMoney(paid, refunded);
         plan.paymentStatus = paymentStatusFor(plan, true);
         plan.timeline.push({event: "refunded", at: new Date(), by: input.by, note: `${refunded} · ${input.reason}`});
         await plan.save({session: ctx.session});

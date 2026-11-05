@@ -1,7 +1,7 @@
 import * as crypto from "crypto";
 import {ObjectId} from "mongodb";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
-import {roundMoney} from "@coreModule/utilities/helpers/money";
+import {addMoney, multiplyMoney, percentOfMoney, roundToCurrency, subtractMoney} from "armonia/src/modules/core/helpers/money";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {runAfterCommit} from "@coreModule/utilities/middlewares/transactionUtils";
 import {getGridFSStorage} from "@coreModule/utilities/gridfs/gridfsStorage";
@@ -45,17 +45,17 @@ function totalsOf(plan: ITreatmentPlan): ITreatmentPlan["totals"] {
 }
 
 export function lineTotal(line: Pick<ITreatmentPlanLine, "quantity" | "unitPrice" | "discount">): number {
-    return Math.max(0, roundMoney(line.quantity * line.unitPrice - (line.discount ?? 0)));
+    return Math.max(0, subtractMoney(multiplyMoney(line.unitPrice, line.quantity), line.discount ?? 0));
 }
 
 /** Subtotal before line discounts, the discounts, the total, and the deposit it asks for. */
 export function planTotals(lines: ITreatmentPlanLine[], depositType: DepositType, depositValue = 0): ITreatmentPlan["totals"] {
-    const subtotal = roundMoney(lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0));
-    const total = roundMoney(lines.reduce((sum, line) => sum + lineTotal(line), 0));
+    const subtotal = addMoney(...lines.map((line) => multiplyMoney(line.unitPrice, line.quantity)));
+    const total = addMoney(...lines.map(lineTotal));
     const deposit = depositType === "fixed"
-        ? roundMoney(Math.min(depositValue, total))
-        : depositType === "percent" ? roundMoney((total * Math.min(depositValue, 100)) / 100) : 0;
-    return {subtotal, discount: roundMoney(subtotal - total), total, deposit};
+        ? Math.min(roundToCurrency(depositValue), total)
+        : depositType === "percent" ? percentOfMoney(total, Math.min(depositValue, 100)) : 0;
+    return {subtotal, discount: subtractMoney(subtotal, total), total, deposit};
 }
 
 /** What the Zod contract cannot check: tooth numbers, phases the lines point at, a sane deposit. */
