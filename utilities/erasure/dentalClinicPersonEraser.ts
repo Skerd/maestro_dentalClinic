@@ -65,7 +65,10 @@ async function eraseDentalClinicPerson(ctx: ErasureContext): Promise<ErasureCoun
         }, {session});
         ctx.scrubAudit("clinicinquiries", inquiryIds, ["contact", "description", "account", "medicalHistory", "files"]);
     }
-    if (messages.length > 0) await clinicMessageService.deleteMany({company: companyId, _id: {$in: ids(messages)}}, {session, hard: true});
+    if (messages.length > 0) {
+        await clinicMessageService.deleteMany({company: companyId, _id: {$in: ids(messages)}}, {session, hard: true});
+        ctx.scrubAudit("clinicmessages", ids(messages), "all");
+    }
     if (appointments.length > 0) {
         const appointmentIds = ids(appointments);
         await appointmentService.eraseFields({company: companyId, _id: {$in: appointmentIds}}, {
@@ -74,7 +77,10 @@ async function eraseDentalClinicPerson(ctx: ErasureContext): Promise<ErasureCoun
         }, {session});
         ctx.scrubAudit("appointments", appointmentIds, ["patient", "customer", "note"]);
     }
-    if (trips.length > 0) await patientTripService.deleteMany({company: companyId, _id: {$in: ids(trips)}}, {session, hard: true});
+    if (trips.length > 0) {
+        await patientTripService.deleteMany({company: companyId, _id: {$in: ids(trips)}}, {session, hard: true});
+        ctx.scrubAudit("patienttrips", ids(trips), "all");
+    }
     return counts;
 }
 

@@ -37,7 +37,7 @@ const app = appFor([{...privacyRoute, module: "core"}]);
 const admin: TestCaller = {userId: new ObjectId().toString(), companyId: clinicA.toString(), isAdmin: true, modules: ["core", "dentalClinic"]};
 const staff: TestCaller = {userId: new ObjectId().toString(), companyId: clinicA.toString(), isAdmin: false, modules: ["core", "dentalClinic"]};
 // An admin of a company none of whose modules can erase a person.
-const shopAdmin: TestCaller = {userId: new ObjectId().toString(), companyId: clinicA.toString(), isAdmin: true, modules: ["core", "eCommerce"]};
+const shopAdmin: TestCaller = {userId: new ObjectId().toString(), companyId: clinicA.toString(), isAdmin: true, modules: ["core", "propertyDevelopment"]};
 
 const ids = {marco: new ObjectId(), patient: new ObjectId(), otherPatient: new ObjectId(), inquiry: new ObjectId(), message: new ObjectId(), appointment: new ObjectId(), trip: new ObjectId(), xray: new ObjectId(), photo: new ObjectId()};
 const files = {xray: new ObjectId(), photo: new ObjectId()};
@@ -133,7 +133,12 @@ describe("person erasure (D57)", {timeout: 60000}, () => {
         expect(await raw(() => Media.collection.countDocuments({}))).toBe(0);
         expect(deletedFiles.sort()).toEqual([files.xray.toString(), files.photo.toString()].sort());
 
-        const audit = (await raw(() => AuditLog.collection.findOne({documentId: ids.patient})))!;
+        // Each erased record says who erased it and when, nothing about the person (TD-B34).
+        const erasures = await raw(() => AuditLog.collection.find({action: "ERASE"}).toArray());
+        expect(erasures.map((entry) => String(entry.documentId)).sort()).toEqual([ids.patient, ids.inquiry, ids.message, ids.appointment, ids.trip].map(String).sort());
+        expect(erasures.every((entry) => String(entry.actorId) === admin.userId && JSON.stringify(entry.diff) === "{}")).toBe(true);
+
+        const audit = (await raw(() => AuditLog.collection.findOne({documentId: ids.patient, action: "UPDATE"})))!;
         expect(audit.diff).toEqual({medicalHistory: {from: null, to: null}, notes: {from: null, to: null}});
 
         const marco = (await raw(() => Patient.collection.findOne({_id: ids.marco})))!;
