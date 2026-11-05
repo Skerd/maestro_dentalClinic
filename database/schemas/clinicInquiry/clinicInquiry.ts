@@ -161,6 +161,8 @@ const ClinicInquirySchema = new Schema<IClinicInquiry>(
             type: [{type: SchemaTypes.ObjectId, ref: "Media"}],
             default: [],
             refAllowlist: MediaSimpleSnippet,
+            // X-rays and photos of the patient's teeth: health data (SEC-06).
+            sensitivity: "health",
             permissions: NoWritePermission,
             dynamicTableConfiguration: {sortable: false, filterable: false, hideColumn: true},
         },

@@ -39,6 +39,8 @@ export const medicalHistoryField = {
         submittedAt: {type: SchemaTypes.Date, required: true, dynamicTableConfiguration: hiddenNestedColumn},
     },
     required: false,
+    // Health data (SEC-06): only roles that list the group for sensitive fields read it.
+    sensitivity: "health" as const,
     permissions: NoWritePermission,
     dynamicTableConfiguration: {filterable: false, sortable: false, hideColumn: true},
 };
