@@ -2,14 +2,15 @@ import {ObjectId} from "mongodb";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {localDateOf} from "@coreModule/utilities/time/timeWindows";
-import Patient from "@dentalClinicModule/database/schemas/patient/patient";
-import TreatmentPlan from "@dentalClinicModule/database/schemas/treatmentPlan/treatmentPlan";
-import PatientTrip, {type IPatientTrip} from "@dentalClinicModule/database/schemas/patientTrip/patientTrip";
-import ClinicInquiry from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry";
+import {type IPatientTrip} from "@dentalClinicModule/database/schemas/patientTrip/patientTrip";
 import type {ClinicCtx} from "./appointmentBooking";
 import {notifyInquiryPatient, notifyInquiryStaff} from "./inquiryNotify";
 import {NotificationEventCodes} from "@dentalClinicModule/domain/notifications/notificationEventCodes";
 
+import {patientService} from "@dentalClinicModule/database/schemas/patient/patient.service";
+import {treatmentPlanService} from "@dentalClinicModule/database/schemas/treatmentPlan/treatmentPlan.service";
+import {clinicInquiryService} from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry.service";
+import {patientTripService} from "@dentalClinicModule/database/schemas/patientTrip/patientTrip.service";
 const DAY = 24 * 3600 * 1000;
 
 export type TripInput = {
@@ -27,16 +28,14 @@ export type TripInput = {
  */
 export async function assertTripFits(companyId: ObjectId, input: TripInput, ctx: ClinicCtx): Promise<void> {
     const {languageCode, session} = ctx;
-    if (!(await Patient.exists({_id: input.patient, company: companyId, deletedAt: null}).session(session))) {
+    if (!(await patientService.exists({_id: input.patient, company: companyId, deletedAt: null}, {session: session}))) {
         throw apiValidationException("patient_not_found", "", null, languageCode);
     }
     if (!input.plan) {
         if (input.phase) throw apiValidationException("patient_trip_phase_without_plan", "", null, languageCode);
         return;
     }
-    const plan = await TreatmentPlan.findOne({_id: input.plan, company: companyId, patient: input.patient, status: "accepted", deletedAt: null})
-        .select("phases")
-        .session(session);
+    const plan = await treatmentPlanService.findOne({_id: input.plan, company: companyId, patient: input.patient, status: "accepted", deletedAt: null}, {session: session}, undefined, "phases");
     if (!plan) throw apiValidationException("patient_trip_plan_invalid", "", null, languageCode);
     if (!input.phase) return;
     if (input.phase > plan.phases.length) {
@@ -44,14 +43,14 @@ export async function assertTripFits(companyId: ObjectId, input: TripInput, ctx:
     }
     if (input.phase === 1) return;
 
-    const previous = await PatientTrip.findOne({
+    const previous = await patientTripService.findLatestDeparture({
         company: companyId,
         plan: input.plan,
         phase: input.phase - 1,
         status: {$ne: "cancelled"},
         deletedAt: null,
         ...(input.tripId ? {_id: {$ne: input.tripId}} : {}),
-    }).sort({departureAt: -1}).session(session);
+    }, session);
     if (!previous) return;
     const gapDays = plan.phases[input.phase - 1].minGapDaysAfterPrevious ?? 0;
     const earliest = new Date(previous.departureAt.getTime() + gapDays * DAY);
@@ -64,19 +63,16 @@ export async function assertTripFits(companyId: ObjectId, input: TripInput, ctx:
 export async function notifyTripPlanned(trip: IPatientTrip, ctx: ClinicCtx): Promise<void> {
     const planId = nestedEntityToRef(trip.plan);
     if (!planId) return;
-    const plan = await TreatmentPlan.findById(planId).select("inquiry").session(ctx.session);
-    const inquiry = plan ? await ClinicInquiry.findById(nestedEntityToRef(plan.inquiry)).session(ctx.session) : null;
+    const plan = await treatmentPlanService.findById(planId, {session: ctx.session}, undefined, "inquiry");
+    const inquiry = plan ? await clinicInquiryService.findById(nestedEntityToRef(plan.inquiry), {session: ctx.session}) : null;
     if (inquiry) await notifyInquiryPatient("tripPlanned", inquiry, {}, ctx);
 }
 
 /** The patient's stays for their accepted plans among these inquiries, cancelled ones left out. */
 export async function tripsOfInquiries(inquiryIds: ObjectId[], ctx: {session?: ClinicCtx["session"]}): Promise<IPatientTrip[]> {
-    const plans = await TreatmentPlan.find({inquiry: {$in: inquiryIds}, status: "accepted", deletedAt: null}).select("_id").session(ctx.session ?? null);
+    const plans = await treatmentPlanService.find({inquiry: {$in: inquiryIds}, status: "accepted", deletedAt: null}, {session: ctx.session ?? undefined}, undefined, "_id");
     if (!plans.length) return [];
-    return PatientTrip.find({plan: {$in: plans.map((plan) => plan._id)}, status: {$ne: "cancelled"}, deletedAt: null})
-        .populate({path: "plan", select: "phases inquiry"})
-        .sort({arrivalAt: 1})
-        .session(ctx.session ?? null);
+    return patientTripService.find({plan: {$in: plans.map((plan) => plan._id)}, status: {$ne: "cancelled"}, deletedAt: null}, {session: ctx.session ?? undefined}, {path: "plan", select: "phases inquiry"}, undefined, {arrivalAt: 1});
 }
 
 /**
@@ -95,7 +91,7 @@ export async function updateTripDetails(
         if (input[key] !== undefined) trip.set(key, input[key]?.trim() || undefined);
     }
     await trip.save({session: ctx.session});
-    const plan = await TreatmentPlan.findById(nestedEntityToRef(trip.plan)).select("inquiry").session(ctx.session);
-    const inquiry = plan ? await ClinicInquiry.findById(nestedEntityToRef(plan.inquiry)).session(ctx.session) : null;
+    const plan = await treatmentPlanService.findById(nestedEntityToRef(trip.plan), {session: ctx.session}, undefined, "inquiry");
+    const inquiry = plan ? await clinicInquiryService.findById(nestedEntityToRef(plan.inquiry), {session: ctx.session}) : null;
     if (inquiry) await notifyInquiryStaff(NotificationEventCodes.TRIP_DETAILS_ADDED, inquiry, ctx);
 }

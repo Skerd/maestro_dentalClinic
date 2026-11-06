@@ -5,12 +5,11 @@ import {addMoney, multiplyMoney, percentOfMoney, roundToCurrency, subtractMoney}
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {runAfterCommit} from "@coreModule/utilities/middlewares/transactionUtils";
 import {getGridFSStorage} from "@coreModule/utilities/gridfs/gridfsStorage";
-import Media from "@coreModule/database/schemas/media/media";
 import {localDateOf} from "@coreModule/utilities/time/timeWindows";
 import {FDI_TEETH, type DepositType} from "armonia/src/modules/dentalClinic/constants";
 import type {TreatmentPlanTimelineEvent} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/treatmentPlan/treatmentPlan.dto";
-import ClinicInquiry, {type IClinicInquiry} from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry";
-import TreatmentPlan, {type ITreatmentPlan, type ITreatmentPlanLine} from "@dentalClinicModule/database/schemas/treatmentPlan/treatmentPlan";
+import {type IClinicInquiry} from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry";
+import {type ITreatmentPlan, type ITreatmentPlanLine} from "@dentalClinicModule/database/schemas/treatmentPlan/treatmentPlan";
 import {treatmentPlanService} from "@dentalClinicModule/database/schemas/treatmentPlan/treatmentPlan.service";
 import {clinicConfigService} from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig.service";
 import {NotificationEventCodes} from "@dentalClinicModule/domain/notifications/notificationEventCodes";
@@ -20,6 +19,8 @@ import {isOpenInquiry, markResponded} from "./inquiryLifecycle";
 import {notifyInquiryPatient, notifyInquiryStaff} from "./inquiryNotify";
 import {findOrCreatePatient, keepMedicalHistory} from "./patientRecords";
 
+import {clinicInquiryService} from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry.service";
+import {mediaService} from "@coreModule/database/schemas/media/media.service";
 const DAY = 24 * 3600 * 1000;
 const UTC = "UTC";
 
@@ -102,7 +103,7 @@ export function planContentHash(plan: ITreatmentPlan): string {
 /** The request a plan answers, if it is this clinic's. */
 export async function loadPlanInquiry(companyId: ObjectId, inquiryId: string, ctx: ClinicCtx): Promise<IClinicInquiry> {
     const inquiry = ObjectId.isValid(inquiryId)
-        ? await ClinicInquiry.findOne({_id: new ObjectId(inquiryId), company: companyId, deletedAt: null}).session(ctx.session)
+        ? await clinicInquiryService.findOne({_id: new ObjectId(inquiryId), company: companyId, deletedAt: null}, {session: ctx.session})
         : null;
     if (!inquiry) throw apiValidationException("inquiry_not_found", "", null, ctx.languageCode);
     return inquiry;
@@ -119,7 +120,7 @@ export async function sendPlan(plan: ITreatmentPlan, actor: Actor, ctx: ClinicCt
     let inquiry: IClinicInquiry | null = null;
     const inquiryId = nestedEntityToRef(plan.inquiry);
     if (inquiryId) {
-        inquiry = await ClinicInquiry.findOne({_id: inquiryId, company: companyId, deletedAt: null}).session(ctx.session);
+        inquiry = await clinicInquiryService.findOne({_id: inquiryId, company: companyId, deletedAt: null}, {session: ctx.session});
         if (!inquiry || (!isOpenInquiry(inquiry) && inquiry.status !== "converted")) {
             throw apiValidationException("inquiry_invalid_status", "", null, ctx.languageCode);
         }
@@ -136,11 +137,7 @@ export async function sendPlan(plan: ITreatmentPlan, actor: Actor, ctx: ClinicCt
 
     const replaced = nestedEntityToRef(plan.supersedes);
     if (replaced) {
-        await TreatmentPlan.updateOne(
-            {_id: replaced, company: companyId, status: "sent"},
-            {$set: {status: "superseded"}, $push: {timeline: {event: "superseded", at: now, by: byOf(actor.userId)}}},
-            {session: ctx.session},
-        );
+        await treatmentPlanService.updateOne({_id: replaced, company: companyId, status: "sent"}, {$set: {status: "superseded"}, $push: {timeline: {event: "superseded", at: now, by: byOf(actor.userId)}}}, {session: ctx.session});
     }
 
     if (inquiry) {
@@ -189,12 +186,12 @@ export async function revisePlan(plan: ITreatmentPlan, actor: Actor, ctx: Clinic
  * the clinic keeps them whatever the patient later does with their portal account.
  */
 async function copyFilesToClinic(inquiryId: ObjectId, companyId: ObjectId, languageCode: string): Promise<void> {
-    const inquiry = await ClinicInquiry.findById(inquiryId);
+    const inquiry = await clinicInquiryService.findById(inquiryId, {});
     if (!inquiry) return;
     const gridfs = getGridFSStorage(languageCode, "media");
     const copies: ObjectId[] = [];
     for (const fileId of idsOf(inquiry.files)) {
-        const media = await Media.findById(fileId);
+        const media = await mediaService.findById(fileId, {});
         // Nothing stored to copy, or already the clinic's: keep the reference as it is.
         if (!media?.fileId || String(nestedEntityToRef(media.company)) === String(companyId)) {
             copies.push(fileId);
@@ -202,7 +199,7 @@ async function copyFilesToClinic(inquiryId: ObjectId, companyId: ObjectId, langu
         }
         const buffer = await gridfs.getFileBuffer(String(media.fileId));
         const gridfsId = await gridfs.uploadFile(buffer, media.originalName, {mimeType: media.mimeType, copiedFrom: String(media._id)});
-        const copy = await Media.create({
+        const copy = await mediaService.create({
             type: media.type,
             originalName: media.originalName,
             fileName: media.fileName,
@@ -218,7 +215,7 @@ async function copyFilesToClinic(inquiryId: ObjectId, companyId: ObjectId, langu
         });
         copies.push(copy._id);
     }
-    await ClinicInquiry.updateOne({_id: inquiryId}, {$set: {files: copies}});
+    await clinicInquiryService.updateOne({_id: inquiryId}, {$set: {files: copies}});
     const copied = idsOf(inquiry.files).filter((id) => !copies.some((copy) => copy.equals(id)));
     await unshareFiles(copied, companyId, {});
 }
@@ -236,27 +233,23 @@ export async function acceptPlan(
 ): Promise<IClinicInquiry> {
     const now = input.now ?? new Date();
     const inquiryId = nestedEntityToRef(plan.inquiry);
-    const inquiry = inquiryId ? await ClinicInquiry.findOne({_id: inquiryId, account: input.accountId, deletedAt: null}).session(ctx.session) : null;
+    const inquiry = inquiryId ? await clinicInquiryService.findOne({_id: inquiryId, account: input.accountId, deletedAt: null}, {session: ctx.session}) : null;
     if (!inquiry) throw apiValidationException("treatment_plan_not_found", "", null, ctx.languageCode);
     if (plan.status !== "sent" || !isOpenInquiry(inquiry)) throw apiValidationException("treatment_plan_invalid_status", "", null, ctx.languageCode);
     if (plan.validUntil && plan.validUntil < localDateOf(now, UTC)) throw apiValidationException("treatment_plan_expired", "", null, ctx.languageCode);
 
     // Two acceptances of the same request (at two clinics) write the same documents: one commits.
     const group = inquiry.requestGroup ? {account: input.accountId, requestGroup: inquiry.requestGroup} : {_id: inquiry._id};
-    await ClinicInquiry.updateMany(group, {$inc: {acceptLock: 1}}, {session: ctx.session});
+    await clinicInquiryService.updateMany(group, {$inc: {acceptLock: 1}}, {session: ctx.session});
 
     plan.status = "accepted";
     plan.acceptance = {name: input.signedName.trim(), at: now, ip: input.ip, userAgent: input.userAgent, contentHash: planContentHash(plan)};
     record(plan, "accepted", {userId: input.accountId, now});
 
     const companyId = inquiryCompanyId(inquiry);
-    const others = await ClinicInquiry.find({...group, _id: {$ne: inquiry._id}, deletedAt: null}).session(ctx.session);
+    const others = await clinicInquiryService.find({...group, _id: {$ne: inquiry._id}, deletedAt: null}, {session: ctx.session});
     const otherIds = others.map((other) => other._id);
-    await TreatmentPlan.updateMany(
-        {inquiry: {$in: [inquiry._id, ...otherIds]}, _id: {$ne: plan._id}, status: {$in: ["sent", "draft"]}},
-        {$set: {status: "rejected"}, $push: {timeline: {event: "rejected", at: now, note: plan.number}}},
-        {session: ctx.session},
-    );
+    await treatmentPlanService.updateMany({inquiry: {$in: [inquiry._id, ...otherIds]}, _id: {$ne: plan._id}, status: {$in: ["sent", "draft"]}}, {$set: {status: "rejected"}, $push: {timeline: {event: "rejected", at: now, note: plan.number}}}, {session: ctx.session});
 
     for (const other of others) {
         if (!isOpenInquiry(other)) continue;
@@ -314,9 +307,6 @@ export async function acceptPlan(
 /** Sent quotes past their last day can no longer be accepted. */
 export async function expirePlans(companyId: ObjectId, now: Date = new Date()): Promise<number> {
     const today = localDateOf(now, UTC);
-    const result = await TreatmentPlan.updateMany(
-        {company: companyId, status: "sent", validUntil: {$lt: today}, deletedAt: null},
-        {$set: {status: "expired"}, $push: {timeline: {event: "expired", at: now}}},
-    );
+    const result = await treatmentPlanService.updateMany({company: companyId, status: "sent", validUntil: {$lt: today}, deletedAt: null}, {$set: {status: "expired"}, $push: {timeline: {event: "expired", at: now}}});
     return result.modifiedCount;
 }

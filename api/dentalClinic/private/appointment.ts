@@ -1,5 +1,5 @@
 import {ObjectId} from "mongodb";
-import {z} from "zod";
+import {noEditAppointmentFormSchema} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/appointment/noEditAppointment.form.validator";
 import {createCrudRouter} from "@coreModule/api/crudRouterFactory";
 import {createAppointmentFormSchema} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/appointment/appointment.form.validators";
 import Appointment from "@dentalClinicModule/database/schemas/appointment/appointment";
@@ -22,7 +22,7 @@ export const {router} = createCrudRouter({
     service: appointmentService,
     entityName: "Appointment",
     createSchema: createAppointmentFormSchema,
-    editSchema: () => z.looseObject({_id: z.string()}),
+    editSchema: noEditAppointmentFormSchema,
     toDTO: appointmentToDTO,
     toDTOArray: appointmentsToDTO,
     toSelect: (appointments) => appointments.map((appointment) => ({value: appointment._id.toString(), label: appointment.number})),

@@ -10,6 +10,8 @@ import softDeletePlugin from "@coreModule/database/plugins/softDeletePlugin";
 import lifeCyclePlugin from "@coreModule/database/plugins/lifeCyclePlugin";
 import {ILifeCyclePluginFields, IOwnershipPluginFields, ISoftDeletePluginFields} from "@coreModule/database/types/plugin-fields";
 import {addModelData} from "@coreModule/database/collections";
+import {validateSchemaDefAgainstMongoose} from "@coreModule/database/utilities/validateSchemaDefAgainstMongoose";
+import {ClinicInquirySchemaDef} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicInquiry/clinicInquiry.schema-def";
 import {COLUMN_TYPE} from "armonia/src/modules/core/database/filter/typeOperators";
 import {CountrySimpleSnippet} from "@coreModule/database/schemas/country/country.snippets";
 import {CurrencySimpleSnippet} from "@coreModule/database/schemas/currency/currency.snippets";
@@ -110,7 +112,7 @@ const ClinicInquirySchema = new Schema<IClinicInquiry>(
             type: SchemaTypes.String,
             enum: INQUIRY_STATUSES,
             required: true,
-            // Writable by permission only so roles can be granted the lifecycle actions (they gate on write:status).
+            // Changed only by the lifecycle actions (each has its own action permission, D14).
             dynamicTableConfiguration: {
                 enumTones: {
                     new: "warning",
@@ -238,3 +240,4 @@ normalizeSchemaPermissions(ClinicInquiry);
 export default ClinicInquiry;
 
 addModelData(ClinicInquiry, clinicInquiryViews);
+validateSchemaDefAgainstMongoose(ClinicInquirySchema, ClinicInquirySchemaDef, "ClinicInquiry", ["status"]);

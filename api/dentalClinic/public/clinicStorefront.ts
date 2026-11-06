@@ -15,7 +15,6 @@ import {publicMediaUrl, publicMediaUrls} from "@coreModule/utilities/media/publi
 import {validateRecordAccessToken} from "@coreModule/utilities/security/recordAccessToken";
 import {mapSnippet, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {formatPostalAddress} from "@coreModule/utilities/helpers/postalAddress";
-import Currency from "@coreModule/database/schemas/currency/currency";
 import {CurrencySimpleSnippet} from "@coreModule/database/schemas/currency/currency.snippets";
 import type {CurrencySimple} from "armonia/src/modules/core/dto/currency.dto";
 import type {ICompany} from "@coreModule/database/schemas/company/company";
@@ -44,10 +43,7 @@ import type {
 import {APPOINTMENT_LINK_PURPOSE} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/appointment/appointment.constants";
 import type {IClinicConfig} from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig";
 import {clinicConfigService} from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig.service";
-import ClinicLocation from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation";
-import ClinicService from "@dentalClinicModule/database/schemas/clinicService/clinicService";
-import Practitioner from "@dentalClinicModule/database/schemas/practitioner/practitioner";
-import Appointment, {type IAppointment} from "@dentalClinicModule/database/schemas/appointment/appointment";
+import {type IAppointment} from "@dentalClinicModule/database/schemas/appointment/appointment";
 import {appointmentToPublic} from "@dentalClinicModule/utilities/mappers/appointment/appointmentMapper.dto";
 import {availableSlots, eligiblePractitioners} from "@dentalClinicModule/utilities/services/clinicAvailability";
 import {createAppointment, loadBookingTargets} from "@dentalClinicModule/utilities/services/appointmentBooking";
@@ -55,6 +51,11 @@ import {cancelAppointment, rescheduleAppointment} from "@dentalClinicModule/util
 import {manageTokenFor, notifyClinicStaff, notifyPatient} from "@dentalClinicModule/utilities/services/appointmentNotify";
 import {NotificationEventCodes} from "@dentalClinicModule/domain/notifications/notificationEventCodes";
 
+import {currencyService} from "@coreModule/database/schemas/currency/currency.service";
+import {appointmentService} from "@dentalClinicModule/database/schemas/appointment/appointment.service";
+import {clinicLocationService} from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation.service";
+import {clinicServiceService} from "@dentalClinicModule/database/schemas/clinicService/clinicService.service";
+import {practitionerService} from "@dentalClinicModule/database/schemas/practitioner/practitioner.service";
 export const basePath = "/api/dentalClinic/clinicStorefront";
 
 const MY_APPOINTMENTS_MAX = 50;
@@ -98,7 +99,7 @@ function storefrontProfile(config: IClinicConfig, languageCode: string): ClinicS
 }
 
 async function currencyOf(config: IClinicConfig, languageCode: string): Promise<CurrencySimple> {
-    const currency = mapSnippet<CurrencySimple>()(await Currency.findById(config.currency).select("name symbol abbreviation"), CurrencySimpleSnippet);
+    const currency = mapSnippet<CurrencySimple>()(await currencyService.findById(nestedEntityToRef(config.currency)!, {}, undefined, "name symbol abbreviation"), CurrencySimpleSnippet);
     if (!currency) throw apiValidationException("clinic_currency_not_configured", "", null, languageCode);
     return currency;
 }
@@ -115,7 +116,7 @@ async function appointmentFromLink(token: string, company: ICompany, languageCod
     if (payload.companyId !== company._id.toString()) {
         throw apiValidationException("token_verification_failed", "", null, languageCode);
     }
-    const appointment = await Appointment.findOne({_id: new ObjectId(payload.recordId), company: company._id, deletedAt: null}).session(session ?? null);
+    const appointment = await appointmentService.findOne({_id: new ObjectId(payload.recordId), company: company._id, deletedAt: null}, {session: session ?? undefined});
     if (!appointment || appointment.manageTokenVersion !== payload.version || appointment.anonymizedAt) {
         throw apiValidationException("token_verification_failed", "", null, languageCode);
     }
@@ -129,9 +130,9 @@ router.post(
     asyncHandler(async ({origin, languageCode}: NotAuthenticatedMWType): Promise<ClinicStorefrontConfigResponse> => {
         const {company, config} = await storefrontContext(origin, languageCode, "site");
         const [locations, services, practitioners, currency] = await Promise.all([
-            ClinicLocation.find({company: company._id, isActive: true, deletedAt: null}).populate([{path: "address.city", select: "name"}]).sort({name: 1}),
-            ClinicService.find({company: company._id, isActive: true, isPublic: true, deletedAt: null}).sort({sortOrder: 1, name: 1}),
-            Practitioner.find({company: company._id, isActive: true, deletedAt: null}).sort({sortOrder: 1, displayName: 1}),
+            clinicLocationService.find({company: company._id, isActive: true, deletedAt: null}, {}, [{path: "address.city", select: "name"}], undefined, {name: 1}),
+            clinicServiceService.find({company: company._id, isActive: true, isPublic: true, deletedAt: null}, {}, undefined, undefined, {sortOrder: 1, name: 1}),
+            practitionerService.find({company: company._id, isActive: true, deletedAt: null}, {}, undefined, undefined, {sortOrder: 1, displayName: 1}),
             currencyOf(config, languageCode),
         ]);
         const bookableServiceIds = new Set(services.filter((service) => service.onlineBookable).map((service) => String(service._id)));
@@ -293,12 +294,12 @@ router.post(
     asyncHandler(async (params: PublicParams<object> & PublicChatCustomerMWType): Promise<MyAppointmentsResponse> => {
         const {origin, languageCode} = params;
         const user = await requirePortalAccount(params.customer, origin, languageCode);
-        const appointments = await Appointment.find({
+        const appointments = await appointmentService.find({
             customer: user._id,
             deletedAt: null,
             anonymizedAt: null,
             company: {$in: await companyIdsWithModule("dentalClinic")},
-        }).sort({startAt: -1}).limit(MY_APPOINTMENTS_MAX);
+        }, {}, undefined, undefined, {startAt: -1}, MY_APPOINTMENTS_MAX);
         const companies = await portalCompanyRefs(appointments.map((appointment) => nestedEntityToRef(appointment.company)!));
         const data = await Promise.all(appointments.map(async (appointment) => ({
             appointment: await publicAppointment(appointment),

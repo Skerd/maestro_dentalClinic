@@ -7,9 +7,9 @@
 
 import type {ObjectId} from "mongodb";
 import {getLogger, serverLogger} from "@coreModule/loggers/serverLog";
-import ClinicConfig from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig";
-import Appointment from "@dentalClinicModule/database/schemas/appointment/appointment";
 
+import {clinicConfigService} from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig.service";
+import {appointmentService} from "@dentalClinicModule/database/schemas/appointment/appointment.service";
 const BATCH_SIZE = 500;
 const REMOVED = "—";
 
@@ -19,21 +19,19 @@ export async function runAppointmentRetention(company: ObjectId, parentLogger?: 
     logger.start("Removing expired patient details...");
 
     let anonymized = 0;
-    const configs = await ClinicConfig.find({company, deletedAt: null}).select("company retentionMonths");
+    const configs = await clinicConfigService.find({company, deletedAt: null}, {}, undefined, "company retentionMonths");
     for (const config of configs) {
         const cutoff = new Date(now);
         cutoff.setMonth(cutoff.getMonth() - config.retentionMonths);
-        const due = await Appointment.find({
+        const due = await appointmentService.find({
             company: config.company,
             endAt: {$lt: cutoff},
             anonymizedAt: {$exists: false},
             status: {$in: ["completed", "cancelled", "no_show"]},
-        }).select("_id").limit(BATCH_SIZE);
+        }, {}, undefined, "_id", undefined, BATCH_SIZE);
         if (!due.length) continue;
 
-        const result = await Appointment.updateMany(
-            {_id: {$in: due.map((appointment) => appointment._id)}, anonymizedAt: {$exists: false}},
-            {
+        const result = await appointmentService.updateMany({_id: {$in: due.map((appointment) => appointment._id)}, anonymizedAt: {$exists: false}}, {
                 $set: {
                     "patient.firstName": REMOVED,
                     "patient.lastName": REMOVED,
@@ -44,8 +42,7 @@ export async function runAppointmentRetention(company: ObjectId, parentLogger?: 
                 },
                 $unset: {note: "", customer: "", cancellationReason: ""},
                 $push: {timeline: {event: "anonymized", at: now}},
-            },
-        );
+            });
         anonymized += result.modifiedCount;
     }
     logger.finish(`Appointments anonymized: ${anonymized}`);

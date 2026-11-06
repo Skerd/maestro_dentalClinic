@@ -1,5 +1,4 @@
 import type {ClientSession} from "mongoose";
-import Company from "@coreModule/database/schemas/company/company";
 import {emitNotificationEvent} from "@coreModule/domain/notifications/notificationEventBus";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {runAfterCommit} from "@coreModule/utilities/middlewares/transactionUtils";
@@ -12,6 +11,7 @@ import {NotificationEventCodes} from "@dentalClinicModule/domain/notifications/n
 import {sendPatientMail, patientSmsText, type PatientMessageKind} from "@dentalClinicModule/utilities/emails/sendPatientMail";
 import {companySiteUrl} from "@coreModule/utilities/marketing/portalCompanies";
 
+import {companyService} from "@coreModule/database/schemas/company/company.service";
 function formatLocal(date: Date, timeZone: string, languageCode: string): string {
     return new Intl.DateTimeFormat(languageCode, {timeZone, dateStyle: "full", timeStyle: "short"}).format(date);
 }
@@ -40,7 +40,7 @@ export async function notifyPatient(
     await runAfterCommit(ctx.session, async () => {
         const companyId = nestedEntityToRef(appointment.company);
         const [company, config] = await Promise.all([
-            Company.findById(companyId).select("name siteSlug"),
+            companyService.findById(companyId, {}, undefined, "name siteSlug"),
             clinicConfigService.findForCompany(companyId, {languageCode: ctx.languageCode}),
         ]);
         if (!company) return;
@@ -58,7 +58,7 @@ export async function notifyPatient(
             location: [snapshot.locationName, snapshot.locationAddress].filter(Boolean).join(", "),
             serviceName: config?.includeServiceInMessages ? snapshot.serviceName : undefined,
             manageToken: manageTokenFor(appointment),
-            manageUrl: companySiteUrl(company, "/dentists/manage"),
+            manageUrl: companySiteUrl({_id: company._id, siteSlug: company.siteSlug}, "/dentists/manage"),
         };
         await sendPatientMail(message);
         if (kind === "reminder" && config?.reminderSms && patient.phone) {

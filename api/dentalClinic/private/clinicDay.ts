@@ -11,13 +11,14 @@ import {apiValidationException} from "armonia/src/modules/core/helpers/exception
 import {clinicDayFormSchema} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/appointment/appointment.form.validators";
 import type {ClinicDayFormType} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/appointment/appointment.forms";
 import type {ClinicDayResponse} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/appointment/appointment.dto";
-import ClinicLocation from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation";
-import Practitioner from "@dentalClinicModule/database/schemas/practitioner/practitioner";
 import Appointment from "@dentalClinicModule/database/schemas/appointment/appointment";
-import ScheduleException from "@dentalClinicModule/database/schemas/scheduleException/scheduleException";
 import {workingIntervals} from "@dentalClinicModule/utilities/services/clinicAvailability";
 import {appointmentScopeFilter} from "@dentalClinicModule/utilities/services/clinicAccess";
 
+import {clinicLocationService} from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation.service";
+import {practitionerService} from "@dentalClinicModule/database/schemas/practitioner/practitioner.service";
+import {appointmentService} from "@dentalClinicModule/database/schemas/appointment/appointment.service";
+import {scheduleExceptionService} from "@dentalClinicModule/database/schemas/scheduleException/scheduleException.service";
 /**
  * One location's day for the panel: a column per practitioner who works there,
  * their working hours and time off, and the appointments (scoped like the list:
@@ -39,14 +40,14 @@ router.post(
         if (!readFields.startAt) throw apiValidationException("user_permissions_not_sufficient", "", null, languageCode);
 
         const location = ObjectId.isValid(params.location)
-            ? await ClinicLocation.findOne({_id: new ObjectId(params.location), company: company._id, deletedAt: null})
+            ? await clinicLocationService.findOne({_id: new ObjectId(params.location), company: company._id, deletedAt: null}, {})
             : null;
         if (!location) throw apiValidationException("clinic_location_not_found", "", null, languageCode);
         const day = localDayInterval(date, location.timezone);
 
         const [practitioners, appointments] = await Promise.all([
-            Practitioner.find({company: company._id, locations: location._id, isActive: true, deletedAt: null}).sort({sortOrder: 1, displayName: 1}),
-            Appointment.find({
+            practitionerService.find({company: company._id, locations: location._id, isActive: true, deletedAt: null}, {}, undefined, undefined, {sortOrder: 1, displayName: 1}),
+            appointmentService.find({
                 company: company._id,
                 location: location._id,
                 deletedAt: null,
@@ -54,15 +55,15 @@ router.post(
                 endAt: {$gt: day.start},
                 status: {$ne: "cancelled"},
                 ...(await appointmentScopeFilter(company._id, actionUserCtx)),
-            }).sort({startAt: 1}),
+            }, {}, undefined, undefined, {startAt: 1}),
         ]);
-        const exceptions = await ScheduleException.find({
+        const exceptions = await scheduleExceptionService.find({
             company: company._id,
             deletedAt: null,
             startAt: {$lt: day.end},
             endAt: {$gt: day.start},
             $or: [{practitioner: {$in: practitioners.map((practitioner) => practitioner._id)}}, {location: location._id}],
-        });
+        }, {});
         const timeOffOf = (practitionerId: ObjectId) => exceptions
             .filter((exception) => !exception.practitioner || String(exception.practitioner) === String(practitionerId))
             .map((exception) => iso({start: exception.startAt, end: exception.endAt}));

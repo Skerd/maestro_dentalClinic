@@ -5,14 +5,14 @@ import {createScheduleExceptionFormSchema} from "armonia/src/modules/dentalClini
 import {editScheduleExceptionFormSchema} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/scheduleException/editScheduleException.form.validator";
 import ScheduleException from "@dentalClinicModule/database/schemas/scheduleException/scheduleException";
 import {scheduleExceptionService} from "@dentalClinicModule/database/schemas/scheduleException/scheduleException.service";
-import ClinicLocation from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation";
-import Practitioner from "@dentalClinicModule/database/schemas/practitioner/practitioner";
-import Appointment from "@dentalClinicModule/database/schemas/appointment/appointment";
 import {scheduleExceptionToDTO, scheduleExceptionsToDTO} from "@dentalClinicModule/utilities/mappers/scheduleException/scheduleExceptionMapper.dto";
 import {blockingAppointmentFilter} from "@dentalClinicModule/utilities/services/clinicAvailability";
 import {lockPractitioner} from "@dentalClinicModule/utilities/services/appointmentBooking";
 import {scheduleExceptionScopeFilter} from "@dentalClinicModule/utilities/services/clinicAccess";
 
+import {clinicLocationService} from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation.service";
+import {practitionerService} from "@dentalClinicModule/database/schemas/practitioner/practitioner.service";
+import {appointmentService} from "@dentalClinicModule/database/schemas/appointment/appointment.service";
 /** At most this many clashing booking numbers are named in the error. */
 const CLASHES_SHOWN = 5;
 
@@ -48,20 +48,20 @@ export const {router} = createCrudRouter({
             practitionerIds = [new ObjectId(String(practitioner))];
         } else {
             const locationId = new ObjectId(String(location));
-            if (!(await ClinicLocation.exists({_id: locationId, company: companyId, deletedAt: null}).session(session))) {
+            if (!(await clinicLocationService.exists({_id: locationId, company: companyId, deletedAt: null}, {session: session}))) {
                 throw apiValidationException("clinic_location_not_found", "", null, languageCode);
             }
-            practitionerIds = (await Practitioner.find({company: companyId, locations: locationId, deletedAt: null}).select("_id").session(session)).map((p) => p._id);
+            practitionerIds = (await practitionerService.find({company: companyId, locations: locationId, deletedAt: null}, {session: session}, undefined, "_id")).map((p) => p._id);
         }
         for (const id of practitionerIds) await lockPractitioner(id, {companyId, session, languageCode});
 
-        const clashes = await Appointment.find({
+        const clashes = await appointmentService.find({
             company: companyId,
             ...(practitioner ? {practitioner: practitionerIds[0]} : {location: new ObjectId(String(location))}),
             startAt: {$lt: end},
             endAt: {$gt: start},
             ...blockingAppointmentFilter(),
-        }).select("number").sort({startAt: 1}).limit(CLASHES_SHOWN).session(session);
+        }, {session: session}, undefined, "number", {startAt: 1}, CLASHES_SHOWN);
         if (clashes.length) {
             throw apiValidationException("schedule_exception_overlaps_appointments", "", null, languageCode, [clashes.map((a) => a.number).join(", ")]);
         }

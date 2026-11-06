@@ -11,23 +11,23 @@ import {editClinicConfigFormSchema} from "armonia/src/modules/dentalClinic/api/d
 import ClinicConfig from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig";
 import {clinicConfigService} from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig.service";
 import {ClinicConfigActions} from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig.actions";
-import ClinicLocation from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation";
-import ClinicService from "@dentalClinicModule/database/schemas/clinicService/clinicService";
-import Practitioner from "@dentalClinicModule/database/schemas/practitioner/practitioner";
 import {clinicConfigToDTO, clinicConfigsToDTO} from "@dentalClinicModule/utilities/mappers/clinicConfig/clinicConfigMapper.dto";
 import {clinicConfigsToSelect} from "@dentalClinicModule/utilities/mappers/clinicConfig/clinicConfigMapper.select";
 
+import {clinicLocationService} from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation.service";
+import {clinicServiceService} from "@dentalClinicModule/database/schemas/clinicService/clinicService.service";
+import {practitionerService} from "@dentalClinicModule/database/schemas/practitioner/practitioner.service";
 /**
  * Public booking only goes live once a patient could actually complete one: a
  * location, a service offered online, and someone bookable with working hours
  * who does that service there.
  */
 async function assertReadyForPublicBooking(companyId: ObjectId, session: ClientSession, languageCode: string): Promise<void> {
-    const locations = await ClinicLocation.find({company: companyId, isActive: true, deletedAt: null}).select("_id").session(session);
+    const locations = await clinicLocationService.find({company: companyId, isActive: true, deletedAt: null}, {session: session}, undefined, "_id");
     if (!locations.length) throw apiValidationException("clinic_setup_missing_location", "", null, languageCode);
-    const services = await ClinicService.find({company: companyId, isActive: true, isPublic: true, onlineBookable: true, deletedAt: null}).select("_id").session(session);
+    const services = await clinicServiceService.find({company: companyId, isActive: true, isPublic: true, onlineBookable: true, deletedAt: null}, {session: session}, undefined, "_id");
     if (!services.length) throw apiValidationException("clinic_setup_missing_service", "", null, languageCode);
-    const practitioner = await Practitioner.exists({
+    const practitioner = await practitionerService.exists({
         company: companyId,
         isActive: true,
         isBookable: true,
@@ -35,7 +35,7 @@ async function assertReadyForPublicBooking(companyId: ObjectId, session: ClientS
         "schedule.0": {$exists: true},
         services: {$in: services.map((service) => service._id)},
         locations: {$in: locations.map((location) => location._id)},
-    }).session(session);
+    }, {session: session});
     if (!practitioner) throw apiValidationException("clinic_setup_missing_practitioner", "", null, languageCode);
 }
 

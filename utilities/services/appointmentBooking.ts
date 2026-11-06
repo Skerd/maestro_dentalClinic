@@ -8,14 +8,17 @@ import {formatPostalAddress} from "@coreModule/utilities/helpers/postalAddress";
 import {localDateOf, localDayInterval, localToUtc} from "@coreModule/utilities/time/timeWindows";
 import type {CreateInput} from "@coreModule/database/services/baseCrudService";
 import type {IClinicConfig} from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig";
-import ClinicLocation, {type IClinicLocation} from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation";
-import ClinicService, {type IClinicService} from "@dentalClinicModule/database/schemas/clinicService/clinicService";
-import Practitioner, {type IPractitioner} from "@dentalClinicModule/database/schemas/practitioner/practitioner";
+import {type IClinicLocation} from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation";
+import {type IClinicService} from "@dentalClinicModule/database/schemas/clinicService/clinicService";
+import {type IPractitioner} from "@dentalClinicModule/database/schemas/practitioner/practitioner";
 import Appointment, {type IAppointment} from "@dentalClinicModule/database/schemas/appointment/appointment";
 import {appointmentService} from "@dentalClinicModule/database/schemas/appointment/appointment.service";
 import {blockedWindow, blockingAppointmentFilter, eligiblePractitioners, isStartFree, treatmentWindow} from "./clinicAvailability";
 import {findOrCreatePatient} from "./patientRecords";
 
+import {practitionerService} from "@dentalClinicModule/database/schemas/practitioner/practitioner.service";
+import {clinicServiceService} from "@dentalClinicModule/database/schemas/clinicService/clinicService.service";
+import {clinicLocationService} from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation.service";
 const HOUR = 3600 * 1000;
 const DAY = 24 * HOUR;
 
@@ -29,11 +32,7 @@ export type ClinicCtx = {session: ClientSession; logger: serverLogger; languageC
  * bookings could each insert their own appointment (write skew).
  */
 export async function lockPractitioner(practitionerId: ObjectId, ctx: {companyId: ObjectId; session: ClientSession; languageCode: string}): Promise<void> {
-    const result = await Practitioner.updateOne(
-        {_id: practitionerId, company: ctx.companyId, deletedAt: null},
-        {$inc: {bookingVersion: 1}},
-        {session: ctx.session},
-    );
+    const result = await practitionerService.updateOne({_id: practitionerId, company: ctx.companyId, deletedAt: null}, {$inc: {bookingVersion: 1}}, {session: ctx.session});
     if (result.matchedCount === 0) throw apiValidationException("practitioner_not_found", "", null, ctx.languageCode);
 }
 
@@ -44,19 +43,17 @@ export async function loadBookingTargets(
     ctx: {languageCode: string; online: boolean; session?: ClientSession | null},
 ): Promise<{service: IClinicService; location: IClinicLocation}> {
     const service = ObjectId.isValid(ids.service)
-        ? await ClinicService.findOne({
+        ? await clinicServiceService.findOne({
             _id: new ObjectId(ids.service),
             company: companyId,
             isActive: true,
             deletedAt: null,
             ...(ctx.online ? {isPublic: true, onlineBookable: true} : {}),
-        }).session(ctx.session ?? null)
+        }, {session: ctx.session ?? undefined})
         : null;
     if (!service) throw apiValidationException("clinic_service_not_found", "", null, ctx.languageCode);
     const location = ObjectId.isValid(ids.location)
-        ? await ClinicLocation.findOne({_id: new ObjectId(ids.location), company: companyId, isActive: true, deletedAt: null})
-            .populate([{path: "address.city", select: "name"}])
-            .session(ctx.session ?? null)
+        ? await clinicLocationService.findOne({_id: new ObjectId(ids.location), company: companyId, isActive: true, deletedAt: null}, {session: ctx.session ?? undefined}, [{path: "address.city", select: "name"}])
         : null;
     if (!location) throw apiValidationException("clinic_location_not_found", "", null, ctx.languageCode);
     return {service, location};
@@ -218,7 +215,7 @@ export async function buildAppointment(input: CreateAppointmentInput, ctx: Clini
  * the same idempotency key returns the appointment it made the first time.
  */
 export async function createAppointment(input: CreateAppointmentInput, ctx: ClinicCtx): Promise<{appointment: IAppointment; created: boolean}> {
-    const existing = await Appointment.findOne({company: input.companyId, idempotencyKey: input.idempotencyKey}).session(ctx.session);
+    const existing = await appointmentService.findOne({company: input.companyId, idempotencyKey: input.idempotencyKey}, {session: ctx.session});
     if (existing) return {appointment: existing, created: false};
 
     const patientId = input.patientId ?? (await findOrCreatePatient(

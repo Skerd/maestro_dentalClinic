@@ -18,9 +18,9 @@ import type {ClinicCtx} from "./appointmentBooking";
 import {claimPatientUploads, idsOf, inquiryCompanyId, shareFiles, unshareFiles} from "./inquiryIntake";
 import {notifyInquiryPatient, notifyInquiryStaff} from "./inquiryNotify";
 import {findOrCreatePatient, keepMedicalHistory} from "./patientRecords";
-import Patient from "@dentalClinicModule/database/schemas/patient/patient";
 import type {IMedicalHistory} from "@dentalClinicModule/database/schemas/shared/medicalHistory";
 
+import {patientService} from "@dentalClinicModule/database/schemas/patient/patient.service";
 type Actor = {userId?: string | ObjectId; now?: Date};
 
 const byOf = (userId?: string | ObjectId) => (userId && ObjectId.isValid(String(userId)) ? new ObjectId(String(userId)) : undefined);
@@ -238,7 +238,7 @@ export async function submitMedicalHistory(
         await notifyInquiryStaff(NotificationEventCodes.INQUIRY_MEDICAL_HISTORY, inquiry, ctx);
     }
     for (const inquiry of chosen) {
-        const patient = await Patient.findOne({_id: nestedEntityToRef(inquiry.patient), deletedAt: null}).session(ctx.session);
+        const patient = await patientService.findOne({_id: nestedEntityToRef(inquiry.patient), deletedAt: null}, {session: ctx.session});
         if (patient) await keepMedicalHistory(patient, history, ctx);
         inquiry.set("medicalHistory", history);
         record(inquiry, "medical_history", {...input, now});

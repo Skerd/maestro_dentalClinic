@@ -13,7 +13,7 @@ import {portalSiteSlug} from "@coreModule/utilities/marketing/portalOrigin";
 import {getLogger} from "@coreModule/loggers/serverLog";
 import {serveMedia} from "@coreModule/utilities/media/serveMedia";
 import {dateToISOString, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
-import Media, {type IMedia} from "@coreModule/database/schemas/media/media";
+import {type IMedia} from "@coreModule/database/schemas/media/media";
 import type {IUser} from "@coreModule/database/schemas/user/user";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {INQUIRY_FILES_MAX, PATIENT_FILE_MAX_BYTES, PATIENT_FILE_MIME_TYPES, TREATMENT_CATEGORIES, type TreatmentCategory} from "armonia/src/modules/dentalClinic/constants";
@@ -57,20 +57,17 @@ import type {
     PatientUploadResponse,
     RequestableClinicsResponse,
 } from "armonia/src/modules/dentalClinic/api/dentalClinic/public/patientPortal/patientPortal.response.types";
-import ClinicConfig from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig";
 import ClinicLocation from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation";
-import ClinicService from "@dentalClinicModule/database/schemas/clinicService/clinicService";
 import ClinicInquiry, {type IClinicInquiry} from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry";
-import ClinicMessage from "@dentalClinicModule/database/schemas/clinicMessage/clinicMessage";
 import {NotificationEventCodes} from "@dentalClinicModule/domain/notifications/notificationEventCodes";
 import {assertTreatments, claimPatientUploads, idsOf, openPatientRequest, requestableClinicIds} from "@dentalClinicModule/utilities/services/inquiryIntake";
 import {attachInquiryFiles, openInfoRequests, shareInquiryContact, submitMedicalHistory, withdrawInquiry} from "@dentalClinicModule/utilities/services/inquiryLifecycle";
 import {medicalHistoryToDTO} from "@dentalClinicModule/utilities/mappers/medicalHistory/medicalHistoryMapper.dto";
-import PatientTrip, {type IPatientTrip} from "@dentalClinicModule/database/schemas/patientTrip/patientTrip";
+import {type IPatientTrip} from "@dentalClinicModule/database/schemas/patientTrip/patientTrip";
 import {tripsOfInquiries, updateTripDetails} from "@dentalClinicModule/utilities/services/patientTrips";
 import {postInquiryMessage, readThread} from "@dentalClinicModule/utilities/services/inquiryThread";
 import {notifyInquiryStaff, notifyRequestSent} from "@dentalClinicModule/utilities/services/inquiryNotify";
-import TreatmentPlan, {type ITreatmentPlan} from "@dentalClinicModule/database/schemas/treatmentPlan/treatmentPlan";
+import {type ITreatmentPlan} from "@dentalClinicModule/database/schemas/treatmentPlan/treatmentPlan";
 import {treatmentPlanToPatient} from "@dentalClinicModule/utilities/mappers/treatmentPlan/treatmentPlanMapper.dto";
 import {acceptPlan} from "@dentalClinicModule/utilities/services/treatmentPlans";
 import {sendTreatmentPlanPdf} from "@dentalClinicModule/utilities/pdf/sendTreatmentPlanPdf";
@@ -80,6 +77,13 @@ import {runInTransaction} from "@coreModule/utilities/middlewares/runInTransacti
 import {asCrossTenant, setRequestTenant, withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import {failDepositPayment, onlinePaymentAvailable, settleDepositPayment, startDepositPayment} from "@dentalClinicModule/utilities/services/treatmentPlanPayments";
 
+import {treatmentPlanService} from "@dentalClinicModule/database/schemas/treatmentPlan/treatmentPlan.service";
+import {clinicInquiryService} from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry.service";
+import {clinicConfigService} from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig.service";
+import {mediaService} from "@coreModule/database/schemas/media/media.service";
+import {patientTripService} from "@dentalClinicModule/database/schemas/patientTrip/patientTrip.service";
+import {clinicMessageService} from "@dentalClinicModule/database/schemas/clinicMessage/clinicMessage.service";
+import {clinicServiceService} from "@dentalClinicModule/database/schemas/clinicService/clinicService.service";
 export const basePath = "/api/dentalClinic/patientPortal";
 export const router = Router();
 
@@ -105,7 +109,7 @@ registerPaymentSourceHandler(["treatmentPlan"], {
 /** The webhook names only the payment intent, so the plan is looked up across clinics (D16). */
 function planOfPaymentIntent(intentId: string, session: TransactionRequiredParams["session"]): Promise<ITreatmentPlan | null> {
     return asCrossTenant("a payment webhook names only the payment intent", () =>
-        TreatmentPlan.findOne({stripePaymentIntentId: intentId}).session(session));
+        treatmentPlanService.findOne({stripePaymentIntentId: intentId}, {session: session}));
 }
 
 /**
@@ -150,7 +154,7 @@ async function portalAccount(params: PortalParams<object>): Promise<{user: IUser
 /** One of the signed-in patient's inquiries, with its files ready to list. */
 async function loadOwnInquiry(accountId: ObjectId, inquiryId: string, languageCode: string, session?: TransactionRequiredParams["session"]): Promise<IClinicInquiry> {
     const inquiry = ObjectId.isValid(inquiryId)
-        ? await ClinicInquiry.findOne({_id: new ObjectId(inquiryId), account: accountId, deletedAt: null}).session(session ?? null)
+        ? await clinicInquiryService.findOne({_id: new ObjectId(inquiryId), account: accountId, deletedAt: null}, {session: session ?? undefined})
         : null;
     if (!inquiry) throw apiValidationException("inquiry_not_found", "", null, languageCode);
     return inquiry;
@@ -206,9 +210,7 @@ async function toPatientCase(inquiries: IClinicInquiry[]): Promise<PatientCase> 
 /** Hours from request to first answer, median over the clinic's recent requests. */
 async function medianResponseHours(companyIds: ObjectId[]): Promise<Map<string, number>> {
     const since = new Date(Date.now() - RESPONSE_WINDOW_DAYS * 24 * HOUR);
-    const answered = await ClinicInquiry.find({company: {$in: companyIds}, firstResponseAt: {$ne: null}, createdAt: {$gte: since}, deletedAt: null})
-        .select("company createdAt firstResponseAt")
-        .lean<{company: ObjectId; createdAt: Date; firstResponseAt: Date}[]>();
+    const answered = await clinicInquiryService.findFirstResponsesLean({company: {$in: companyIds}, firstResponseAt: {$ne: null}, createdAt: {$gte: since}, deletedAt: null});
     const hours = new Map<string, number[]>();
     for (const inquiry of answered) {
         const key = String(inquiry.company);
@@ -259,8 +261,8 @@ router.post(
         const companyIds = await requestableClinicIds(await requestScope(origin, languageCode));
         const [cities, configs, services, responseHours] = await Promise.all([
             addressCitiesByCompany(ClinicLocation, companyIds),
-            ClinicConfig.find({company: {$in: companyIds}, deletedAt: null}).select("company languagesSpoken implantBrands profileTexts"),
-            ClinicService.find({company: {$in: companyIds}, isActive: true, isPublic: true, deletedAt: null}).select("company category").lean<{company: ObjectId; category: TreatmentCategory}[]>(),
+            clinicConfigService.find({company: {$in: companyIds}, deletedAt: null}, {}, undefined, "company languagesSpoken implantBrands profileTexts"),
+            clinicServiceService.findCategoriesLean({company: {$in: companyIds}, isActive: true, isPublic: true, deletedAt: null}),
             medianResponseHours(companyIds),
         ]);
         const cards = await portalCompanyCards(companyIds, cities);
@@ -297,7 +299,7 @@ router.post(
     asPortalUploader(),
     patientUpload,
     asyncHandler(async (params: PortalParams<{files?: string[]}>): Promise<PatientUploadResponse> => {
-        const files = await Media.find({_id: {$in: idsOf(params.files ?? [])}}).select(FILE_SELECT);
+        const files = await mediaService.find({_id: {$in: idsOf(params.files ?? [])}}, {}, undefined, FILE_SELECT);
         return {data: patientFiles(files)};
     }),
 );
@@ -356,7 +358,7 @@ router.post(
     publicChatCustomerMW(),
     asyncHandler(asPatient(async (params: PortalParams<object>): Promise<PatientCasesResponse> => {
         const user = await requirePortalAccount(params.customer, params.origin, params.languageCode);
-        const inquiries = await ClinicInquiry.find({account: user._id, requestGroup: {$ne: null}, deletedAt: null}).sort({createdAt: -1});
+        const inquiries = await clinicInquiryService.find({account: user._id, requestGroup: {$ne: null}, deletedAt: null}, {}, undefined, undefined, {createdAt: -1});
         const groups = new Map<string, IClinicInquiry[]>();
         for (const inquiry of inquiries) {
             const key = inquiry.requestGroup ?? "";
@@ -375,7 +377,7 @@ router.post(
     publicChatCustomerMW(),
     asyncHandler(asPatient(async (params: PortalParams<PatientCaseFormType>): Promise<PatientCaseResponse> => {
         const user = await requirePortalAccount(params.customer, params.origin, params.languageCode);
-        const inquiries = await ClinicInquiry.find({account: user._id, requestGroup: params.requestGroup, deletedAt: null}).sort({createdAt: 1});
+        const inquiries = await clinicInquiryService.find({account: user._id, requestGroup: params.requestGroup, deletedAt: null}, {}, undefined, undefined, {createdAt: 1});
         if (!inquiries.length) throw apiValidationException("inquiry_not_found", "", null, params.languageCode);
         return {data: await toPatientCase(inquiries)};
     })),
@@ -517,7 +519,7 @@ router.post(
     publicChatCustomerMW(),
     asyncHandler(asPatient(async (params: PortalParams<PatientCaseFormType>): Promise<PatientTripsResponse> => {
         const user = await requirePortalAccount(params.customer, params.origin, params.languageCode);
-        const inquiries = await ClinicInquiry.find({account: user._id, requestGroup: params.requestGroup, deletedAt: null}).select("_id");
+        const inquiries = await clinicInquiryService.find({account: user._id, requestGroup: params.requestGroup, deletedAt: null}, {}, undefined, "_id");
         const trips = await tripsOfInquiries(inquiries.map((inquiry) => inquiry._id), {});
         const names = await clinicNamesOf(trips);
         return {data: trips.map((trip) => toPatientTrip(trip, names))};
@@ -535,9 +537,9 @@ router.post(
     asyncHandler(asPatient(async (params: TransactionRequiredParams & PortalParams<PatientTripDetailsFormType>): Promise<PatientTripResponse> => {
         const {origin, languageCode, session, logger} = params;
         const user = await requirePortalAccount(params.customer, origin, languageCode);
-        const trip = ObjectId.isValid(params.trip) ? await PatientTrip.findOne({_id: new ObjectId(params.trip), deletedAt: null}).session(session) : null;
-        const plan = trip?.plan ? await TreatmentPlan.findById(nestedEntityToRef(trip.plan)).select("inquiry").session(session) : null;
-        const own = plan && await ClinicInquiry.exists({_id: nestedEntityToRef(plan.inquiry), account: user._id, deletedAt: null}).session(session);
+        const trip = ObjectId.isValid(params.trip) ? await patientTripService.findOne({_id: new ObjectId(params.trip), deletedAt: null}, {session: session}) : null;
+        const plan = trip?.plan ? await treatmentPlanService.findById(nestedEntityToRef(trip.plan), {session: session}, undefined, "inquiry") : null;
+        const own = plan && await clinicInquiryService.exists({_id: nestedEntityToRef(plan.inquiry), account: user._id, deletedAt: null}, {session: session});
         if (!trip || !own) throw apiValidationException("patient_trip_not_found", "", null, languageCode);
         await updateTripDetails(
             trip,
@@ -560,7 +562,7 @@ router.post(
     asyncHandler(asPatient(async (params: TransactionRequiredParams & PortalParams<PatientMedicalHistoryFormType>): Promise<PatientCaseResponse> => {
         const {origin, languageCode, session, logger} = params;
         const user = await requirePortalAccount(params.customer, origin, languageCode);
-        const inquiries = await ClinicInquiry.find({account: user._id, requestGroup: params.requestGroup, deletedAt: null}).sort({createdAt: 1}).session(session);
+        const inquiries = await clinicInquiryService.find({account: user._id, requestGroup: params.requestGroup, deletedAt: null}, {session: session}, undefined, undefined, {createdAt: 1});
         if (!inquiries.length) throw apiValidationException("inquiry_not_found", "", null, languageCode);
         await submitMedicalHistory(
             inquiries,
@@ -594,9 +596,9 @@ router.get(
             cacheControl: "private",
             deniedAsNotFound: true,
             accessCheck: async () => {
-                const inquiries = await ClinicInquiry.find({account: user._id, deletedAt: null}).select("_id files");
+                const inquiries = await clinicInquiryService.find({account: user._id, deletedAt: null}, {}, undefined, "_id files");
                 if (inquiries.some((inquiry) => idsOf(inquiry.files).some((id) => id.equals(mediaId)))) return true;
-                return !!(await ClinicMessage.exists({inquiry: {$in: inquiries.map((inquiry) => inquiry._id)}, attachments: mediaId, deletedAt: null}));
+                return !!(await clinicMessageService.exists({inquiry: {$in: inquiries.map((inquiry) => inquiry._id)}, attachments: mediaId, deletedAt: null}));
             },
         });
     })),
@@ -605,9 +607,9 @@ router.get(
 /** One of the patient's quotes; drafts stay with the clinic. */
 async function loadOwnPlan(accountId: ObjectId, planId: string, languageCode: string, session?: TransactionRequiredParams["session"]): Promise<ITreatmentPlan> {
     const plan = ObjectId.isValid(planId)
-        ? await TreatmentPlan.findOne({_id: new ObjectId(planId), status: {$ne: "draft"}, deletedAt: null}).session(session ?? null)
+        ? await treatmentPlanService.findOne({_id: new ObjectId(planId), status: {$ne: "draft"}, deletedAt: null}, {session: session ?? undefined})
         : null;
-    const own = plan && await ClinicInquiry.exists({_id: nestedEntityToRef(plan.inquiry), account: accountId, deletedAt: null}).session(session ?? null);
+    const own = plan && await clinicInquiryService.exists({_id: nestedEntityToRef(plan.inquiry), account: accountId, deletedAt: null}, {session: session ?? undefined});
     if (!plan || !own) throw apiValidationException("treatment_plan_not_found", "", null, languageCode);
     return plan;
 }
@@ -621,10 +623,8 @@ router.post(
     publicChatCustomerMW(),
     asyncHandler(asPatient(async (params: PortalParams<PatientCaseFormType>): Promise<PatientPlansResponse> => {
         const user = await requirePortalAccount(params.customer, params.origin, params.languageCode);
-        const inquiries = await ClinicInquiry.find({account: user._id, requestGroup: params.requestGroup, deletedAt: null}).select("_id company");
-        const plans = await TreatmentPlan.find({inquiry: {$in: inquiries.map((inquiry) => inquiry._id)}, status: {$ne: "draft"}, deletedAt: null})
-            .populate({path: "currency", select: "name symbol abbreviation"})
-            .sort({sentAt: 1});
+        const inquiries = await clinicInquiryService.find({account: user._id, requestGroup: params.requestGroup, deletedAt: null}, {}, undefined, "_id company");
+        const plans = await treatmentPlanService.find({inquiry: {$in: inquiries.map((inquiry) => inquiry._id)}, status: {$ne: "draft"}, deletedAt: null}, {}, {path: "currency", select: "name symbol abbreviation"}, undefined, {sentAt: 1});
         const clinics = await portalCompanyCards(idsOf(inquiries.map((inquiry) => inquiry.company)), new Map());
         const names = new Map(clinics.map((clinic) => [clinic._id, clinic.name]));
         return {

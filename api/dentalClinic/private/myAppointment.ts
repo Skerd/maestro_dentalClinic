@@ -11,10 +11,10 @@ import type {
     PublicAppointmentResponse,
     PublicAppointmentsResponse,
 } from "armonia/src/modules/dentalClinic/api/dentalClinic/public/clinicStorefront/clinicStorefront.response.types";
-import Appointment from "@dentalClinicModule/database/schemas/appointment/appointment";
 import {appointmentToPublic} from "@dentalClinicModule/utilities/mappers/appointment/appointmentMapper.dto";
 import {cancelAppointment} from "@dentalClinicModule/utilities/services/appointmentLifecycle";
 
+import {appointmentService} from "@dentalClinicModule/database/schemas/appointment/appointment.service";
 /**
  * A signed-in patient's own appointments. Scoped to the caller as `customer`, so
  * it needs no collection permission: the signup role has none, and staff
@@ -30,11 +30,11 @@ router.post(
     authMW("private"),
     rateLimiter({windowMs: 60000, max: 60}),
     asyncHandler(async ({actionUserCtx, company}: AuthenticatedMWType): Promise<PublicAppointmentsResponse> => {
-        const appointments = await Appointment.find({
+        const appointments = await appointmentService.find({
             company: company._id,
             customer: new ObjectId(actionUserCtx.userId),
             deletedAt: null,
-        }).sort({startAt: -1}).limit(100).populate(CURRENCY);
+        }, {}, CURRENCY, undefined, {startAt: -1}, 100);
         return {data: appointments.map((appointment) => appointmentToPublic(appointment))};
     }),
 );
@@ -48,12 +48,12 @@ router.post(
     asyncHandler(async (params: TransactionRequiredParams & {_id: string}): Promise<PublicAppointmentResponse> => {
         const {_id, actionUserCtx, company, session, logger, languageCode} = params;
         const appointment = ObjectId.isValid(_id)
-            ? await Appointment.findOne({
+            ? await appointmentService.findOne({
                 _id: new ObjectId(_id),
                 company: company._id,
                 customer: new ObjectId(actionUserCtx.userId),
                 deletedAt: null,
-            }).session(session)
+            }, {session: session})
             : null;
         if (!appointment) throw apiValidationException("appointment_not_found", "", null, languageCode);
         await cancelAppointment(

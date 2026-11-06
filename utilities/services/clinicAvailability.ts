@@ -17,10 +17,11 @@ import {APPOINTMENT_BLOCKING_STATUSES} from "armonia/src/modules/dentalClinic/ap
 import type {IClinicConfig} from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig";
 import type {IClinicLocation} from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation";
 import type {IClinicService} from "@dentalClinicModule/database/schemas/clinicService/clinicService";
-import Practitioner, {type IPractitioner} from "@dentalClinicModule/database/schemas/practitioner/practitioner";
-import ScheduleException from "@dentalClinicModule/database/schemas/scheduleException/scheduleException";
-import Appointment from "@dentalClinicModule/database/schemas/appointment/appointment";
+import {type IPractitioner} from "@dentalClinicModule/database/schemas/practitioner/practitioner";
 
+import {appointmentService} from "@dentalClinicModule/database/schemas/appointment/appointment.service";
+import {scheduleExceptionService} from "@dentalClinicModule/database/schemas/scheduleException/scheduleException.service";
+import {practitionerService} from "@dentalClinicModule/database/schemas/practitioner/practitioner.service";
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
@@ -85,21 +86,21 @@ export async function busyIntervals(query: {
 }): Promise<Map<string, TimeInterval[]>> {
     const {companyId, practitionerIds, locationId, range, excludeAppointmentId, session} = query;
     const [appointments, exceptions] = await Promise.all([
-        Appointment.find({
+        appointmentService.find({
             company: companyId,
             practitioner: {$in: practitionerIds},
             blockedStart: {$lt: range.end},
             blockedEnd: {$gt: range.start},
             ...(excludeAppointmentId ? {_id: {$ne: excludeAppointmentId}} : {}),
             ...blockingAppointmentFilter(),
-        }).select("practitioner blockedStart blockedEnd").session(session ?? null),
-        ScheduleException.find({
+        }, {session: session ?? undefined}, undefined, "practitioner blockedStart blockedEnd"),
+        scheduleExceptionService.find({
             company: companyId,
             deletedAt: null,
             startAt: {$lt: range.end},
             endAt: {$gt: range.start},
             $or: [{practitioner: {$in: practitionerIds}}, {location: locationId}],
-        }).select("practitioner location startAt endAt").session(session ?? null),
+        }, {session: session ?? undefined}, undefined, "practitioner location startAt endAt"),
     ]);
 
     const busy = new Map<string, TimeInterval[]>(practitionerIds.map((id) => [String(id), []]));
@@ -153,7 +154,7 @@ export async function eligiblePractitioners(query: {
 }): Promise<IPractitioner[]> {
     const {companyId, serviceId, locationId, practitionerId, online, session} = query;
     if (practitionerId !== undefined && !ObjectId.isValid(practitionerId)) return [];
-    return Practitioner.find({
+    return practitionerService.find({
         company: companyId,
         deletedAt: null,
         isActive: true,
@@ -161,7 +162,7 @@ export async function eligiblePractitioners(query: {
         locations: locationId,
         ...(online ? {isBookable: true} : {}),
         ...(practitionerId ? {_id: new ObjectId(practitionerId)} : {}),
-    }).sort({sortOrder: 1, displayName: 1}).session(session ?? null);
+    }, {session: session ?? undefined}, undefined, undefined, {sortOrder: 1, displayName: 1});
 }
 
 /** Whether `start` can be booked with this practitioner. Call under their lock to make the answer final. */

@@ -14,6 +14,8 @@ import {CLINIC_MESSAGE_BODY_MAX} from "armonia/src/modules/dentalClinic/constant
 import {CLINIC_MESSAGE_SENDERS, type ClinicMessageSender} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicMessage/clinicMessage.forms";
 import type {IClinicInquiry} from "../clinicInquiry/clinicInquiry";
 import {applyClinicMessageIndexes} from "./clinicMessage.indexes";
+import {validateSchemaDefAgainstMongoose} from "@coreModule/database/utilities/validateSchemaDefAgainstMongoose";
+import {ClinicMessageSchemaDef} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicMessage/clinicMessage.schema-def";
 
 /** Messages are written by the thread routes only and never edited. */
 const NoWritePermission = {self: {write: "no-permission"}, others: {write: "no-permission"}};
@@ -69,3 +71,4 @@ export default ClinicMessage;
 
 // No panel views: the thread is shown inside the inquiry. Registered for its permission group.
 addModelData(ClinicMessage);
+validateSchemaDefAgainstMongoose(ClinicMessageSchema, ClinicMessageSchemaDef, "ClinicMessage");

@@ -103,7 +103,7 @@ const TreatmentPlanSchema = new Schema<ITreatmentPlan>(
             type: SchemaTypes.String,
             enum: TREATMENT_PLAN_STATUSES,
             required: true,
-            // Writable by permission only so roles can be granted the plan actions (they gate on write:status).
+            // Changed only by the plan actions (each has its own action permission, D14).
             dynamicTableConfiguration: {
                 enumTones: {draft: "neutral", sent: "info", accepted: "success", rejected: "neutral", expired: "warning", superseded: "neutral"},
             },
@@ -210,7 +210,7 @@ const TreatmentPlanSchema = new Schema<ITreatmentPlan>(
                 },
             },
         },
-        // Writable by permission only: recording a payment or a refund gates on write:amountPaid.
+        // Changed only by the payment and refund actions (D14 action permissions).
         amountPaid: {type: SchemaTypes.Number, default: 0},
         stripePaymentIntentId: {type: SchemaTypes.String, permissions: NoWritePermission, dynamicTableConfiguration: {hideColumn: true}},
         timeline: {

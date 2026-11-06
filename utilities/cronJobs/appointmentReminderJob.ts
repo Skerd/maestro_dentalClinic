@@ -7,10 +7,11 @@
 import type {ObjectId} from "mongodb";
 import {CONSTANTS} from "@coreModule/environment";
 import {getLogger, serverLogger} from "@coreModule/loggers/serverLog";
-import ClinicConfig from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig";
 import Appointment from "@dentalClinicModule/database/schemas/appointment/appointment";
 import {notifyPatient} from "@dentalClinicModule/utilities/services/appointmentNotify";
 
+import {clinicConfigService} from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig.service";
+import {appointmentService} from "@dentalClinicModule/database/schemas/appointment/appointment.service";
 const HOUR = 3600 * 1000;
 const BATCH_SIZE = 200;
 
@@ -21,22 +22,19 @@ export async function runAppointmentReminders(company: ObjectId, parentLogger?: 
     logger.start("Sending appointment reminders...");
 
     let sent = 0;
-    const configs = await ClinicConfig.find({company, deletedAt: null, reminderHoursBefore: {$gt: 0}}).select("company reminderHoursBefore");
+    const configs = await clinicConfigService.find({company, deletedAt: null, reminderHoursBefore: {$gt: 0}}, {}, undefined, "company reminderHoursBefore");
     for (const config of configs) {
-        const due = await Appointment.find({
+        const due = await appointmentService.find({
             company: config.company,
             status: "confirmed",
             deletedAt: null,
             reminderSentAt: {$exists: false},
             startAt: {$gt: now, $lte: new Date(now.getTime() + config.reminderHoursBefore * HOUR)},
-        }).limit(BATCH_SIZE);
+        }, {}, undefined, undefined, undefined, BATCH_SIZE);
 
         for (const appointment of due) {
             // Claim it: only the run that sets the stamp sends.
-            const claimed = await Appointment.updateOne(
-                {_id: appointment._id, reminderSentAt: {$exists: false}},
-                {$set: {reminderSentAt: now}},
-            );
+            const claimed = await appointmentService.updateOne({_id: appointment._id, reminderSentAt: {$exists: false}}, {$set: {reminderSentAt: now}});
             if (!claimed.modifiedCount) continue;
             try {
                 await notifyPatient("reminder", appointment, {languageCode});

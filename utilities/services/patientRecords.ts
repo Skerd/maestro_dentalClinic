@@ -4,12 +4,12 @@ import {apiValidationException} from "armonia/src/modules/core/helpers/exception
 import {PATIENT_LANGUAGES, type PatientLanguage, type PatientSource} from "armonia/src/modules/dentalClinic/constants";
 import Patient, {type IPatient} from "@dentalClinicModule/database/schemas/patient/patient";
 import {patientService} from "@dentalClinicModule/database/schemas/patient/patient.service";
-import Company from "@coreModule/database/schemas/company/company";
-import Role from "@coreModule/database/schemas/role/role";
-import User from "@coreModule/database/schemas/user/user";
 import {copyMedicalHistory, type IMedicalHistory} from "@dentalClinicModule/database/schemas/shared/medicalHistory";
 import type {ClinicCtx} from "./appointmentBooking";
 
+import {companyService} from "@coreModule/database/schemas/company/company.service";
+import {roleService} from "@coreModule/database/schemas/role/role.service";
+import {userService} from "@coreModule/database/schemas/user/user.service";
 /** Case-insensitive match on names, so "rossi" and "Rossi" are the same person. */
 const NAME_COLLATION = {locale: "en", strength: 2};
 
@@ -39,7 +39,7 @@ export async function findOrCreatePatient(
     const live = {company: companyId, deletedAt: null};
 
     if (accountId) {
-        const byAccount = await Patient.findOne({...live, account: accountId}).session(ctx.session);
+        const byAccount = await patientService.findOne({...live, account: accountId}, {session: ctx.session});
         if (byAccount) {
             await ensurePatientMembership(companyId, accountId, ctx);
             return byAccount;
@@ -47,16 +47,14 @@ export async function findOrCreatePatient(
     }
     // Without an email there is nothing safe to match a stranger on: a new folder is opened.
     const email = contact.email?.trim().toLowerCase();
-    const byContact = email && await Patient.findOne({
+    const byContact = email && await patientService.findOneByName({
         ...live,
         email,
         firstName: contact.firstName.trim(),
         lastName: contact.lastName.trim(),
         // A folder already tied to another account belongs to someone else.
         ...(accountId ? {account: {$in: [null, accountId]}} : {}),
-    })
-        .collation(NAME_COLLATION)
-        .session(ctx.session);
+    }, NAME_COLLATION, ctx.session);
     if (byContact) {
         if (accountId && !byContact.account) {
             await patientService.updateByIdOrThrow(byContact._id, {account: accountId}, ctx);
@@ -93,17 +91,15 @@ export async function findOrCreatePatient(
  * already in the company (any role) is left as they are.
  */
 export async function ensurePatientMembership(companyId: ObjectId, accountId: ObjectId, ctx: ClinicCtx): Promise<void> {
-    const company = await Company.findById(companyId).session(ctx.session);
+    const company = await companyService.findById(companyId, {session: ctx.session});
     if (!company) return;
-    let role = await Role.findOne({company: companyId, isSignupDefault: true}).select("_id").session(ctx.session);
+    let role = await roleService.findOne({company: companyId, isSignupDefault: true}, {session: ctx.session}, undefined, "_id");
     if (!role) {
         await company.createDefaultRoles(ctx.logger, ctx.session);
-        role = await Role.findOne({company: companyId, isSignupDefault: true}).select("_id").session(ctx.session);
+        role = await roleService.findOne({company: companyId, isSignupDefault: true}, {session: ctx.session}, undefined, "_id");
     }
     if (!role) return;
-    await User.updateOne(
-        {_id: accountId, "roles.company": {$ne: companyId}},
-        {
+    await userService.updateOne({_id: accountId, "roles.company": {$ne: companyId}}, {
             $addToSet: {companies: companyId},
             $push: {
                 roles: {
@@ -117,15 +113,13 @@ export async function ensurePatientMembership(companyId: ObjectId, accountId: Ob
                     company: companyId,
                 },
             },
-        },
-        {session: ctx.session},
-    );
+        }, {session: ctx.session});
 }
 
 /** A folder picked by staff: it must be this clinic's and not deleted. */
 export async function loadPatientOrThrow(companyId: ObjectId, patientId: string, ctx: ClinicCtx): Promise<IPatient> {
     if (!ObjectId.isValid(patientId)) throw apiValidationException("patient_not_found", "", null, ctx.languageCode);
-    const patient = await Patient.findOne({_id: new ObjectId(patientId), company: companyId, deletedAt: null}).session(ctx.session);
+    const patient = await patientService.findOne({_id: new ObjectId(patientId), company: companyId, deletedAt: null}, {session: ctx.session});
     if (!patient) throw apiValidationException("patient_not_found", "", null, ctx.languageCode);
     return patient;
 }

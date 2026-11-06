@@ -13,9 +13,6 @@ export class ClinicConfigActions {
         const {logger, languageCode, session, actionUserCtx, company} = params;
 
         const existing = await clinicConfigService.findForCompany(company._id, {session, logger, languageCode});
-        if (!existing) {
-            SchemaGuard.checkModelPermission(ClinicConfig, "create", actionUserCtx, languageCode);
-        }
         const doc = existing ?? await clinicConfigService.getOrCreateForCompany(company._id, {
             session,
             logger,

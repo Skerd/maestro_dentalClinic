@@ -2,21 +2,20 @@ import type {ObjectId} from "mongodb";
 import type {ClientSession} from "mongoose";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import type {TreatmentPlanPaymentStatus} from "armonia/src/modules/dentalClinic/constants";
-import {addMoney, roundToCurrency, subtractMoney} from "armonia/src/modules/core/helpers/money";
+import {DEFAULT_DECIMAL_PLACES, minorToNumber, roundToCurrency, subtractMoney, toMinor, type MoneyInput} from "armonia/src/modules/core/helpers/money";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
-import Currency from "@coreModule/database/schemas/currency/currency";
 import {PAYMENTS} from "@financeModule/environment";
-import PaymentTransaction from "@financeModule/database/schemas/paymentTransaction/paymentTransaction";
 import {paymentTransactionService} from "@financeModule/database/schemas/paymentTransaction/paymentTransaction.service";
 import {getPaymentAdapter} from "@financeModule/utilities/services/payment/paymentService";
 import type {SettledPaymentIntent} from "@financeModule/utilities/services/payment/paymentSourceHandlers";
 import {recordManualCharge, refundSourceCharges, type PaymentSource} from "@financeModule/utilities/services/payment/sourcePayments";
 import type {ITreatmentPlan} from "@dentalClinicModule/database/schemas/treatmentPlan/treatmentPlan";
-import ClinicInquiry from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry";
 import {NotificationEventCodes} from "@dentalClinicModule/domain/notifications/notificationEventCodes";
 import type {ClinicCtx} from "./appointmentBooking";
 import {notifyInquiryPatient, notifyInquiryStaff} from "./inquiryNotify";
 
+import {currencyService} from "@coreModule/database/schemas/currency/currency.service";
+import {clinicInquiryService} from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry.service";
 type Payable = Pick<ITreatmentPlan, "status" | "totals" | "amountPaid">;
 
 /** The plan's total less what was paid. */
@@ -44,18 +43,29 @@ export function onlinePaymentAvailable(): boolean {
     return Boolean(PAYMENTS.STRIPE_ENABLED && getPaymentAdapter("stripe")?.isEnabled());
 }
 
-async function currencyCodeOf(plan: ITreatmentPlan, session: ClientSession): Promise<string> {
-    const currency = await Currency.findById(nestedEntityToRef(plan.currency)).select("abbreviation").session(session);
-    return (currency?.abbreviation ?? "eur").toLowerCase();
+/** The plan currency: its lowercase code for the gateway and its `decimalPlaces` (TD-B38). */
+async function planCurrency(plan: ITreatmentPlan, session: ClientSession): Promise<{code: string; decimalPlaces: number}> {
+    const currency = await currencyService.findById(nestedEntityToRef(plan.currency), {session: session}, undefined, "abbreviation decimalPlaces");
+    return {
+        code: (currency?.abbreviation ?? "eur").toLowerCase(),
+        decimalPlaces: currency?.decimalPlaces ?? DEFAULT_DECIMAL_PLACES,
+    };
+}
+
+/** `amount` added to (or, negative, taken from) what was paid, at the currency's decimals. */
+function paidAfter(plan: ITreatmentPlan, amount: MoneyInput, decimalPlaces: number): number {
+    return minorToNumber(toMinor(plan.amountPaid ?? 0, decimalPlaces) + toMinor(amount, decimalPlaces), decimalPlaces);
 }
 
 async function planSource(plan: ITreatmentPlan, session: ClientSession): Promise<PaymentSource> {
+    const currency = await planCurrency(plan, session);
     return {
         sourceType: "treatmentPlan",
         sourceId: plan._id,
         company: nestedEntityToRef(plan.company),
         currency: nestedEntityToRef(plan.currency),
-        currencyCode: await currencyCodeOf(plan, session),
+        currencyCode: currency.code,
+        decimalPlaces: currency.decimalPlaces,
     };
 }
 
@@ -65,7 +75,7 @@ function assertAccepted(plan: ITreatmentPlan, languageCode: string): void {
 
 /** The clinic and the patient hear about money received, after the caller's transaction commits. */
 async function notifyPaid(plan: ITreatmentPlan, ctx: ClinicCtx): Promise<void> {
-    const inquiry = await ClinicInquiry.findById(nestedEntityToRef(plan.inquiry)).session(ctx.session);
+    const inquiry = await clinicInquiryService.findById(nestedEntityToRef(plan.inquiry), {session: ctx.session});
     if (!inquiry) return;
     await notifyInquiryStaff(NotificationEventCodes.DEPOSIT_PAID, inquiry, ctx);
     await notifyInquiryPatient("depositPaid", inquiry, {}, ctx);
@@ -88,10 +98,11 @@ export async function startDepositPayment(plan: ITreatmentPlan, ctx: ClinicCtx):
     const intent = await adapter.createPaymentIntent({
         amount,
         currencyCode: source.currencyCode,
+        decimalPlaces: source.decimalPlaces,
         metadata: {sourceType: "treatmentPlan", planId: plan._id.toString(), companyId: String(source.company)},
         idempotencyKey: `plan-deposit-${plan._id.toString()}-${plan.amountPaid ?? 0}`,
     });
-    if (!(await PaymentTransaction.exists({gatewayTransactionId: intent.id}).session(ctx.session))) {
+    if (!(await paymentTransactionService.exists({gatewayTransactionId: intent.id}, {session: ctx.session}))) {
         await paymentTransactionService.createPending(
             {
                 sourceType: "treatmentPlan",
@@ -117,15 +128,15 @@ export async function startDepositPayment(plan: ITreatmentPlan, ctx: ClinicCtx):
  */
 export async function settleDepositPayment(plan: ITreatmentPlan, intent: SettledPaymentIntent, ctx: ClinicCtx, now = new Date()): Promise<void> {
     if (plan.stripePaymentIntentId !== intent.id) return;
-    const charge = await PaymentTransaction.findOne({gatewayTransactionId: intent.id, type: "charge"}).session(ctx.session);
+    const charge = await paymentTransactionService.findOne({gatewayTransactionId: intent.id, type: "charge"}, {session: ctx.session});
     const adapter = getPaymentAdapter("stripe");
-    const currencyCode = await currencyCodeOf(plan, ctx.session);
-    if (!charge || !adapter || adapter.toMinorUnits(charge.amount, currencyCode) !== intent.amountMinor
-        || (intent.currencyCode && intent.currencyCode.toLowerCase() !== currencyCode)) {
+    const currency = await planCurrency(plan, ctx.session);
+    if (!charge || !adapter || adapter.toMinorUnits(charge.amount, currency.code, currency.decimalPlaces) !== intent.amountMinor
+        || (intent.currencyCode && intent.currencyCode.toLowerCase() !== currency.code)) {
         ctx.logger.err(`Deposit payment ${intent.id} does not match plan ${plan.number}; left for staff to review`);
         return;
     }
-    plan.amountPaid = addMoney(plan.amountPaid ?? 0, charge.amount);
+    plan.amountPaid = paidAfter(plan, charge.amount, currency.decimalPlaces);
     plan.paymentStatus = paymentStatusFor(plan, false);
     plan.stripePaymentIntentId = undefined;
     plan.timeline.push({event: "payment_received", at: now, note: `online ${charge.amount}`});
@@ -153,10 +164,12 @@ export async function recordClinicPayment(
     if (input.amount > due + 0.005) {
         throw apiValidationException("treatment_plan_payment_exceeds_due", "", null, ctx.languageCode, [String(due)]);
     }
-    await recordManualCharge(await planSource(plan, ctx.session), input.amount, input.note, ctx);
-    plan.amountPaid = addMoney(plan.amountPaid ?? 0, input.amount);
+    const source = await planSource(plan, ctx.session);
+    const decimals = source.decimalPlaces ?? DEFAULT_DECIMAL_PLACES;
+    await recordManualCharge(source, input.amount, input.note, ctx);
+    plan.amountPaid = paidAfter(plan, input.amount, decimals);
     plan.paymentStatus = paymentStatusFor(plan, false);
-    plan.timeline.push({event: "payment_received", at: now, by: input.by, note: input.note ?? `manual ${roundToCurrency(input.amount)}`});
+    plan.timeline.push({event: "payment_received", at: now, by: input.by, note: input.note ?? `manual ${roundToCurrency(input.amount, decimals)}`});
     await plan.save({session: ctx.session});
 }
 
@@ -170,13 +183,14 @@ export async function refundPlanPayments(
     if (input.amount > paid + 0.005) {
         throw apiValidationException("treatment_plan_refund_exceeds_paid", "", null, ctx.languageCode, [String(paid)]);
     }
+    const source = await planSource(plan, ctx.session);
     const refunded = await refundSourceCharges(
-        await planSource(plan, ctx.session),
+        source,
         {amount: input.amount, paid, reason: input.reason, idempotencyPrefix: `plan-refund-${plan._id.toString()}`},
         ctx,
     );
     if (refunded > 0) {
-        plan.amountPaid = subtractMoney(paid, refunded);
+        plan.amountPaid = paidAfter(plan, -refunded, source.decimalPlaces ?? DEFAULT_DECIMAL_PLACES);
         plan.paymentStatus = paymentStatusFor(plan, true);
         plan.timeline.push({event: "refunded", at: new Date(), by: input.by, note: `${refunded} · ${input.reason}`});
         await plan.save({session: ctx.session});

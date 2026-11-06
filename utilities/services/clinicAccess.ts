@@ -10,16 +10,14 @@ import type {ClientSession} from "mongoose";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import type {UserContext} from "@coreModule/utilities/types/types";
-import Practitioner from "@dentalClinicModule/database/schemas/practitioner/practitioner";
 
+import {practitionerService} from "@dentalClinicModule/database/schemas/practitioner/practitioner.service";
 type Caller = Pick<UserContext, "userId" | "isAdmin">;
 
 /** The practitioner profile the caller is linked to, or null for admins and unlinked staff. */
 export async function linkedPractitionerId(companyId: ObjectId, caller: Caller, session?: ClientSession | null): Promise<ObjectId | null> {
     if (caller.isAdmin || !ObjectId.isValid(caller.userId)) return null;
-    const practitioner = await Practitioner.findOne({company: companyId, staffUser: new ObjectId(caller.userId), deletedAt: null})
-        .select("_id")
-        .session(session ?? null);
+    const practitioner = await practitionerService.findOne({company: companyId, staffUser: new ObjectId(caller.userId), deletedAt: null}, {session: session ?? undefined}, undefined, "_id");
     return practitioner?._id ?? null;
 }
 

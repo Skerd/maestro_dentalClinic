@@ -11,13 +11,13 @@ import {editPractitionerFormSchema} from "armonia/src/modules/dentalClinic/api/d
 import {practitionerSelectFormSchema} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/practitioner/practitionerSelect.form.validator";
 import Practitioner from "@dentalClinicModule/database/schemas/practitioner/practitioner";
 import {practitionerService} from "@dentalClinicModule/database/schemas/practitioner/practitioner.service";
-import Appointment from "@dentalClinicModule/database/schemas/appointment/appointment";
 import {practitionerToDTO, practitionersToDTO} from "@dentalClinicModule/utilities/mappers/practitioner/practitionerMapper.dto";
 import {practitionersToSelect} from "@dentalClinicModule/utilities/mappers/practitioner/practitionerMapper.select";
 import {PractitionerActions} from "@dentalClinicModule/database/schemas/practitioner/practitioner.actions";
 import {blockingAppointmentFilter} from "@dentalClinicModule/utilities/services/clinicAvailability";
 import {lockPractitioner} from "@dentalClinicModule/utilities/services/appointmentBooking";
 
+import {appointmentService} from "@dentalClinicModule/database/schemas/appointment/appointment.service";
 const mediaUpload = mediaUploadMW({fields: {photo: 1}, maxFileSize: 10 * 1024 * 1024});
 
 type ScheduleInput = {schedule?: {location: unknown; startTime: string; endTime: string}[]; locations?: unknown[]};
@@ -76,12 +76,12 @@ export const {router} = createCrudRouter({
         assertValidSchedule(params, existing, languageCode);
         await lockPractitioner(existing._id, {companyId: company._id, session, languageCode});
         if (params.isActive === false && existing.isActive) {
-            const upcoming = await Appointment.countDocuments({
+            const upcoming = await appointmentService.count({
                 company: company._id,
                 practitioner: existing._id,
                 startAt: {$gt: new Date()},
                 ...blockingAppointmentFilter(),
-            }).session(session);
+            }, {session: session});
             if (upcoming > 0) {
                 throw apiValidationException("practitioner_has_future_appointments", "", null, languageCode, [String(upcoming)]);
             }

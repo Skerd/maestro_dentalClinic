@@ -15,14 +15,9 @@ import {recordClinicPayment, refundPlanPayments} from "@dentalClinicModule/utili
 
 type ActionParams<F> = TransactionRequiredParams & F;
 
-/**
- * Plan actions need write access to one field: the plan's `status` for the quote actions (like the
- * inquiry actions), `amountPaid` for the payment ones.
- */
-async function loadPlan(params: TransactionRequiredParams & {_id: string}, gate: "status" | "amountPaid" = "status"): Promise<ITreatmentPlan> {
-    const {_id, company, session, languageCode, actionUserCtx} = params;
-    const writeFields = SchemaGuard.sanitizeFields(TreatmentPlan, getModelCollectedData("treatmentplans").writeFields!, "write", actionUserCtx, languageCode);
-    if (!writeFields[gate]) throw apiValidationException("user_permissions_not_sufficient", "", null, languageCode);
+/** The action permission (D14) is checked before the body. */
+async function loadPlan(params: TransactionRequiredParams & {_id: string}): Promise<ITreatmentPlan> {
+    const {_id, company, session, languageCode} = params;
     const plan = ObjectId.isValid(_id)
         ? await TreatmentPlan.findOne({_id: new ObjectId(_id), company: company._id, deletedAt: null}).session(session)
         : null;
@@ -62,7 +57,7 @@ export class TreatmentPlanActions {
     /** Money the clinic took itself (cash, card terminal, transfer), up to what is still due. */
     @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 30}, schema: recordPlanPaymentFormSchema})
     async recordPayment(params: ActionParams<RecordPlanPaymentFormType>): Promise<TreatmentPlanDto> {
-        const plan = await loadPlan(params, "amountPaid");
+        const plan = await loadPlan(params);
         await recordClinicPayment(plan, {amount: params.amount, note: params.note, by: new ObjectId(params.actionUserCtx.userId)}, ctxOf(params));
         return toDto(plan, params);
     }
@@ -70,7 +65,7 @@ export class TreatmentPlanActions {
     /** Gives back up to the amount asked: online charges through the gateway, the rest by hand. */
     @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 10}, schema: refundPlanPaymentFormSchema})
     async refund(params: ActionParams<RefundPlanPaymentFormType>): Promise<TreatmentPlanDto> {
-        const plan = await loadPlan(params, "amountPaid");
+        const plan = await loadPlan(params);
         await refundPlanPayments(plan, {amount: params.amount, reason: params.reason, by: new ObjectId(params.actionUserCtx.userId)}, ctxOf(params));
         return toDto(plan, params);
     }

@@ -1,6 +1,4 @@
 import type {ClientSession} from "mongoose";
-import Company from "@coreModule/database/schemas/company/company";
-import User from "@coreModule/database/schemas/user/user";
 import {clientHostFor} from "@coreModule/environment";
 import {emitNotificationEvent} from "@coreModule/domain/notifications/notificationEventBus";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
@@ -10,6 +8,8 @@ import {clinicConfigService} from "@dentalClinicModule/database/schemas/clinicCo
 import {NotificationEventCodes} from "@dentalClinicModule/domain/notifications/notificationEventCodes";
 import {sendInquiryMail, type InquiryMessage, type InquiryMessageKind} from "@dentalClinicModule/utilities/emails/sendPatientMail";
 
+import {userService} from "@coreModule/database/schemas/user/user.service";
+import {companyService} from "@coreModule/database/schemas/company/company.service";
 type NotifyCtx = {session?: ClientSession | null; languageCode: string};
 
 /** The patient's case on the portal, behind their login. */
@@ -22,7 +22,7 @@ async function patientEmail(inquiry: IClinicInquiry): Promise<string | undefined
     if (inquiry.contact.email) return inquiry.contact.email;
     const accountId = nestedEntityToRef(inquiry.account);
     if (!accountId) return undefined;
-    const account = await User.findById(accountId).select("username");
+    const account = await userService.findById(accountId, {}, undefined, "username");
     return account?.username;
 }
 
@@ -70,7 +70,7 @@ export async function notifyInquiryPatient(
     const requestGroup = inquiry.requestGroup;
     await runAfterCommit(ctx.session, async () => {
         const companyId = nestedEntityToRef(inquiry.company);
-        const [company, email] = await Promise.all([Company.findById(companyId).select("name"), patientEmail(inquiry)]);
+        const [company, email] = await Promise.all([companyService.findById(companyId, {}, undefined, "name"), patientEmail(inquiry)]);
         if (!company || !email) return;
         await sendInquiryMail({
             kind,
@@ -97,7 +97,7 @@ export async function notifyRequestSent(
     const requestGroup = first.requestGroup;
     await runAfterCommit(ctx.session, async () => {
         const [clinics, email] = await Promise.all([
-            Company.find({_id: {$in: inquiries.map((inquiry) => nestedEntityToRef(inquiry.company))}}).select("name").sort({name: 1}),
+            companyService.find({_id: {$in: inquiries.map((inquiry) => nestedEntityToRef(inquiry.company))}}, {}, undefined, "name", {name: 1}),
             patientEmail(first),
         ]);
         if (!email) return;

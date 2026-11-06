@@ -2,16 +2,16 @@ import * as crypto from "crypto";
 import {ObjectId} from "mongodb";
 import type {ClientSession} from "mongoose";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
-import Media from "@coreModule/database/schemas/media/media";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {portalListedCompanyIds, type PortalScope} from "@coreModule/utilities/marketing/portalCompanies";
 import type {CreateInput} from "@coreModule/database/services/baseCrudService";
 import {INQUIRY_MAX_CLINICS, TREATMENT_CATEGORIES, type PatientSource, type TreatmentCategory} from "armonia/src/modules/dentalClinic/constants";
 import ClinicConfig from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig";
-import ClinicInquiry, {type IClinicInquiry, type IInquiryContact} from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry";
+import {type IClinicInquiry, type IInquiryContact} from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry";
 import {clinicInquiryService} from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry.service";
 import type {ClinicCtx} from "./appointmentBooking";
 
+import {mediaService} from "@coreModule/database/schemas/media/media.service";
 /** Ids of refs that may or may not be populated. */
 export function idsOf(values: unknown[]): ObjectId[] {
     return values.map((value) => nestedEntityToRef(value)).filter((id): id is ObjectId => id !== undefined);
@@ -60,29 +60,29 @@ export async function claimPatientUploads(
 ): Promise<ObjectId[]> {
     if (!fileIds.length) return [];
     const ids = [...new Set(fileIds)].map((id) => new ObjectId(id));
-    const files = await Media.find({
+    const files = await mediaService.find({
         _id: {$in: ids},
         createdBy: owner.accountId,
         company: owner.platformCompanyId,
         deletedAt: null,
-    }).select("_id").session(ctx.session);
+    }, {session: ctx.session}, undefined, "_id");
     if (files.length !== ids.length) {
         throw apiValidationException("inquiry_file_not_found", "", null, ctx.languageCode);
     }
-    await Media.updateMany({_id: {$in: ids}}, {$unset: {pendingReference: ""}}, {session: ctx.session});
+    await mediaService.updateMany({_id: {$in: ids}}, {$unset: {pendingReference: ""}}, {session: ctx.session});
     return ids;
 }
 
 /** Lets these clinics' staff open the files through the private media route. */
 export async function shareFiles(fileIds: ObjectId[], companyIds: ObjectId[], ctx: {session?: ClientSession}): Promise<void> {
     if (!fileIds.length || !companyIds.length) return;
-    await Media.updateMany({_id: {$in: fileIds}}, {$addToSet: {sharedWithCompanies: {$each: companyIds}}}, {session: ctx.session});
+    await mediaService.updateMany({_id: {$in: fileIds}}, {$addToSet: {sharedWithCompanies: {$each: companyIds}}}, {session: ctx.session});
 }
 
 /** Takes the clinic's access away again (declined, lost, withdrawn). */
 export async function unshareFiles(fileIds: ObjectId[], companyId: ObjectId, ctx: {session?: ClientSession}): Promise<void> {
     if (!fileIds.length) return;
-    await Media.updateMany({_id: {$in: fileIds}}, {$pull: {sharedWithCompanies: companyId}}, {session: ctx.session});
+    await mediaService.updateMany({_id: {$in: fileIds}}, {$pull: {sharedWithCompanies: companyId}}, {session: ctx.session});
 }
 
 export type InquiryRequestInput = {
@@ -171,7 +171,7 @@ export async function openPatientRequest(
     assertTravelWindow(input.request, ctx.languageCode);
 
     const keys = clinicIds.map((clinicId) => `${input.idempotencyKey}:${clinicId}`);
-    const existing = await ClinicInquiry.find({account: input.accountId, idempotencyKey: {$in: keys}}).session(ctx.session);
+    const existing = await clinicInquiryService.find({account: input.accountId, idempotencyKey: {$in: keys}}, {session: ctx.session});
     if (existing.length) {
         return {requestGroup: existing[0].requestGroup ?? "", inquiries: existing, created: false};
     }

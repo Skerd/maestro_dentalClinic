@@ -1,5 +1,4 @@
 import {ObjectId} from "mongodb";
-import type {Model} from "mongoose";
 import {action} from "@coreModule/api/actionDecorator";
 import {getModelCollectedData} from "@coreModule/database/collections";
 import SchemaGuard from "@coreModule/database/security/schemaGuard";
@@ -45,13 +44,12 @@ const attachmentsUpload = mediaUploadMW({
 });
 
 /**
- * Actions get no permission check from the CRUD router. Working the request needs write
- * access to its `status`; the thread needs read or write access to message bodies.
+ * The action permission (D14) covers what each action writes. The thread answers with message bodies,
+ * another model's data, so it still needs read access to them.
  */
-function assertFieldAccess(model: Model<any>, collection: string, field: string, mode: "read" | "write", params: TransactionRequiredParams): void {
-    const collected = getModelCollectedData(collection);
-    const fields = SchemaGuard.sanitizeFields(model, (mode === "read" ? collected.readFields : collected.writeFields)!, mode, params.actionUserCtx, params.languageCode);
-    if (!fields[field]) {
+function assertMessageBodyRead(params: TransactionRequiredParams): void {
+    const fields = SchemaGuard.sanitizeFields(ClinicMessage, getModelCollectedData("clinicmessages").readFields!, "read", params.actionUserCtx, params.languageCode);
+    if (!fields.body) {
         throw apiValidationException("user_permissions_not_sufficient", "", null, params.languageCode);
     }
 }
@@ -63,11 +61,6 @@ async function loadInquiry(params: TransactionRequiredParams & {_id: string}): P
         : null;
     if (!inquiry) throw apiValidationException("inquiry_not_found", "", null, languageCode);
     return inquiry;
-}
-
-async function loadForStatusChange(params: TransactionRequiredParams & {_id: string}): Promise<IClinicInquiry> {
-    assertFieldAccess(ClinicInquiry, "clinicinquiries", "status", "write", params);
-    return loadInquiry(params);
 }
 
 async function toDto(inquiry: IClinicInquiry, params: TransactionRequiredParams): Promise<ClinicInquiryDto> {
@@ -88,7 +81,7 @@ export class ClinicInquiryActions {
     /** The clinic has started looking at a new request. */
     @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 60}, schema: validateSingleForm})
     async startReview(params: ActionParams<{_id: string}>): Promise<ClinicInquiryDto> {
-        const inquiry = await loadForStatusChange(params);
+        const inquiry = await loadInquiry(params);
         await startInquiryReview(inquiry, actorOf(params), ctxOf(params));
         return toDto(inquiry, params);
     }
@@ -96,7 +89,7 @@ export class ClinicInquiryActions {
     /** Asks the patient for an OPG, a CBCT, photos, their medical history… */
     @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 30}, schema: requestInquiryInfoFormSchema})
     async requestInfo(params: ActionParams<RequestInquiryInfoFormType>): Promise<ClinicInquiryDto> {
-        const inquiry = await loadForStatusChange(params);
+        const inquiry = await loadInquiry(params);
         await requestInquiryInfo(inquiry, {...actorOf(params), kinds: params.kinds, note: params.note}, ctxOf(params));
         return toDto(inquiry, params);
     }
@@ -104,7 +97,7 @@ export class ClinicInquiryActions {
     /** The clinic will not treat this patient; they are told, with the reason if given. */
     @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 30}, schema: closeInquiryFormSchema})
     async decline(params: ActionParams<CloseInquiryFormType>): Promise<ClinicInquiryDto> {
-        const inquiry = await loadForStatusChange(params);
+        const inquiry = await loadInquiry(params);
         await closeInquiry(inquiry, {...actorOf(params), outcome: "declined", reason: params.reason}, ctxOf(params));
         return toDto(inquiry, params);
     }
@@ -112,14 +105,13 @@ export class ClinicInquiryActions {
     /** The patient went elsewhere or stopped answering. */
     @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 30}, schema: closeInquiryFormSchema})
     async markLost(params: ActionParams<CloseInquiryFormType>): Promise<ClinicInquiryDto> {
-        const inquiry = await loadForStatusChange(params);
+        const inquiry = await loadInquiry(params);
         await closeInquiry(inquiry, {...actorOf(params), outcome: "lost", reason: params.reason}, ctxOf(params));
         return toDto(inquiry, params);
     }
 
     @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 60}, schema: assignInquiryFormSchema})
     async assign(params: ActionParams<AssignInquiryFormType>): Promise<ClinicInquiryDto> {
-        assertFieldAccess(ClinicInquiry, "clinicinquiries", "assignedTo", "write", params);
         const inquiry = await loadInquiry(params);
         await assignInquiry(inquiry, {...actorOf(params), assignedTo: params.assignedTo}, ctxOf(params));
         return toDto(inquiry, params);
@@ -128,7 +120,7 @@ export class ClinicInquiryActions {
     /** Opens (or finds) the patient's folder from the request. */
     @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 30}, schema: validateSingleForm})
     async convert(params: ActionParams<{_id: string}>): Promise<ClinicInquiryDto> {
-        const inquiry = await loadForStatusChange(params);
+        const inquiry = await loadInquiry(params);
         await convertInquiry(inquiry, actorOf(params), ctxOf(params));
         return toDto(inquiry, params);
     }
@@ -136,7 +128,7 @@ export class ClinicInquiryActions {
     /** The thread with the patient, oldest first; opening it marks the patient's messages read. */
     @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 120}, schema: inquiryThreadFormSchema})
     async thread(params: ActionParams<{_id: string}>): Promise<{data: ClinicMessageDto[]}> {
-        assertFieldAccess(ClinicMessage, "clinicmessages", "body", "read", params);
+        assertMessageBodyRead(params);
         const inquiry = await loadInquiry(params);
         const messages = await readThread(inquiry, "clinic", ctxOf(params));
         return {data: messages.map(clinicMessageToDTO)};
@@ -145,7 +137,6 @@ export class ClinicInquiryActions {
     /** A message to the patient, with files uploaded alongside. */
     @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 30}, middleware: [attachmentsUpload], schema: sendClinicMessageFormSchema})
     async sendMessage(params: ActionParams<SendClinicMessageFormType>): Promise<{data: ClinicMessageDto}> {
-        assertFieldAccess(ClinicMessage, "clinicmessages", "body", "write", params);
         const inquiry = await loadInquiry(params);
         const message = await postInquiryMessage(
             inquiry,

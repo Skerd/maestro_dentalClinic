@@ -1,5 +1,5 @@
 import {ObjectId} from "mongodb";
-import {z} from "zod";
+import {noEditClinicInquiryFormSchema} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicInquiry/noEditClinicInquiry.form.validator";
 import {createCrudRouter, type CrudCreateParams} from "@coreModule/api/crudRouterFactory";
 import type {CreateClinicInquiryFormType} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicInquiry/clinicInquiry.schema-def";
 import {createClinicInquiryFormSchema} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicInquiry/clinicInquiry.form.validators";
@@ -20,7 +20,7 @@ export const {router} = createCrudRouter({
     service: clinicInquiryService,
     entityName: "ClinicInquiry",
     createSchema: createClinicInquiryFormSchema,
-    editSchema: () => z.looseObject({_id: z.string()}),
+    editSchema: noEditClinicInquiryFormSchema,
     toDTO: clinicInquiryToDTO,
     toDTOArray: clinicInquiriesToDTO,
     toSelect: (inquiries) => inquiries.map((inquiry) => ({value: inquiry._id.toString(), label: `${inquiry.number} · ${inquiry.contact.firstName}`})),

@@ -3,7 +3,6 @@ import {action} from "@coreModule/api/actionDecorator";
 import {getModelCollectedData} from "@coreModule/database/collections";
 import SchemaGuard from "@coreModule/database/security/schemaGuard";
 import type {TransactionRequiredParams} from "@coreModule/utilities/middlewares/transactionUtils";
-import type {UserContext} from "@coreModule/utilities/types/types";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {validateSingleForm} from "armonia/src/modules/core/utilities/zod/shared.validator";
 import type {Appointment as AppointmentDto} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/appointment/appointment.dto";
@@ -23,27 +22,9 @@ import {
 
 type ActionParams<F> = TransactionRequiredParams & F;
 
-/**
- * Actions get no permission check from the CRUD router: each requires write
- * access to `status`, which role packs grant to receptionists and dentists, and
- * a dentist linked to a profile may act only on their own appointments.
- */
-function assertWriteStatus(actionUserCtx: UserContext, languageCode: string): void {
-    const writeFields = SchemaGuard.sanitizeFields(
-        Appointment,
-        getModelCollectedData("appointments").writeFields!,
-        "write",
-        actionUserCtx,
-        languageCode,
-    );
-    if (!writeFields.status) {
-        throw apiValidationException("user_permissions_not_sufficient", "", null, languageCode);
-    }
-}
-
+/** The action permission (D14) is checked before the body; a dentist linked to a profile may act only on their own appointments. */
 async function loadAppointment(params: TransactionRequiredParams & {_id: string}): Promise<IAppointment> {
     const {_id, company, session, languageCode, actionUserCtx} = params;
-    assertWriteStatus(actionUserCtx, languageCode);
     const appointment = ObjectId.isValid(_id)
         ? await Appointment.findOne({_id: new ObjectId(_id), company: company._id, deletedAt: null}).session(session)
         : null;

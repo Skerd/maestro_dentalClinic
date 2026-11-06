@@ -30,6 +30,8 @@ import {PractitionerSimpleSnippet} from "../practitioner/practitioner.snippets";
 import {PatientSimpleSnippet} from "../patient/patient.snippets";
 import {applyAppointmentIndexes} from "./appointment.indexes";
 import {appointmentViews} from "./appointment.views";
+import {validateSchemaDefAgainstMongoose} from "@coreModule/database/utilities/validateSchemaDefAgainstMongoose";
+import {AppointmentSchemaDef} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/appointment/appointment.schema-def";
 
 /** Server-managed: written only by the booking service and the appointment actions. */
 const NoWritePermission = {self: {write: "no-permission"}, others: {write: "no-permission"}};
@@ -99,8 +101,8 @@ const AppointmentSchema = new Schema<IAppointment>(
             type: SchemaTypes.String,
             enum: APPOINTMENT_STATUSES,
             required: true,
-            // Writable by permission only so roles can be granted the lifecycle actions
-            // (they gate on write:status); the CRUD edit route itself changes nothing.
+            // Changed only by the lifecycle actions (each has its own action permission, D14);
+            // the CRUD edit route itself changes nothing.
             dynamicTableConfiguration: {
                 enumTones: {pending: "warning", confirmed: "info", completed: "success", cancelled: "neutral", no_show: "danger"},
             },
@@ -213,3 +215,7 @@ normalizeSchemaPermissions(Appointment);
 export default Appointment;
 
 addModelData(Appointment, appointmentViews);
+// Server-owned: computed from the request (times, blocked window, snapshot, policy) or moved by the actions.
+validateSchemaDefAgainstMongoose(AppointmentSchema, AppointmentSchemaDef, "Appointment", [
+    "status", "startAt", "endAt", "blockedStart", "blockedEnd", "snapshot", "policy",
+]);

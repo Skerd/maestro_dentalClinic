@@ -2,7 +2,7 @@ import type {ObjectId} from "mongodb";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import type {ClinicMessageSender} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicMessage/clinicMessage.forms";
 import type {IClinicInquiry} from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry";
-import ClinicMessage, {type IClinicMessage} from "@dentalClinicModule/database/schemas/clinicMessage/clinicMessage";
+import {type IClinicMessage} from "@dentalClinicModule/database/schemas/clinicMessage/clinicMessage";
 import {clinicMessageService} from "@dentalClinicModule/database/schemas/clinicMessage/clinicMessage.service";
 import {NotificationEventCodes} from "@dentalClinicModule/domain/notifications/notificationEventCodes";
 import type {ClinicCtx} from "./appointmentBooking";
@@ -30,12 +30,9 @@ function assertCanMessage(inquiry: IClinicInquiry, languageCode: string): void {
  */
 export async function readThread(inquiry: IClinicInquiry, reader: ClinicMessageSender, ctx: ClinicCtx): Promise<IClinicMessage[]> {
     const filter = {company: inquiryCompanyId(inquiry), inquiry: inquiry._id, deletedAt: null};
-    const messages = await ClinicMessage.find(filter)
-        .populate([{path: "author", select: "name surname"}, {path: "attachments", select: "originalName fileName mimeType sizeInBytes type"}])
-        .sort({createdAt: 1})
-        .session(ctx.session);
+    const messages = await clinicMessageService.find(filter, {session: ctx.session}, [{path: "author", select: "name surname"}, {path: "attachments", select: "originalName fileName mimeType sizeInBytes type"}], undefined, {createdAt: 1});
     const now = new Date();
-    const unread = await ClinicMessage.updateMany({...filter, from: otherSide(reader), readAt: null}, {$set: {readAt: now}}, {session: ctx.session});
+    const unread = await clinicMessageService.updateMany({...filter, from: otherSide(reader), readAt: null}, {$set: {readAt: now}}, {session: ctx.session});
     if (unread.modifiedCount || inquiry[UNREAD_FIELD[reader]]) {
         inquiry[UNREAD_FIELD[reader]] = 0;
         await inquiry.save({session: ctx.session});

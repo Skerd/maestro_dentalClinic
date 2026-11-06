@@ -9,6 +9,7 @@ import {apiValidationException} from "armonia/src/modules/core/helpers/exception
 import TreatmentPlan from "@dentalClinicModule/database/schemas/treatmentPlan/treatmentPlan";
 import {sendTreatmentPlanPdf} from "@dentalClinicModule/utilities/pdf/sendTreatmentPlanPdf";
 
+import {treatmentPlanService} from "@dentalClinicModule/database/schemas/treatmentPlan/treatmentPlan.service";
 export const basePath = "/api/dentalClinic/treatmentPlanPdf";
 export const router = Router();
 
@@ -22,7 +23,7 @@ router.get(
         const readFields = SchemaGuard.sanitizeFields(TreatmentPlan, getModelCollectedData("treatmentplans").readFields!, "read", actionUserCtx, languageCode);
         if (!readFields.lines) throw apiValidationException("user_permissions_not_sufficient", "", null, languageCode);
         const plan = ObjectId.isValid(queryParams.planId)
-            ? await TreatmentPlan.findOne({_id: new ObjectId(queryParams.planId), company: company._id, deletedAt: null})
+            ? await treatmentPlanService.findOne({_id: new ObjectId(queryParams.planId), company: company._id, deletedAt: null}, {})
             : null;
         if (!plan) throw apiValidationException("treatment_plan_not_found", "", null, languageCode);
         await sendTreatmentPlanPdf(plan, res, languageCode);

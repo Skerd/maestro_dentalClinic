@@ -1,4 +1,3 @@
-import type {ObjectId} from "mongodb";
 import {registerPortalProvider} from "@coreModule/domain/portal/portalProviderRegistry";
 import type {PortalBrowseParams} from "@coreModule/domain/portal/portalProvider.types";
 import {catalogItems, configCurrencies, priceRange} from "@coreModule/domain/portal/portalCatalog";
@@ -8,8 +7,8 @@ import {publicMediaUrl} from "@coreModule/utilities/media/publicMediaUrl";
 import type {ClinicServicePriceType} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicService/clinicService.schema-def";
 import ClinicConfig from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig";
 import ClinicLocation from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation";
-import ClinicService from "@dentalClinicModule/database/schemas/clinicService/clinicService";
 
+import {clinicServiceService} from "@dentalClinicModule/database/schemas/clinicService/clinicService.service";
 /** Clinics taking public bookings or estimate requests (and on the apex, opted in to the portal). */
 export function clinicPortalCompanyIds(scope: PortalScope) {
     return portalListedCompanyIds("dentalClinic", {
@@ -28,12 +27,8 @@ async function browseTreatments({companyIds, query, priceMin, priceMax, sort, sk
     const price = priceRange(priceMin, priceMax);
     if (price) clause.price = price;
     const [services, total, currencies] = await Promise.all([
-        ClinicService.find(clause)
-            .select("company name images price priceType")
-            .sort(SERVICE_SORTS[sort ?? "newest"])
-            .skip(skip).limit(limit)
-            .lean<{_id: ObjectId; company: ObjectId; name: string; images?: ObjectId[]; price?: number; priceType: ClinicServicePriceType}[]>(),
-        ClinicService.countDocuments(clause),
+        clinicServiceService.findPortalCards(clause, SERVICE_SORTS[sort ?? "newest"], skip, limit),
+        clinicServiceService.count(clause),
         configCurrencies(ClinicConfig, companyIds),
     ]);
     const items = await catalogItems(services, (service) => {
