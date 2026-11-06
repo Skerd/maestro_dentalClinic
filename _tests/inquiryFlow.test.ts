@@ -1,7 +1,6 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
+import {connectTestDatabase, disconnectTestDatabase} from "@coreModule/_tests/testDatabase";
 
-import {MongoMemoryReplSet} from "mongodb-memory-server";
-import mongoose from "mongoose";
 import {ObjectId} from "mongodb";
 import request from "supertest";
 
@@ -60,7 +59,6 @@ import ClinicMessage from "@dentalClinicModule/database/schemas/clinicMessage/cl
 import Patient from "@dentalClinicModule/database/schemas/patient/patient";
 import {asCrossTenant} from "@coreModule/utilities/endpoints/tenantScope";
 
-let replSet: MongoMemoryReplSet;
 const platformId = new ObjectId();
 const clinicA = new ObjectId();
 const clinicB = new ObjectId();
@@ -110,8 +108,7 @@ const sendRequest = (body: Record<string, unknown> = {}) => asPatient("/requests
 });
 
 beforeAll(async () => {
-    replSet = await MongoMemoryReplSet.create({replSet: {count: 1, storageEngine: "wiredTiger"}});
-    await mongoose.connect(replSet.getUri());
+    await connectTestDatabase();
     // Every model's indexes built up front: a build running beside a transaction makes it retry.
     await Promise.all([ClinicInquiry, ClinicMessage, Patient, ClinicConfig, Media].map((model) => model.init()));
     portal.platformId = platformId.toString();
@@ -123,8 +120,7 @@ beforeAll(async () => {
 }, 120000);
 
 afterAll(async () => {
-    await mongoose.disconnect();
-    await replSet.stop();
+    await disconnectTestDatabase();
 });
 
 beforeEach(() => acrossCompanies(async () => {

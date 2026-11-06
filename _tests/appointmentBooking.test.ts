@@ -1,7 +1,6 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
+import {connectTestDatabase, disconnectTestDatabase} from "@coreModule/_tests/testDatabase";
 
-import {MongoMemoryReplSet} from "mongodb-memory-server";
-import mongoose from "mongoose";
 import {ObjectId} from "mongodb";
 import request from "supertest";
 
@@ -46,8 +45,6 @@ import Patient from "@dentalClinicModule/database/schemas/patient/patient";
 import {runAppointmentRetention} from "@dentalClinicModule/utilities/cronJobs/appointmentRetentionJob";
 import {withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 
-// Transactions need a replica set; WiredTiger so concurrent requests really conflict
-let replSet: MongoMemoryReplSet;
 const companyId = new ObjectId();
 /** The tests act on this company's data, as its requests and jobs do (D16). */
 const asCompany = <T>(fn: () => PromiseLike<T>): Promise<T> => withTenant(companyId, fn);
@@ -84,8 +81,7 @@ const manage = (path: string, body: Record<string, unknown>) =>
     request(app).post(`/api/dentalClinic/clinicStorefront/manage${path}`).set(callerHeader(admin)).send(body);
 
 beforeAll(async () => {
-    replSet = await MongoMemoryReplSet.create({replSet: {count: 1, storageEngine: "wiredTiger"}});
-    await mongoose.connect(replSet.getUri());
+    await connectTestDatabase();
     await Promise.all([Appointment.init(), Practitioner.init(), ClinicConfig.init(), Patient.init()]);
     const permissions = allPermissionTags([Appointment, ScheduleException]);
     admin = {userId: adminId.toString(), companyId: companyId.toString(), isAdmin: true, permissions};
@@ -97,8 +93,7 @@ beforeAll(async () => {
 }, 120000);
 
 afterAll(async () => {
-    await mongoose.disconnect();
-    await replSet.stop();
+    await disconnectTestDatabase();
 });
 
 beforeEach(() => asCompany(async () => {

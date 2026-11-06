@@ -1,7 +1,6 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
+import {connectTestDatabase, disconnectTestDatabase} from "@coreModule/_tests/testDatabase";
 
-import {MongoMemoryReplSet} from "mongodb-memory-server";
-import mongoose from "mongoose";
 import {ObjectId} from "mongodb";
 import request from "supertest";
 
@@ -84,7 +83,6 @@ import {generateTreatmentPlanPdf} from "@dentalClinicModule/utilities/pdf/treatm
 import {treatmentPlanToDTO} from "@dentalClinicModule/utilities/mappers/treatmentPlan/treatmentPlanMapper.dto";
 import {asCrossTenant} from "@coreModule/utilities/endpoints/tenantScope";
 
-let replSet: MongoMemoryReplSet;
 const webhookLogger = getLogger("treatment_plan_payment_test");
 const platformId = new ObjectId();
 const clinicA = new ObjectId();
@@ -168,8 +166,7 @@ async function sentPlan(caller: TestCaller, inquiry: string, overrides: Record<s
 }
 
 beforeAll(async () => {
-    replSet = await MongoMemoryReplSet.create({replSet: {count: 1, storageEngine: "wiredTiger"}});
-    await mongoose.connect(replSet.getUri());
+    await connectTestDatabase();
     // Every model's indexes built up front: a build running beside a transaction makes it retry.
     await Promise.all([ClinicInquiry, ClinicMessage, Patient, ClinicConfig, TreatmentPlan, Media, Currency, PaymentTransaction, PatientTrip].map((model) => model.init()));
     portal.platformId = platformId.toString();
@@ -181,8 +178,7 @@ beforeAll(async () => {
 }, 120000);
 
 afterAll(async () => {
-    await mongoose.disconnect();
-    await replSet.stop();
+    await disconnectTestDatabase();
 });
 
 beforeEach(() => acrossCompanies(async () => {
@@ -401,7 +397,8 @@ describe("paying for an accepted plan", {timeout: 60000}, () => {
         await asPatient("/payDeposit", {plan: id});
         const pending = await PaymentTransaction.find({sourceType: "treatmentPlan", sourceId: new ObjectId(id)});
         expect(pending).toHaveLength(1);
-        expect(pending[0]).toMatchObject({status: "pending", amount: 201, gateway: "stripe"});
+        expect(pending[0]).toMatchObject({status: "pending", gateway: "stripe"});
+        expect(String(pending[0].amount)).toBe("201.00"); // Decimal128 (TD-B29)
         expect((await TreatmentPlan.findById(id))!.paymentStatus).toBe("pending");
 
         // The webhook marks the row paid, then the handler settles the plan, once.
@@ -425,7 +422,7 @@ describe("paying for an accepted plan", {timeout: 60000}, () => {
         const refunded = await asStaff(staffA, "post", "/refund", {_id: id, amount: 300, reason: "Second phase cancelled"});
         expect(refunded.body).toMatchObject({paymentStatus: "partially_refunded", amountPaid: 1710, amountDue: 300});
         const cash = await PaymentTransaction.findOne({sourceId: new ObjectId(id), type: "charge", gateway: "manual"});
-        expect(cash!.refundedAmount).toBe(300);
+        expect(String(cash!.refundedAmount)).toBe("300.00");
         expect(await PaymentTransaction.countDocuments({sourceId: new ObjectId(id), type: "refund", gateway: "manual"})).toBe(1);
         expect((await asStaff(staffA, "post", "/refund", {_id: id, amount: 5000, reason: "x"})).body.error_code).toBe("treatment_plan_refund_exceeds_paid");
 
