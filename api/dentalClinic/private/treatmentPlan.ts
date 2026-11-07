@@ -15,6 +15,7 @@ import {clinicConfigService} from "@dentalClinicModule/database/schemas/clinicCo
 import {treatmentPlanToDTO, treatmentPlansToDTO} from "@dentalClinicModule/utilities/mappers/treatmentPlan/treatmentPlanMapper.dto";
 import {assertPlanContent, loadPlanInquiry, planNumber, planTotals} from "@dentalClinicModule/utilities/services/treatmentPlans";
 import {loadPatientOrThrow} from "@dentalClinicModule/utilities/services/patientRecords";
+import {currencyDecimalPlaces} from "@financeModule/utilities/services/currencyDecimals";
 
 export const basePath = "/api/dentalClinic/treatmentPlan";
 
@@ -51,6 +52,7 @@ export const {router} = createCrudRouter({
         const config = await clinicConfigService.getOrCreateForCompany(company._id, ctx);
         const lines = linesOf(params.lines);
         const patientId = patient?._id ?? nestedEntityToRef(inquiry?.patient);
+        const decimals = await currencyDecimalPlaces(nestedEntityToRef(config.currency), session);
         const now = new Date();
         return {
             number: planNumber(now),
@@ -65,14 +67,14 @@ export const {router} = createCrudRouter({
             depositType: params.depositType,
             depositValue: params.depositValue,
             refundableUntilDays: params.refundableUntilDays,
-            totals: planTotals(lines, params.depositType, params.depositValue),
+            totals: planTotals(lines, params.depositType, params.depositValue, decimals),
             ...(params.validUntil ? {validUntil: params.validUntil} : {}),
             ...(params.notes ? {notes: params.notes} : {}),
             terms: params.terms ?? config.quoteTerms,
             timeline: [{event: "created", at: now, by: new ObjectId(actionUserCtx.userId)}],
         };
     },
-    buildUpdateData: (params: any, writeFields) => {
+    buildUpdateData: async (params: any, writeFields) => {
         if (params.existing.status !== "draft") throw apiValidationException("treatment_plan_invalid_status", "", null, params.languageCode);
         assertPlanContent(params, params.languageCode);
         const update = buildUpdateDataFromSchemaDef(TreatmentPlanSchemaDef)(params, writeFields);
@@ -81,7 +83,8 @@ export const {router} = createCrudRouter({
         delete update.patient;
         const lines = params.lines ? linesOf(params.lines) : params.existing.lines;
         if (params.lines) update.lines = lines;
-        update.totals = planTotals(lines, params.depositType ?? params.existing.depositType, params.depositValue ?? params.existing.depositValue);
+        const decimals = await currencyDecimalPlaces(nestedEntityToRef(params.existing.currency), params.session);
+        update.totals = planTotals(lines, params.depositType ?? params.existing.depositType, params.depositValue ?? params.existing.depositValue, decimals);
         return update;
     },
 });

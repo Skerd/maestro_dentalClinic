@@ -2,6 +2,7 @@ import {
     ERASED_EMAIL,
     ERASED_FIRST_NAME,
     ERASED_LAST_NAME,
+    ERASED_NAME,
     ERASED_PHONE,
     objectIds as ids,
     registerPersonEraser,
@@ -13,12 +14,14 @@ import {clinicInquiryService} from "@dentalClinicModule/database/schemas/clinicI
 import {clinicMessageService} from "@dentalClinicModule/database/schemas/clinicMessage/clinicMessage.service";
 import {appointmentService} from "@dentalClinicModule/database/schemas/appointment/appointment.service";
 import {patientTripService} from "@dentalClinicModule/database/schemas/patientTrip/patientTrip.service";
+import {treatmentPlanService} from "@dentalClinicModule/database/schemas/treatmentPlan/treatmentPlan.service";
 
 
 /**
  * A dental clinic's records of one person (D57): patient folders and appointments stay, anonymised (treatment plans
  * keep pointing at the anonymised folder, with their amounts); medical histories, request X-rays/photos and the
- * message threads are deleted for good; travel plans are deleted.
+ * message threads are deleted for good; travel plans are deleted. An accepted plan keeps its proof of acceptance
+ * (content hash and time) but not the signer: the name is replaced and the IP and browser removed (D89).
  */
 async function eraseDentalClinicPerson(ctx: ErasureContext): Promise<ErasureCount[]> {
     const {companyId, subject, preview, session} = ctx;
@@ -37,6 +40,13 @@ async function eraseDentalClinicPerson(ctx: ErasureContext): Promise<ErasureCoun
         $or: [{customer: {$in: subject.accountIds}}, {"patient.email": {$in: subject.emails}}, {patientRecord: {$in: patientIds}}],
     }, found, undefined, "_id");
     const trips = patientIds.length > 0 ? await patientTripService.find({company: companyId, patient: {$in: patientIds}}, found, undefined, "_id") : [];
+    const signedPlans = patientIds.length > 0 || inquiryIds.length > 0
+        ? await treatmentPlanService.find({
+            company: companyId,
+            acceptance: {$exists: true},
+            $or: [{patient: {$in: patientIds}}, {inquiry: {$in: inquiryIds}}],
+        }, found, undefined, "_id")
+        : [];
 
     const counts: ErasureCount[] = [
         {collection: "patients", anonymised: patients.length, deleted: 0},
@@ -44,6 +54,7 @@ async function eraseDentalClinicPerson(ctx: ErasureContext): Promise<ErasureCoun
         {collection: "clinicmessages", anonymised: 0, deleted: messages.length},
         {collection: "appointments", anonymised: appointments.length, deleted: 0},
         {collection: "patienttrips", anonymised: 0, deleted: trips.length},
+        {collection: "treatmentplans", anonymised: signedPlans.length, deleted: 0},
     ];
     ctx.deleteMedia([
         ...inquiries.flatMap((inquiry) => ids(inquiry.files)),
@@ -76,6 +87,13 @@ async function eraseDentalClinicPerson(ctx: ErasureContext): Promise<ErasureCoun
             $unset: {customer: "", note: ""},
         }, {session});
         ctx.scrubAudit("appointments", appointmentIds, ["patient", "customer", "note"]);
+    }
+    if (signedPlans.length > 0) {
+        await treatmentPlanService.eraseFields({company: companyId, _id: {$in: ids(signedPlans)}}, {
+            $set: {"acceptance.name": ERASED_NAME},
+            $unset: {"acceptance.ip": "", "acceptance.userAgent": ""},
+        }, {session});
+        ctx.scrubAudit("treatmentplans", ids(signedPlans), ["acceptance"]);
     }
     if (trips.length > 0) {
         await patientTripService.deleteMany({company: companyId, _id: {$in: ids(trips)}}, {session, hard: true});

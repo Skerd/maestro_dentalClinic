@@ -624,7 +624,7 @@ router.post(
     asyncHandler(asPatient(async (params: PortalParams<PatientCaseFormType>): Promise<PatientPlansResponse> => {
         const user = await requirePortalAccount(params.customer, params.origin, params.languageCode);
         const inquiries = await clinicInquiryService.find({account: user._id, requestGroup: params.requestGroup, deletedAt: null}, {}, undefined, "_id company");
-        const plans = await treatmentPlanService.find({inquiry: {$in: inquiries.map((inquiry) => inquiry._id)}, status: {$ne: "draft"}, deletedAt: null}, {}, {path: "currency", select: "name symbol abbreviation"}, undefined, {sentAt: 1});
+        const plans = await treatmentPlanService.find({inquiry: {$in: inquiries.map((inquiry) => inquiry._id)}, status: {$ne: "draft"}, deletedAt: null}, {}, {path: "currency", select: "name symbol abbreviation decimalPlaces"}, undefined, {sentAt: 1});
         const clinics = await portalCompanyCards(idsOf(inquiries.map((inquiry) => inquiry.company)), new Map());
         const names = new Map(clinics.map((clinic) => [clinic._id, clinic.name]));
         return {
@@ -675,7 +675,7 @@ router.post(
             {accountId: user._id, signedName: params.signedName, ip: req.ip, userAgent: req.header("User-Agent")},
             {session, logger, languageCode, auditUserId: user._id},
         );
-        await plan.populate({path: "currency", select: "name symbol abbreviation"});
+        await plan.populate({path: "currency", select: "name symbol abbreviation decimalPlaces"});
         const [clinic] = await portalCompanyCards(idsOf([plan.company]), new Map());
         return {data: {plan: treatmentPlanToPatient(plan, {_id: clinic?._id ?? "", name: clinic?.name ?? ""})}};
     })),

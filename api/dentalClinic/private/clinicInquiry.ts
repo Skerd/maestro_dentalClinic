@@ -8,6 +8,7 @@ import {clinicInquiryService} from "@dentalClinicModule/database/schemas/clinicI
 import {ClinicInquiryActions} from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry.actions";
 import {clinicInquiriesToDTO, clinicInquiryToDTO} from "@dentalClinicModule/utilities/mappers/clinicInquiry/clinicInquiryMapper.dto";
 import {assertTreatments, staffInquiryRecord} from "@dentalClinicModule/utilities/services/inquiryIntake";
+import {assertClinicMember} from "@dentalClinicModule/utilities/services/inquiryLifecycle";
 
 export const basePath = "/api/dentalClinic/clinicInquiry";
 
@@ -29,8 +30,10 @@ export const {router} = createCrudRouter({
     defaultSort: {createdAt: -1},
     actions: ClinicInquiryActions,
     /** A lead the clinic enters itself: the contact is the clinic's own, so it is not masked. */
-    buildCreateData: (params: CrudCreateParams<CreateClinicInquiryFormType>) => {
+    buildCreateData: async (params: CrudCreateParams<CreateClinicInquiryFormType>) => {
         const {contact, languageCode} = params;
+        const assignedTo = optionalId(params.assignedTo);
+        if (assignedTo) await assertClinicMember(params.company._id, assignedTo, {session: params.session, languageCode});
         return staffInquiryRecord(
             {
                 companyId: params.company._id,
@@ -44,7 +47,7 @@ export const {router} = createCrudRouter({
                     budget: params.budget,
                     budgetCurrency: optionalId(params.budgetCurrency),
                 },
-                assignedTo: optionalId(params.assignedTo),
+                assignedTo,
                 createdBy: new ObjectId(params.actionUserCtx.userId),
             },
             languageCode,

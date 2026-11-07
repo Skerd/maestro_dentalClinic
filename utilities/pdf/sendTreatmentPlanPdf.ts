@@ -8,7 +8,7 @@ import {companyService} from "@coreModule/database/schemas/company/company.servi
 import {patientService} from "@dentalClinicModule/database/schemas/patient/patient.service";
 /** Writes the plan's PDF to the response, in the patient's language when the plan has one. */
 export async function sendTreatmentPlanPdf(plan: ITreatmentPlan, res: Response, fallbackLanguage: string): Promise<void> {
-    await plan.populate([{path: "currency", select: "name symbol abbreviation"}]);
+    await plan.populate([{path: "currency", select: "name symbol abbreviation decimalPlaces"}]);
     const patientId = nestedEntityToRef(plan.patient);
     const [company, patient] = await Promise.all([
         companyService.findById(nestedEntityToRef(plan.company), {}, undefined, "name"),

@@ -1,7 +1,7 @@
 import * as crypto from "crypto";
 import {ObjectId} from "mongodb";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
-import {addMoney, multiplyMoney, percentOfMoney, roundToCurrency, subtractMoney} from "armonia/src/modules/core/helpers/money";
+import {DEFAULT_DECIMAL_PLACES, multiplyMoney, percentOfMoney, roundToCurrency, subtractMoney, sumMoney} from "armonia/src/modules/core/helpers/money";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {runAfterCommit} from "@coreModule/utilities/middlewares/transactionUtils";
 import {getGridFSStorage} from "@coreModule/utilities/gridfs/gridfsStorage";
@@ -45,18 +45,22 @@ function totalsOf(plan: ITreatmentPlan): ITreatmentPlan["totals"] {
     return {subtotal, discount, total, deposit};
 }
 
-export function lineTotal(line: Pick<ITreatmentPlanLine, "quantity" | "unitPrice" | "discount">): number {
-    return Math.max(0, subtractMoney(multiplyMoney(line.unitPrice, line.quantity), line.discount ?? 0));
+/** `decimals` is the plan currency's `decimalPlaces` (GLB-08). */
+export function lineTotal(line: Pick<ITreatmentPlanLine, "quantity" | "unitPrice" | "discount">, decimals = DEFAULT_DECIMAL_PLACES): number {
+    return Math.max(0, subtractMoney(multiplyMoney(line.unitPrice, line.quantity, decimals), line.discount ?? 0, decimals));
 }
 
-/** Subtotal before line discounts, the discounts, the total, and the deposit it asks for. */
-export function planTotals(lines: ITreatmentPlanLine[], depositType: DepositType, depositValue = 0): ITreatmentPlan["totals"] {
-    const subtotal = addMoney(...lines.map((line) => multiplyMoney(line.unitPrice, line.quantity)));
-    const total = addMoney(...lines.map(lineTotal));
+/**
+ * Subtotal before line discounts, the discounts, the total, and the deposit it asks for, at the plan
+ * currency's `decimals`: a percent deposit in a currency without decimals is a whole amount (TD-B38).
+ */
+export function planTotals(lines: ITreatmentPlanLine[], depositType: DepositType, depositValue = 0, decimals = DEFAULT_DECIMAL_PLACES): ITreatmentPlan["totals"] {
+    const subtotal = sumMoney(lines.map((line) => multiplyMoney(line.unitPrice, line.quantity, decimals)), decimals);
+    const total = sumMoney(lines.map((line) => lineTotal(line, decimals)), decimals);
     const deposit = depositType === "fixed"
-        ? Math.min(roundToCurrency(depositValue), total)
-        : depositType === "percent" ? percentOfMoney(total, Math.min(depositValue, 100)) : 0;
-    return {subtotal, discount: subtractMoney(subtotal, total), total, deposit};
+        ? Math.min(roundToCurrency(depositValue, decimals), total)
+        : depositType === "percent" ? percentOfMoney(total, Math.min(depositValue, 100), decimals) : 0;
+    return {subtotal, discount: subtractMoney(subtotal, total, decimals), total, deposit};
 }
 
 /** What the Zod contract cannot check: tooth numbers, phases the lines point at, a sane deposit. */

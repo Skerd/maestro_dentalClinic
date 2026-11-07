@@ -15,13 +15,19 @@ import {TreatmentPlanSimpleSnippet} from "@dentalClinicModule/database/schemas/t
 import {mapLifeCycleToDTO, mapOwnershipToDTO, mapSoftDeleteToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
 import {lineTotal} from "@dentalClinicModule/utilities/services/treatmentPlans";
 import {amountDue, depositDue} from "@dentalClinicModule/utilities/services/treatmentPlanPayments";
+import {DEFAULT_DECIMAL_PLACES} from "armonia/src/modules/core/helpers/money";
+
+/** The plan currency's `decimalPlaces` when it is populated (D90), else 2. */
+function decimalsOf(currency: CurrencySimple | undefined): number {
+    return currency?.decimalPlaces ?? DEFAULT_DECIMAL_PLACES;
+}
 
 // Subdocuments are copied field by field: spreading one would copy Mongoose's internal state.
 function phasesToDTO(plan: ITreatmentPlan): TreatmentPlanPhase[] {
     return plan.phases.map(({title, visits, estimatedDays, minGapDaysAfterPrevious}) => ({title, visits, estimatedDays, minGapDaysAfterPrevious}));
 }
 
-function linesToDTO(plan: ITreatmentPlan): TreatmentPlanLine[] {
+function linesToDTO(plan: ITreatmentPlan, decimals: number): TreatmentPlanLine[] {
     return plan.lines.map((line) => ({
         phase: line.phase,
         kind: line.kind,
@@ -34,7 +40,7 @@ function linesToDTO(plan: ITreatmentPlan): TreatmentPlanLine[] {
         unitPrice: line.unitPrice,
         discount: line.discount,
         warrantyYears: line.warrantyYears,
-        total: lineTotal(line),
+        total: lineTotal(line, decimals),
     }));
 }
 
@@ -44,6 +50,8 @@ function totalsToDTO(plan: ITreatmentPlan) {
 }
 
 export function treatmentPlanToDTO(plan: ITreatmentPlan): TreatmentPlan {
+    const currency = mapSnippet<CurrencySimple>()(plan.currency, CurrencySimpleSnippet);
+    const decimals = decimalsOf(currency);
     return {
         _id: plan._id.toString(),
         number: plan.number,
@@ -53,9 +61,9 @@ export function treatmentPlanToDTO(plan: ITreatmentPlan): TreatmentPlan {
         optionLabel: plan.optionLabel,
         version: plan.version,
         supersedes: mapSnippet<TreatmentPlanSimple>()(plan.supersedes, TreatmentPlanSimpleSnippet),
-        currency: mapSnippet<CurrencySimple>()(plan.currency, CurrencySimpleSnippet),
+        currency,
         phases: phasesToDTO(plan),
-        lines: linesToDTO(plan),
+        lines: linesToDTO(plan, decimals),
         depositType: plan.depositType,
         depositValue: plan.depositValue,
         refundableUntilDays: plan.refundableUntilDays,
@@ -67,7 +75,7 @@ export function treatmentPlanToDTO(plan: ITreatmentPlan): TreatmentPlan {
         acceptance: plan.acceptance ? {name: plan.acceptance.name, at: dateToISOString(plan.acceptance.at)} : undefined,
         paymentStatus: plan.paymentStatus ?? "unpaid",
         amountPaid: plan.amountPaid ?? 0,
-        amountDue: amountDue(plan),
+        amountDue: amountDue(plan, decimals),
         timeline: (plan.timeline ?? []).map(({event, at, note}) => ({event, at: dateToISOString(at), note})),
         ...mapSoftDeleteToDTO(plan),
         ...mapOwnershipToDTO(plan),
@@ -81,6 +89,8 @@ export function treatmentPlansToDTO(plans: ITreatmentPlan[]): TreatmentPlan[] {
 
 /** A quote as the patient compares it; `currency` must be populated. */
 export function treatmentPlanToPatient(plan: ITreatmentPlan, clinic: {_id: string; name: string}): PatientPlan {
+    const currency = mapSnippet<CurrencySimple>()(plan.currency, CurrencySimpleSnippet);
+    const decimals = decimalsOf(currency);
     return {
         _id: plan._id.toString(),
         number: plan.number,
@@ -88,9 +98,9 @@ export function treatmentPlanToPatient(plan: ITreatmentPlan, clinic: {_id: strin
         clinic,
         status: plan.status,
         optionLabel: plan.optionLabel,
-        currency: mapSnippet<CurrencySimple>()(plan.currency, CurrencySimpleSnippet),
+        currency,
         phases: phasesToDTO(plan),
-        lines: linesToDTO(plan).map(({service: _service, ...line}) => line),
+        lines: linesToDTO(plan, decimals).map(({service: _service, ...line}) => line),
         totals: totalsToDTO(plan),
         depositType: plan.depositType,
         depositValue: plan.depositValue,
@@ -102,6 +112,6 @@ export function treatmentPlanToPatient(plan: ITreatmentPlan, clinic: {_id: strin
         acceptedAt: plan.acceptance ? dateToISOString(plan.acceptance.at) : undefined,
         paymentStatus: plan.paymentStatus ?? "unpaid",
         amountPaid: plan.amountPaid ?? 0,
-        depositDue: depositDue(plan),
+        depositDue: depositDue(plan, decimals),
     };
 }

@@ -18,22 +18,22 @@ import {currencyService} from "@coreModule/database/schemas/currency/currency.se
 import {clinicInquiryService} from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry.service";
 type Payable = Pick<ITreatmentPlan, "status" | "totals" | "amountPaid">;
 
-/** The plan's total less what was paid. */
-export function amountDue(plan: Payable): number {
-    return Math.max(0, subtractMoney(plan.totals.total, plan.amountPaid ?? 0));
+/** The plan's total less what was paid, at the plan currency's `decimals`. */
+export function amountDue(plan: Payable, decimals = DEFAULT_DECIMAL_PLACES): number {
+    return Math.max(0, subtractMoney(plan.totals.total, plan.amountPaid ?? 0, decimals));
 }
 
 /** What the patient can still pay online: the deposit less what was paid, once the plan is accepted. */
-export function depositDue(plan: Payable): number {
+export function depositDue(plan: Payable, decimals = DEFAULT_DECIMAL_PLACES): number {
     if (plan.status !== "accepted") return 0;
-    return Math.max(0, subtractMoney(Math.min(plan.totals.deposit, plan.totals.total), plan.amountPaid ?? 0));
+    return Math.max(0, subtractMoney(Math.min(plan.totals.deposit, plan.totals.total), plan.amountPaid ?? 0, decimals));
 }
 
 /** Payment status that follows from what was paid and refunded; never set it any other way. */
-export function paymentStatusFor(plan: Payable, refunded: boolean): TreatmentPlanPaymentStatus {
+export function paymentStatusFor(plan: Payable, refunded: boolean, decimals = DEFAULT_DECIMAL_PLACES): TreatmentPlanPaymentStatus {
     const paid = plan.amountPaid ?? 0;
     if (refunded) return paid > 0 ? "partially_refunded" : "refunded";
-    if (plan.totals.total > 0 && amountDue(plan) <= 0) return "paid";
+    if (plan.totals.total > 0 && amountDue(plan, decimals) <= 0) return "paid";
     if (plan.totals.deposit > 0 && paid >= plan.totals.deposit) return "deposit_paid";
     return "unpaid";
 }
@@ -88,13 +88,13 @@ async function notifyPaid(plan: ITreatmentPlan, ctx: ClinicCtx): Promise<void> {
  */
 export async function startDepositPayment(plan: ITreatmentPlan, ctx: ClinicCtx): Promise<{clientSecret: string; amount: number}> {
     assertAccepted(plan, ctx.languageCode);
-    const amount = depositDue(plan);
+    const source = await planSource(plan, ctx.session);
+    const amount = depositDue(plan, source.decimalPlaces);
     if (amount <= 0) throw apiValidationException("treatment_plan_nothing_to_pay", "", null, ctx.languageCode);
     const adapter = getPaymentAdapter("stripe");
     if (!onlinePaymentAvailable() || !adapter) {
         throw apiValidationException("treatment_plan_online_payment_unavailable", "", null, ctx.languageCode);
     }
-    const source = await planSource(plan, ctx.session);
     const intent = await adapter.createPaymentIntent({
         amount,
         currencyCode: source.currencyCode,
@@ -137,7 +137,7 @@ export async function settleDepositPayment(plan: ITreatmentPlan, intent: Settled
         return;
     }
     plan.amountPaid = paidAfter(plan, charge.amount, currency.decimalPlaces);
-    plan.paymentStatus = paymentStatusFor(plan, false);
+    plan.paymentStatus = paymentStatusFor(plan, false, currency.decimalPlaces);
     plan.stripePaymentIntentId = undefined;
     plan.timeline.push({event: "payment_received", at: now, note: `online ${charge.amount}`});
     await plan.save({session: ctx.session});
@@ -160,15 +160,16 @@ export async function recordClinicPayment(
     now = new Date(),
 ): Promise<void> {
     assertAccepted(plan, ctx.languageCode);
-    const due = amountDue(plan);
-    if (input.amount > due + 0.005) {
-        throw apiValidationException("treatment_plan_payment_exceeds_due", "", null, ctx.languageCode, [String(due)]);
-    }
     const source = await planSource(plan, ctx.session);
     const decimals = source.decimalPlaces ?? DEFAULT_DECIMAL_PLACES;
+    const due = amountDue(plan, decimals);
+    // Compared in the currency's minor units: a fixed tolerance would let a 3-decimal currency overpay.
+    if (toMinor(input.amount, decimals) > toMinor(due, decimals)) {
+        throw apiValidationException("treatment_plan_payment_exceeds_due", "", null, ctx.languageCode, [String(due)]);
+    }
     await recordManualCharge(source, input.amount, input.note, ctx);
     plan.amountPaid = paidAfter(plan, input.amount, decimals);
-    plan.paymentStatus = paymentStatusFor(plan, false);
+    plan.paymentStatus = paymentStatusFor(plan, false, decimals);
     plan.timeline.push({event: "payment_received", at: now, by: input.by, note: input.note ?? `manual ${roundToCurrency(input.amount, decimals)}`});
     await plan.save({session: ctx.session});
 }
@@ -180,18 +181,19 @@ export async function refundPlanPayments(
     ctx: ClinicCtx,
 ): Promise<number> {
     const paid = plan.amountPaid ?? 0;
-    if (input.amount > paid + 0.005) {
+    const source = await planSource(plan, ctx.session);
+    const decimals = source.decimalPlaces ?? DEFAULT_DECIMAL_PLACES;
+    if (toMinor(input.amount, decimals) > toMinor(paid, decimals)) {
         throw apiValidationException("treatment_plan_refund_exceeds_paid", "", null, ctx.languageCode, [String(paid)]);
     }
-    const source = await planSource(plan, ctx.session);
     const refunded = await refundSourceCharges(
         source,
         {amount: input.amount, paid, reason: input.reason, idempotencyPrefix: `plan-refund-${plan._id.toString()}`},
         ctx,
     );
     if (refunded > 0) {
-        plan.amountPaid = paidAfter(plan, -refunded, source.decimalPlaces ?? DEFAULT_DECIMAL_PLACES);
-        plan.paymentStatus = paymentStatusFor(plan, true);
+        plan.amountPaid = paidAfter(plan, -refunded, decimals);
+        plan.paymentStatus = paymentStatusFor(plan, true, decimals);
         plan.timeline.push({event: "refunded", at: new Date(), by: input.by, note: `${refunded} · ${input.reason}`});
         await plan.save({session: ctx.session});
     }

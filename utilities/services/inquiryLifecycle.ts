@@ -21,6 +21,7 @@ import {findOrCreatePatient, keepMedicalHistory} from "./patientRecords";
 import type {IMedicalHistory} from "@dentalClinicModule/database/schemas/shared/medicalHistory";
 
 import {patientService} from "@dentalClinicModule/database/schemas/patient/patient.service";
+import {userService} from "@coreModule/database/schemas/user/user.service";
 type Actor = {userId?: string | ObjectId; now?: Date};
 
 const byOf = (userId?: string | ObjectId) => (userId && ObjectId.isValid(String(userId)) ? new ObjectId(String(userId)) : undefined);
@@ -149,7 +150,18 @@ export async function attachInquiryFiles(
     await notifyInquiryStaff(NotificationEventCodes.INQUIRY_FILES_ADDED, inquiry, ctx);
 }
 
+/**
+ * The assignee gets the request's alerts, so they must be a member of the clinic's company: a role there, as the
+ * company's user list reads membership.
+ */
+export async function assertClinicMember(companyId: ObjectId, userId: ObjectId, ctx: Pick<ClinicCtx, "session" | "languageCode">): Promise<void> {
+    if (!(await userService.exists({_id: userId, "roles.company": companyId}, {session: ctx.session}))) {
+        throw apiValidationException("inquiry_assignee_not_member", "", null, ctx.languageCode);
+    }
+}
+
 export async function assignInquiry(inquiry: IClinicInquiry, input: Actor & {assignedTo?: string}, ctx: ClinicCtx): Promise<void> {
+    if (input.assignedTo) await assertClinicMember(inquiryCompanyId(inquiry), new ObjectId(input.assignedTo), ctx);
     inquiry.set("assignedTo", input.assignedTo ? new ObjectId(input.assignedTo) : undefined);
     record(inquiry, "assigned", input);
     await inquiry.save({session: ctx.session});
