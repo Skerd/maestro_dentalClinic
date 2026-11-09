@@ -5,6 +5,8 @@ import {DEFAULT_DECIMAL_PLACES, multiplyMoney, percentOfMoney, roundToCurrency, 
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {runAfterCommit} from "@coreModule/utilities/middlewares/transactionUtils";
 import {getGridFSStorage} from "@coreModule/utilities/gridfs/gridfsStorage";
+import {readMediaBytes} from "@coreModule/utilities/media/serveMedia";
+import {sealMediaFile} from "@coreModule/utilities/security/healthDataCrypto";
 import {localDateOf} from "@coreModule/utilities/time/timeWindows";
 import {FDI_TEETH, type DepositType} from "armonia/src/modules/dentalClinic/constants";
 import type {TreatmentPlanTimelineEvent} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/treatmentPlan/treatmentPlan.dto";
@@ -201,9 +203,14 @@ async function copyFilesToClinic(inquiryId: ObjectId, companyId: ObjectId, langu
             copies.push(fileId);
             continue;
         }
-        const buffer = await gridfs.getFileBuffer(String(media.fileId));
-        const gridfsId = await gridfs.uploadFile(buffer, media.originalName, {mimeType: media.mimeType, copiedFrom: String(media._id)});
+        // A health file is sealed again for the copy, under the clinic's own key (D102).
+        const copyId = new ObjectId();
+        const buffer = await readMediaBytes(media, languageCode);
+        const stored = media.encrypted ? await sealMediaFile(buffer, companyId, copyId) : buffer;
+        const gridfsId = await gridfs.uploadFile(stored, media.originalName, {mimeType: media.mimeType, copiedFrom: String(media._id)});
         const copy = await mediaService.create({
+            _id: copyId,
+            ...(media.encrypted ? {encrypted: true} : {}),
             type: media.type,
             originalName: media.originalName,
             fileName: media.fileName,

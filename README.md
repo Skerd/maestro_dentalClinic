@@ -5,6 +5,7 @@ Server-side implementation of the Arpeggio dental clinic domain: Mongoose models
 Contracts (types, schema-defs, validators) live in **armonia** at `armonia/src/modules/dentalClinic/`. This module implements the runtime layer.
 
 Enable via `ENABLED_MODULES=dentalClinic` (with `core` and `finance`).
+Requires `HEALTH_DATA_MASTER_KEY` (base64, 32 bytes; `environment.validator.ts`): medical histories and the X-rays and photos patients upload are stored encrypted (SEC-06, D102).
 
 ## Key rules
 

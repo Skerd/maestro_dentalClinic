@@ -250,6 +250,8 @@ const patientUpload = mediaUploadMW({
     maxFileSize: PATIENT_FILE_MAX_BYTES,
     // Claimed by the request or message that names them; unclaimed ones are swept.
     markPendingReference: true,
+    // X-rays and photos of the patient's teeth: stored encrypted (SEC-06, D102).
+    healthData: true,
 });
 
 /** Clinics taking estimate requests here, with what a patient compares them on. */
