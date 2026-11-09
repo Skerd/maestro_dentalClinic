@@ -169,10 +169,11 @@ describe("local dates and times at the clinic (GLB-09)", {timeout: 60000}, () =>
         // 02:30 is skipped on the morning the clocks go forward.
         expect((await book({date: nextSpringForward(), time: "02:30"})).body.error_code).toBe("appointment_invalid_time");
         expect((await book({date: `${DATE.slice(0, 4)}-02-30`})).body.error_code).toBe("appointment_invalid_time");
-        expect((await book({time: "24:00"})).body.error_code).toBe("appointment_invalid_time");
-        // Not a local date or a time of day at all: refused by the contract before any rule runs.
+        // Not a local date or a time of day at all (24:00 ends a window, it does not start a visit):
+        // refused by the contract before any rule runs.
         expect((await book({date: "09/06/2027"})).status).toBe(400);
         expect((await book({time: "9:00"})).status).toBe(400);
+        expect((await book({time: "24:00"})).status).toBe(400);
         expect(await Appointment.countDocuments({})).toBe(0);
     }));
 
