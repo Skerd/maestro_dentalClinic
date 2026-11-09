@@ -152,7 +152,10 @@ describe("booking an appointment", {timeout: 60000}, () => {
     }));
 
     it("gives 'anyone' bookings to different dentists until nobody is free", () => asCompany(async () => {
-        const [first, second] = await Promise.all([book({practitioner: undefined}), book({practitioner: undefined})]);
+        // Under load one of two simultaneous bookings can run out of transaction retries (TD-B124); a client sends it again.
+        const retryIfConflicted = async (response: Awaited<ReturnType<typeof book>>) =>
+            response.body.error_code === "concurrent_request_retry" ? book({practitioner: undefined}) : response;
+        const [first, second] = await Promise.all([book({practitioner: undefined}), book({practitioner: undefined})].map(async (call) => retryIfConflicted(await call)));
         expect([first.status, second.status]).toEqual([200, 200]);
         const names = [first.body.data.appointment.practitionerName, second.body.data.appointment.practitionerName].sort();
         expect(names).toEqual(["Dr. Ana", "Dr. Ben"]);
