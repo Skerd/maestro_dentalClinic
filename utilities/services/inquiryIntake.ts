@@ -182,6 +182,8 @@ export async function openPatientRequest(
     }
 
     const files = await claimPatientUploads(input.fileIds, {accountId: input.accountId, platformCompanyId: input.platformCompanyId}, ctx);
+    // Shared first: an inquiry may only reference files its clinic can open (D104).
+    await shareFiles(files, clinicIds.map((clinicId) => new ObjectId(clinicId)), ctx);
     const requestGroup = crypto.randomUUID();
     const inquiries: IClinicInquiry[] = [];
     for (const clinicId of clinicIds) {
@@ -203,7 +205,6 @@ export async function openPatientRequest(
             {session: ctx.session, logger: ctx.logger, languageCode: ctx.languageCode, auditUserId: input.accountId},
         ));
     }
-    await shareFiles(files, clinicIds.map((clinicId) => new ObjectId(clinicId)), ctx);
     return {requestGroup, inquiries, created: true};
 }
 

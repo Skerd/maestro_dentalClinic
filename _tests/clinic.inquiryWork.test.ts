@@ -36,12 +36,22 @@ import ClinicInquiry from "@dentalClinicModule/database/schemas/clinicInquiry/cl
 import ClinicMessage from "@dentalClinicModule/database/schemas/clinicMessage/clinicMessage";
 import Patient from "@dentalClinicModule/database/schemas/patient/patient";
 import {postInquiryMessage} from "@dentalClinicModule/utilities/services/inquiryThread";
+import sharp from "sharp";
+import express from "express";
+import Media from "@coreModule/database/schemas/media/media";
+import {getGridFSStorage} from "@coreModule/utilities/gridfs/gridfsStorage";
+import {readMediaBytes} from "@coreModule/utilities/media/serveMedia";
 
 const clinicId = new ObjectId();
 const otherClinicId = new ObjectId();
 const asClinic = <T>(fn: () => PromiseLike<T>): Promise<T> => withTenant(clinicId, fn);
 const logger = getLogger("clinic_inquiry_work_test");
-const app = appFor([{...inquiryRoute, module: "dentalClinic"}]);
+// The uploader, which authMW sets in production (`userInfo`) and the stub does not.
+const uploader = express.Router().use((req, _res, next) => {
+    req.body.userInfo = {_id: new ObjectId(staff.userId)};
+    next();
+});
+const app = appFor([{basePath: "/api/dentalClinic/clinicInquiry", router: uploader}, {...inquiryRoute, module: "dentalClinic"}]);
 
 const coordinatorId = new ObjectId();
 const watcherId = new ObjectId();
@@ -207,6 +217,36 @@ describe("the request's thread", {timeout: 60000}, () => {
         const stored = await ClinicMessage.find({inquiry: new ObjectId(id)}).sort({createdAt: 1});
         expect(stored.map((message) => [message.from, message.readAt instanceof Date])).toEqual([["clinic", false], ["patient", true]]);
         expect((await ClinicInquiry.findById(id))!.unreadForClinic).toBe(0);
+    }));
+
+    it("stores the clinic's attachments encrypted, like the patient's (D103)", () => asClinic(async () => {
+        const id = await lead();
+        const photo = await sharp({create: {width: 8, height: 8, channels: 3, background: "#808080"}}).png().toBuffer();
+        const sent = await request(app).post("/api/dentalClinic/clinicInquiry/sendMessage").set(callerHeader(staff))
+            .field("_id", id).field("body", "Your X-ray").attach("attachments", photo, {filename: "opg.png", contentType: "image/png"});
+        expect(sent.body.data.attachments).toHaveLength(1);
+        const message = await ClinicMessage.findOne({inquiry: new ObjectId(id)});
+        const media = await Media.findById(message!.attachments[0]);
+        expect(media?.encrypted).toBe(true);
+        const stored = await getGridFSStorage("en-US").getFileBuffer(String(media!.fileId));
+        expect(stored.subarray(0, 4).toString()).toBe("HFE2");
+        const opened = await readMediaBytes(media!, "en-US");
+        expect(opened.subarray(1, 4).toString()).toBe("PNG");
+        expect(opened.length).toBe(media!.fileSize);
+    }));
+
+    it("returns each attachment's real size from sendMessage and the thread (TD-B107)", () => asClinic(async () => {
+        const id = await lead();
+        const photo = await sharp({create: {width: 8, height: 8, channels: 3, background: "#808080"}}).png().toBuffer();
+        const sent = await request(app).post("/api/dentalClinic/clinicInquiry/sendMessage").set(callerHeader(staff))
+            .field("_id", id).field("body", "Your X-ray").attach("attachments", photo, {filename: "opg.png", contentType: "image/png"});
+        const message = await ClinicMessage.findOne({inquiry: new ObjectId(id)});
+        const media = await Media.findById(message!.attachments[0]);
+        expect(media!.sizeInBytes).toBeGreaterThan(0);
+        expect(sent.body.data.attachments[0].size).toBe(media!.sizeInBytes);
+
+        const thread = await call("/thread", {_id: id});
+        expect(thread.body.data[0].attachments[0].size).toBe(media!.sizeInBytes);
     }));
 
     it("shows the thread only to staff who may read the messages, and only for their own clinic's request", () => asClinic(async () => {

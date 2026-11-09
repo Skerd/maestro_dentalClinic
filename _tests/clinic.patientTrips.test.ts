@@ -16,7 +16,7 @@ vi.mock("@dentalClinicModule/utilities/emails/sendPatientMail", () => ({
 }));
 
 import {allPermissionTags, appFor, callerHeader, type TestCaller} from "@coreModule/_tests/httpHarness";
-import {withTenant} from "@coreModule/utilities/endpoints/tenantScope";
+import {allowForeignReferences, withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import * as tripRoute from "@dentalClinicModule/api/dentalClinic/private/patientTrip";
 import Patient from "@dentalClinicModule/database/schemas/patient/patient";
 import PatientTrip from "@dentalClinicModule/database/schemas/patientTrip/patientTrip";
@@ -84,7 +84,10 @@ describe("which plan a trip is for", {timeout: 60000}, () => {
     it("takes only this patient's accepted plan at this clinic", () => asClinic(async () => {
         expect((await trip({plan: await plan("sent"), phase: 1})).body.error_code).toBe("patient_trip_plan_invalid");
         expect((await trip({plan: await plan("accepted", otherPatientId), phase: 1})).body.error_code).toBe("patient_trip_plan_invalid");
-        expect((await trip({plan: await plan("accepted", patientId, otherClinicId), phase: 1})).body.error_code).toBe("patient_trip_plan_invalid");
+        // Since D104 another clinic's plan cannot name this clinic's patient: this stands for a plan stored before.
+        const storedBefore = {reason: "a pre-D104 plan of another clinic", fields: ["TreatmentPlan.patient"]};
+        const foreignPlan = await allowForeignReferences(storedBefore, () => plan("accepted", patientId, otherClinicId));
+        expect((await trip({plan: foreignPlan, phase: 1})).body.error_code).toBe("patient_trip_plan_invalid");
         expect((await trip({plan: await plan(), phase: 1})).status).toBe(200);
     }));
 

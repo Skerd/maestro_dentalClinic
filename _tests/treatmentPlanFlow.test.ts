@@ -1,6 +1,7 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
 import {connectTestDatabase, disconnectTestDatabase} from "@coreModule/_tests/testDatabase";
 
+import crypto from "crypto";
 import {ObjectId} from "mongodb";
 import request from "supertest";
 
@@ -67,7 +68,9 @@ import Company from "@coreModule/database/schemas/company/company";
 import Currency from "@coreModule/database/schemas/currency/currency";
 import Role from "@coreModule/database/schemas/role/role";
 import User from "@coreModule/database/schemas/user/user";
-import {getGridFSStorage} from "@coreModule/utilities/gridfs/gridfsStorage";
+import {getGridFSStorage, GridFSStorage} from "@coreModule/utilities/gridfs/gridfsStorage";
+import {readMediaBytes} from "@coreModule/utilities/media/serveMedia";
+import {openMediaFile, sealMediaFile} from "@coreModule/utilities/security/healthDataCrypto";
 import * as inquiryRoute from "@dentalClinicModule/api/dentalClinic/private/clinicInquiry";
 import * as planRoute from "@dentalClinicModule/api/dentalClinic/private/treatmentPlan";
 import * as portalRoute from "@dentalClinicModule/api/dentalClinic/public/patientPortal";
@@ -122,6 +125,28 @@ async function upload(name: string) {
     });
 }
 
+/** A patient upload sealed as a health file (D102), the way `/upload` with `healthData` leaves it. */
+async function sealedUpload(name: string, plain: Buffer) {
+    const _id = new ObjectId();
+    const fileId = await getGridFSStorage("en-US", "media").uploadFile(await sealMediaFile(plain, platformId, _id), name, {});
+    return Media.create({
+        _id,
+        encrypted: true,
+        type: "image",
+        originalName: name,
+        fileName: name,
+        fileId,
+        mimeType: "image/jpeg",
+        extension: ".jpg",
+        fileSize: plain.length,
+        sizeInBytes: plain.length,
+        metadata: {size: plain.length, extension: ".jpg", mime: "image/jpeg", safeCheckedFlag: true},
+        company: platformId,
+        createdBy: accountId,
+        pendingReference: true,
+    });
+}
+
 const plan = (inquiry: string, overrides: Record<string, unknown> = {}) => ({
     inquiry,
     optionLabel: "Straumann",
@@ -141,8 +166,8 @@ const plan = (inquiry: string, overrides: Record<string, unknown> = {}) => ({
 });
 
 /** A request to clinics A and B with one X-ray; returns both inquiries. */
-async function requestToBoth() {
-    const opg = await upload("opg.jpg");
+async function requestToBoth(file?: Awaited<ReturnType<typeof upload>>) {
+    const opg = file ?? await upload("opg.jpg");
     const {body} = await asPatient("/requests", {
         clinics: [clinicA.toString(), clinicB.toString()],
         contact: {firstName: "Giulia", lastName: "Bianchi", email: "giulia@example.com", preferredLanguage: "it-IT"},
@@ -283,6 +308,29 @@ describe("the patient accepting a quote", {timeout: 60000}, () => {
 
         expect((await asPatient("/acceptPlan", {plan: elsewhere, signedName: "Giulia Bianchi", acceptTerms: true})).body.error_code).toBe("treatment_plan_invalid_status");
         expect((await asPatient("/plans", {requestGroup})).body.data.filter((offer: {status: string}) => offer.status === "accepted")).toHaveLength(1);
+    }));
+
+    it("copies a sealed X-ray to the clinic a chunk at a time, sealed again under the clinic's key (TD-B111)", () => acrossCompanies(async () => {
+        // Three 64 KiB chunks and a part.
+        const plain = crypto.randomBytes(200 * 1024);
+        const {atA, opg} = await requestToBoth(await sealedUpload("cbct.jpg", plain));
+        const chosen = await sentPlan(staffA, atA);
+        const whole = vi.spyOn(GridFSStorage.prototype, "getFileBuffer");
+        expect((await asPatient("/acceptPlan", {plan: chosen, signedName: "Giulia Bianchi", acceptTerms: true})).status).toBe(200);
+        await vi.waitFor(async () => {
+            expect(String((await ClinicInquiry.findById(atA))!.files[0])).not.toBe(opg._id.toString());
+        });
+        expect(whole).not.toHaveBeenCalled();
+        whole.mockRestore();
+
+        const copy = await Media.findById((await ClinicInquiry.findById(atA))!.files[0]);
+        expect(copy).toMatchObject({encrypted: true, sizeInBytes: plain.length});
+        expect(String(copy!.company)).toBe(clinicA.toString());
+        const stored = await getGridFSStorage("en-US", "media").getFileBuffer(String(copy!.fileId));
+        expect(stored.subarray(0, 4).toString()).toBe("HFE2");
+        expect(stored.subarray(8, 20).toString("hex")).toBe(clinicA.toHexString());
+        expect((await readMediaBytes(copy!, "en-US")).equals(plain)).toBe(true);
+        await expect(openMediaFile(stored, platformId, copy!._id)).rejects.toMatchObject({error_code: "health_data_unreadable"});
     }));
 
     it("lets only one of two simultaneous acceptances at different clinics through", () => acrossCompanies(async () => {

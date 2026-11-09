@@ -138,6 +138,8 @@ export async function attachInquiryFiles(
     const files = await claimPatientUploads(input.fileIds, input.owner, ctx);
     const known = new Set(idsOf(inquiry.files).map(String));
     const added = files.filter((file) => !known.has(String(file)));
+    // Shared first: an inquiry may only reference files its clinic can open (D104).
+    await shareFiles(added, [inquiryCompanyId(inquiry)], ctx);
     inquiry.set("files", [...idsOf(inquiry.files), ...added]);
     const at = record(inquiry, "files_added", input);
     for (const request of inquiry.infoRequests) {
@@ -146,7 +148,6 @@ export async function attachInquiryFiles(
     if (inquiry.status === "info_requested" && !openInfoRequests(inquiry).length) inquiry.status = "in_review";
     inquiry.unreadForClinic += 1;
     await inquiry.save({session: ctx.session});
-    await shareFiles(added, [inquiryCompanyId(inquiry)], ctx);
     await notifyInquiryStaff(NotificationEventCodes.INQUIRY_FILES_ADDED, inquiry, ctx);
 }
 

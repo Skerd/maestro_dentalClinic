@@ -1,12 +1,13 @@
 import * as crypto from "crypto";
+import {Readable} from "stream";
 import {ObjectId} from "mongodb";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {DEFAULT_DECIMAL_PLACES, multiplyMoney, percentOfMoney, roundToCurrency, subtractMoney, sumMoney} from "armonia/src/modules/core/helpers/money";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {runAfterCommit} from "@coreModule/utilities/middlewares/transactionUtils";
 import {getGridFSStorage} from "@coreModule/utilities/gridfs/gridfsStorage";
-import {readMediaBytes} from "@coreModule/utilities/media/serveMedia";
-import {sealMediaFile} from "@coreModule/utilities/security/healthDataCrypto";
+import {readMediaStream} from "@coreModule/utilities/media/serveMedia";
+import {sealMediaFileStream} from "@coreModule/utilities/security/healthDataCrypto";
 import {localDateOf} from "@coreModule/utilities/time/timeWindows";
 import {FDI_TEETH, type DepositType} from "armonia/src/modules/dentalClinic/constants";
 import type {TreatmentPlanTimelineEvent} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/treatmentPlan/treatmentPlan.dto";
@@ -203,10 +204,11 @@ async function copyFilesToClinic(inquiryId: ObjectId, companyId: ObjectId, langu
             copies.push(fileId);
             continue;
         }
-        // A health file is sealed again for the copy, under the clinic's own key (D102).
+        // A health file is sealed again for the copy, under the clinic's own key (D102), a chunk at a time as GridFS
+        // pulls it, so a large scan is never held whole (TD-B111).
         const copyId = new ObjectId();
-        const buffer = await readMediaBytes(media, languageCode);
-        const stored = media.encrypted ? await sealMediaFile(buffer, companyId, copyId) : buffer;
+        const source = await readMediaStream(media, languageCode);
+        const stored = media.encrypted ? await sealMediaFileStream(source, companyId, copyId) : Readable.from(source.chunks, {objectMode: false});
         const gridfsId = await gridfs.uploadFile(stored, media.originalName, {mimeType: media.mimeType, copiedFrom: String(media._id)});
         const copy = await mediaService.create({
             _id: copyId,

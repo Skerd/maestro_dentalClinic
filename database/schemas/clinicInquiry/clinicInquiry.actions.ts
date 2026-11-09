@@ -41,6 +41,8 @@ const attachmentsUpload = mediaUploadMW({
     fields: {attachments: CLINIC_MESSAGE_ATTACHMENTS_MAX},
     fieldMimeTypes: {attachments: [...PATIENT_FILE_MIME_TYPES]},
     maxFileSize: PATIENT_FILE_MAX_BYTES,
+    // Every attachment in a patient conversation is health data, either way (D103).
+    healthData: true,
 });
 
 /**
