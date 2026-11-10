@@ -1,5 +1,4 @@
-import fs from "fs";
-import path from "path";
+import notificationTexts from "armonia/src/modules/dentalClinic/helpers/static/notificationTypes/en_US.json";
 import {beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
 import {ObjectId} from "mongodb";
 import type {createAndPushNotification} from "@coreModule/domain/notifications/notificationDomainService";
@@ -15,8 +14,6 @@ import {NotificationEventCodes} from "@dentalClinicModule/domain/notifications/n
 
 const companyId = new ObjectId().toString();
 const receiver = new ObjectId().toString();
-/** The panel's messages; maestro is built without sinfonia in the deploy image. */
-const panelTypes = path.resolve(__dirname, "../../../../sinfonia/src/modules/dentalClinic/assets/languages/en-US/notificationTypes.json");
 
 async function paramsOf(code: string, payload: Record<string, unknown>) {
     mocks.createAndPush.mockReset().mockResolvedValue({});
@@ -41,8 +38,8 @@ describe("dentalClinic alerts carry their message values (D117)", () => {
         expect(await paramsOf(NotificationEventCodes.INQUIRY_NEW, {inquiryId: "i1", number: "IQ-1"})).toEqual({number: "IQ-1"});
     });
 
-    it.skipIf(!fs.existsSync(panelTypes))("has a panel message and title for every code", () => {
-        const codes = (JSON.parse(fs.readFileSync(panelTypes, "utf8")) as {dentalClinic: {codes: Record<string, {title?: string; message?: string}>}}).dentalClinic.codes;
+    it("has a message and title for every code in the shared texts (D128)", () => {
+        const codes: Record<string, {title?: string; message?: string}> = notificationTexts.dentalClinic.codes;
         for (const code of Object.values(NotificationEventCodes)) {
             expect(codes[code]?.title, code).toBeTruthy();
             expect(codes[code]?.message, code).toBeTruthy();
