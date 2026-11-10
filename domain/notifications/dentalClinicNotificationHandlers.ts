@@ -26,6 +26,11 @@ const DESCRIPTIONS: Record<ClinicCode, (payload: Record<string, unknown>) => str
     [NotificationEventCodes.TRIP_DETAILS_ADDED]: (p) => `The patient added flight or hotel details on request ${p.number ?? ""}`,
 };
 
+/** Values for the code's translated message (`notificationTypes.json`, D117); `description` stays the English fallback. */
+function paramsOf(payload: Record<string, unknown>): Record<string, string> {
+    return {number: String(payload.number ?? ""), ...(payload.when ? {when: String(payload.when)} : {})};
+}
+
 /** What the notification opens: the appointment or the estimate request. */
 function contentOf(payload: Record<string, unknown>): Record<string, unknown> {
     return payload.inquiryId
@@ -44,6 +49,7 @@ function bindHandler(code: ClinicCode): void {
                         company: new ObjectId(payload.companyId as string),
                         code,
                         description: DESCRIPTIONS[code](payload),
+                        params: paramsOf(payload),
                         content: contentOf(payload),
                         importance: NotificationImportance.HIGH,
                         category: NotificationCategory.SYSTEM,
