@@ -14,10 +14,14 @@ import {clinicInquiryService} from "@dentalClinicModule/database/schemas/clinicI
 const HOUR = 3600 * 1000;
 const BATCH_SIZE = 200;
 
-export async function runInquiryResponseAlerts(company: ObjectId, parentLogger?: serverLogger): Promise<void> {
+/** When the job runs; tests pin it. */
+export type InquiryResponseAlertClock = {now?: Date};
+
+export async function runInquiryResponseAlerts(company: ObjectId, parentLogger?: serverLogger, clock: InquiryResponseAlertClock = {}): Promise<void> {
     const logger = getLogger("inquiry_response_alerts", parentLogger);
+    // A staff alert, not a patient message: it keeps the platform default language.
     const languageCode = CONSTANTS.DEFAULT_LANGUAGE ?? "en-US";
-    const now = new Date();
+    const now = clock.now ?? new Date();
     logger.start("Checking unanswered estimate requests...");
 
     let alerted = 0;

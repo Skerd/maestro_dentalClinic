@@ -21,9 +21,9 @@ vi.mock("@coreModule/utilities/marketing/resolveCompanyByOrigin", async () => {
         },
     };
 });
-const {mail} = vi.hoisted(() => ({mail: {sent: [] as {kind: string; serviceName?: string}[]}}));
+const {mail} = vi.hoisted(() => ({mail: {sent: [] as {kind: string; serviceName?: string; languageCode?: string}[]}}));
 vi.mock("@dentalClinicModule/utilities/emails/sendPatientMail", () => ({
-    sendPatientMail: vi.fn(async (message: {kind: string; serviceName?: string}) => {
+    sendPatientMail: vi.fn(async (message: {kind: string; serviceName?: string; languageCode?: string}) => {
         mail.sent.push(message);
     }),
     patientSmsText: () => "",
@@ -302,5 +302,18 @@ describe("patient folders", {timeout: 60000}, () => {
         const stored = await Appointment.findById(booked.body._id);
         expect(String(stored!.patientRecord)).toBe(folder._id.toString());
         expect(await Patient.countDocuments({company: companyId})).toBe(1);
+    }));
+
+    it("confirms a staff booking in the patient's language, not the staff member's (FE-08)", () => asCompany(async () => {
+        const folder = await Patient.create({company: companyId, number: "PT-1", firstName: "Ada", lastName: "Lovelace", preferredLanguage: "sq-AL", source: "phone"});
+
+        // The staff member's request is in en-US (the auth stub's language).
+        const booked = await request(app).put("/api/dentalClinic/appointment").set(callerHeader(admin)).send({
+            service: serviceId, location: locationId, practitioner: anaId, date: DATE, time: "09:00", patient,
+            patientRecord: folder._id.toString(), idempotencyKey: `key-${new ObjectId().toString()}`,
+        });
+
+        expect(booked.status).toBe(200);
+        expect(mail.sent).toEqual([expect.objectContaining({kind: "confirmed", languageCode: "sq-AL"})]);
     }));
 });

@@ -491,7 +491,7 @@ router.post(
 /** A trip as the patient sees it; its plan must be populated with `phases`. */
 function toPatientTrip(trip: IPatientTrip, clinicNames: Map<string, string>): PatientTripView {
     const clinicId = String(nestedEntityToRef(trip.company));
-    const phases = (trip.plan as unknown as ITreatmentPlan | undefined)?.phases ?? [];
+    const phases = trip.plan?.phases ?? [];
     return {
         _id: trip._id.toString(),
         clinic: {_id: clinicId, name: clinicNames.get(clinicId) ?? ""},

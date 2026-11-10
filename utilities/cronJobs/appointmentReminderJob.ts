@@ -2,6 +2,7 @@
  * Every 15 minutes: reminds patients of confirmed appointments that start within
  * their clinic's reminder window. `reminderSentAt` is stamped first, so a
  * reminder goes out at most once even if two runs overlap; a reschedule clears it.
+ * The window is a span of instants, the same in every timezone; each reminder is in the patient's language.
  */
 
 import type {ObjectId} from "mongodb";
@@ -15,10 +16,14 @@ import {appointmentService} from "@dentalClinicModule/database/schemas/appointme
 const HOUR = 3600 * 1000;
 const BATCH_SIZE = 200;
 
-export async function runAppointmentReminders(company: ObjectId, parentLogger?: serverLogger): Promise<void> {
+/** When the job runs; tests pin it. */
+export type AppointmentReminderClock = {now?: Date};
+
+export async function runAppointmentReminders(company: ObjectId, parentLogger?: serverLogger, clock: AppointmentReminderClock = {}): Promise<void> {
     const logger = getLogger("appointment_reminders", parentLogger);
+    // The job's own language, for lookups; the message itself goes out in the patient's (notifyPatient).
     const languageCode = CONSTANTS.DEFAULT_LANGUAGE ?? "en-US";
-    const now = new Date();
+    const now = clock.now ?? new Date();
     logger.start("Sending appointment reminders...");
 
     let sent = 0;

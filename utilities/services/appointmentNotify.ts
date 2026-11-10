@@ -1,4 +1,5 @@
 import type {ClientSession} from "mongoose";
+import {CONSTANTS} from "@coreModule/environment";
 import {emitNotificationEvent} from "@coreModule/domain/notifications/notificationEventBus";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {runAfterCommit} from "@coreModule/utilities/middlewares/transactionUtils";
@@ -7,6 +8,7 @@ import {sendMessagingNotification} from "@coreModule/utilities/messaging/messagi
 import {APPOINTMENT_LINK_PURPOSE} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/appointment/appointment.constants";
 import type {IAppointment} from "@dentalClinicModule/database/schemas/appointment/appointment";
 import {clinicConfigService} from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig.service";
+import {patientService} from "@dentalClinicModule/database/schemas/patient/patient.service";
 import {NotificationEventCodes} from "@dentalClinicModule/domain/notifications/notificationEventCodes";
 import {sendPatientMail, patientSmsText, type PatientMessageKind} from "@dentalClinicModule/utilities/emails/sendPatientMail";
 import {companySiteUrl} from "@coreModule/utilities/marketing/portalCompanies";
@@ -27,9 +29,20 @@ export function manageTokenFor(appointment: IAppointment): string {
 }
 
 /**
+ * The language to write to the appointment's patient in (FE-08): their folder's preferred language, read when the
+ * message goes out so a later change applies; the platform default for a booking without a folder. Never the
+ * language of whoever triggered the message (a staff member, the reminder job).
+ */
+async function patientLanguageOf(appointment: IAppointment): Promise<string> {
+    const patientId = nestedEntityToRef(appointment.patientRecord);
+    const patient = patientId ? await patientService.findById(patientId, {}, undefined, "preferredLanguage") : null;
+    return patient?.preferredLanguage ?? CONSTANTS.DEFAULT_LANGUAGE ?? "en-US";
+}
+
+/**
  * Tells the patient about their appointment once the caller's transaction has
  * committed (right away without one): an email, plus a text for reminders when
- * the clinic turned that on. Messages say when, where and with whom; the
+ * the clinic turned that on, in the patient's language. Messages say when, where and with whom; the
  * treatment is named only if the clinic opted in, since it can reveal a condition.
  */
 export async function notifyPatient(
@@ -39,9 +52,10 @@ export async function notifyPatient(
 ): Promise<void> {
     await runAfterCommit(ctx.session, async () => {
         const companyId = nestedEntityToRef(appointment.company);
-        const [company, config] = await Promise.all([
+        const [company, config, languageCode] = await Promise.all([
             companyService.findById(companyId, {}, undefined, "name siteSlug"),
             clinicConfigService.findForCompany(companyId, {languageCode: ctx.languageCode}),
+            patientLanguageOf(appointment),
         ]);
         if (!company) return;
         const {snapshot, patient} = appointment;
@@ -49,11 +63,11 @@ export async function notifyPatient(
             kind,
             companyId: String(companyId),
             companyName: company.name,
-            languageCode: ctx.languageCode,
+            languageCode,
             email: patient.email,
             fullName: `${patient.firstName} ${patient.lastName}`.trim(),
             number: appointment.number,
-            when: formatLocal(appointment.startAt, snapshot.timezone, ctx.languageCode),
+            when: formatLocal(appointment.startAt, snapshot.timezone, languageCode),
             practitionerName: snapshot.practitionerName,
             location: [snapshot.locationName, snapshot.locationAddress].filter(Boolean).join(", "),
             serviceName: config?.includeServiceInMessages ? snapshot.serviceName : undefined,
