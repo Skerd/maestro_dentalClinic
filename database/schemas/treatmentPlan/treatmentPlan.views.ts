@@ -227,54 +227,60 @@ export const treatmentPlanSheetView: ViewConfig = {
 
 const treatmentPlanCreateFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
+        render: "#TitleWithCollapse",
+        props: {title: "form.targetSectionTitle"},
         children: [
             {
-                render: "#Field",
-                field: {
-                    name: "inquiry",
-                    widget: "#ApiSelect",
-                    label: "form.inquiryLabel",
-                    placeholder: "form.inquiryPlaceholder",
-                    widgetProps: {
-                        apiUrl: "/api/dentalClinic/clinicInquiry/select",
-                        method: "POST",
-                        pageSize: 50,
-                        normalizeEmptyToUndefined: true,
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "inquiry",
+                            widget: "#ApiSelect",
+                            label: "form.inquiryLabel",
+                            placeholder: "form.inquiryPlaceholder",
+                            widgetProps: {
+                                apiUrl: "/api/dentalClinic/clinicInquiry/select",
+                                method: "POST",
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                            },
+                        },
                     },
-                },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "patient",
+                            widget: "#ApiSelect",
+                            label: "form.patientLabel",
+                            placeholder: "form.patientPlaceholder",
+                            widgetProps: {
+                                apiUrl: "/api/dentalClinic/patient/select",
+                                method: "POST",
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                            },
+                        },
+                    },
+                ],
+            },
+            {
+                render: "#FormAlert",
+                props: {message: "form.targetHint"},
             },
             {
                 render: "#Field",
                 field: {
-                    name: "patient",
-                    widget: "#ApiSelect",
-                    label: "form.patientLabel",
-                    placeholder: "form.patientPlaceholder",
-                    widgetProps: {
-                        apiUrl: "/api/dentalClinic/patient/select",
-                        method: "POST",
-                        pageSize: 50,
-                        normalizeEmptyToUndefined: true,
-                    },
+                    name: "optionLabel",
+                    widget: "#Input",
+                    label: "form.optionLabelLabel",
+                    placeholder: "form.optionLabelPlaceholder",
+                    widgetProps: {maxLength: TREATMENT_PLAN_LABEL_MAX},
                 },
             },
         ],
-    },
-    {
-        render: "#FormAlert",
-        props: {message: "form.targetHint"},
-    },
-    {
-        render: "#Field",
-        field: {
-            name: "optionLabel",
-            widget: "#Input",
-            label: "form.optionLabelLabel",
-            placeholder: "form.optionLabelPlaceholder",
-            widgetProps: {maxLength: TREATMENT_PLAN_LABEL_MAX},
-        },
     },
     {
         render: "#Field",
@@ -377,10 +383,8 @@ const treatmentPlanCreateFormNodes: ViewConfig["nodes"] = [
                 defaultItem: {
                     phase: 1,
                     kind: "treatment",
-                    name: "",
                     teeth: [],
                     quantity: 1,
-                    unitPrice: 0,
                 },
                 addLabel: "form.linesAddRow",
                 removeLabel: "form.linesRemoveRow",
@@ -391,6 +395,22 @@ const treatmentPlanCreateFormNodes: ViewConfig["nodes"] = [
                         render: "#FormGrid",
                         props: {columns: 3},
                         children: [
+                            {
+                                render: "#Field",
+                                field: {
+                                    name: "service",
+                                    widget: "#ApiSelect",
+                                    label: "form.lineServiceLabel",
+                                    placeholder: "form.lineServicePlaceholder",
+                                    description: "form.lineServiceDescription",
+                                    widgetProps: {
+                                        apiUrl: "/api/dentalClinic/clinicService/select",
+                                        method: "POST",
+                                        pageSize: 50,
+                                        normalizeEmptyToUndefined: true,
+                                    },
+                                },
+                            },
                             {
                                 render: "#Field",
                                 field: {
@@ -417,21 +437,6 @@ const treatmentPlanCreateFormNodes: ViewConfig["nodes"] = [
                                     widgetProps: {options: lineKindOptions},
                                 },
                             },
-                            {
-                                render: "#Field",
-                                field: {
-                                    name: "service",
-                                    widget: "#ApiSelect",
-                                    label: "form.lineServiceLabel",
-                                    placeholder: "form.lineServicePlaceholder",
-                                    widgetProps: {
-                                        apiUrl: "/api/dentalClinic/clinicService/select",
-                                        method: "POST",
-                                        pageSize: 50,
-                                        normalizeEmptyToUndefined: true,
-                                    },
-                                },
-                            },
                         ],
                     },
                     {
@@ -441,7 +446,6 @@ const treatmentPlanCreateFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.lineNameLabel",
                             placeholder: "form.lineNamePlaceholder",
-                            required: true,
                             widgetProps: {
                                 maxLength: TREATMENT_PLAN_LINE_NAME_MAX,
                             },
@@ -525,7 +529,6 @@ const treatmentPlanCreateFormNodes: ViewConfig["nodes"] = [
                                     placeholder:
                                         "form.lineUnitPricePlaceholder",
                                     description: "form.lineUnitPriceDescription",
-                                    required: true,
                                     widgetProps: {
                                         type: "number",
                                         min: 0,
@@ -661,15 +664,22 @@ const treatmentPlanCreateFormNodes: ViewConfig["nodes"] = [
 
 const treatmentPlanEditFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#Field",
-        permissions: {read: "optionLabel", write: "optionLabel"},
-        field: {
-            name: "optionLabel",
-            widget: "#Input",
-            label: "form.optionLabelLabel",
-            placeholder: "form.optionLabelPlaceholder",
-            widgetProps: {maxLength: TREATMENT_PLAN_LABEL_MAX},
-        },
+        render: "#TitleWithCollapse",
+        props: {title: "form.targetSectionTitle"},
+        permissions: {readAny: ["optionLabel"], writeAny: ["optionLabel"]},
+        children: [
+            {
+                render: "#Field",
+                permissions: {read: "optionLabel", write: "optionLabel"},
+                field: {
+                    name: "optionLabel",
+                    widget: "#Input",
+                    label: "form.optionLabelLabel",
+                    placeholder: "form.optionLabelPlaceholder",
+                    widgetProps: {maxLength: TREATMENT_PLAN_LABEL_MAX},
+                },
+            },
+        ],
     },
     {
         render: "#Field",
@@ -774,10 +784,8 @@ const treatmentPlanEditFormNodes: ViewConfig["nodes"] = [
                 defaultItem: {
                     phase: 1,
                     kind: "treatment",
-                    name: "",
                     teeth: [],
                     quantity: 1,
-                    unitPrice: 0,
                 },
                 addLabel: "form.linesAddRow",
                 removeLabel: "form.linesRemoveRow",
@@ -788,6 +796,22 @@ const treatmentPlanEditFormNodes: ViewConfig["nodes"] = [
                         render: "#FormGrid",
                         props: {columns: 3},
                         children: [
+                            {
+                                render: "#Field",
+                                field: {
+                                    name: "service",
+                                    widget: "#ApiSelect",
+                                    label: "form.lineServiceLabel",
+                                    placeholder: "form.lineServicePlaceholder",
+                                    description: "form.lineServiceDescription",
+                                    widgetProps: {
+                                        apiUrl: "/api/dentalClinic/clinicService/select",
+                                        method: "POST",
+                                        pageSize: 50,
+                                        normalizeEmptyToUndefined: true,
+                                    },
+                                },
+                            },
                             {
                                 render: "#Field",
                                 field: {
@@ -814,21 +838,6 @@ const treatmentPlanEditFormNodes: ViewConfig["nodes"] = [
                                     widgetProps: {options: lineKindOptions},
                                 },
                             },
-                            {
-                                render: "#Field",
-                                field: {
-                                    name: "service",
-                                    widget: "#ApiSelect",
-                                    label: "form.lineServiceLabel",
-                                    placeholder: "form.lineServicePlaceholder",
-                                    widgetProps: {
-                                        apiUrl: "/api/dentalClinic/clinicService/select",
-                                        method: "POST",
-                                        pageSize: 50,
-                                        normalizeEmptyToUndefined: true,
-                                    },
-                                },
-                            },
                         ],
                     },
                     {
@@ -838,7 +847,6 @@ const treatmentPlanEditFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.lineNameLabel",
                             placeholder: "form.lineNamePlaceholder",
-                            required: true,
                             widgetProps: {
                                 maxLength: TREATMENT_PLAN_LINE_NAME_MAX,
                             },
@@ -922,7 +930,6 @@ const treatmentPlanEditFormNodes: ViewConfig["nodes"] = [
                                     placeholder:
                                         "form.lineUnitPricePlaceholder",
                                     description: "form.lineUnitPriceDescription",
-                                    required: true,
                                     widgetProps: {
                                         type: "number",
                                         min: 0,

@@ -224,93 +224,105 @@ export const clinicServiceSheetView: ViewConfig = {
 
 const clinicServiceCreateFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
+        render: "#TitleWithCollapse",
+        props: {title: "form.basicsSectionTitle"},
         children: [
             {
-                render: "#Field",
-                field: {
-                    name: "name",
-                    widget: "#Input",
-                    label: "form.nameLabel",
-                    placeholder: "form.namePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: CLINIC_SERVICE_NAME_MAX},
-                },
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "name",
+                            widget: "#Input",
+                            label: "form.nameLabel",
+                            placeholder: "form.namePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: CLINIC_SERVICE_NAME_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "slug",
+                            widget: "#Input",
+                            label: "form.slugLabel",
+                            placeholder: "form.slugPlaceholder",
+                            description: "form.slugDescription",
+                            widgetProps: {maxLength: CLINIC_SERVICE_SLUG_MAX},
+                        },
+                    },
+                ],
             },
             {
                 render: "#Field",
                 field: {
-                    name: "slug",
-                    widget: "#Input",
-                    label: "form.slugLabel",
-                    placeholder: "form.slugPlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: CLINIC_SERVICE_SLUG_MAX},
-                },
-            },
-        ],
-    },
-    {
-        render: "#Field",
-        field: {
-            name: "description",
-            widget: "#Textarea",
-            label: "form.descriptionLabel",
-            placeholder: "form.descriptionPlaceholder",
-            widgetProps: {
-                rows: 5,
-                maxLength: CLINIC_SERVICE_DESCRIPTION_MAX,
-                className:
-                    "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
-            },
-        },
-    },
-    {
-        render: "#FormGrid",
-        props: {columns: 2},
-        children: [
-            {
-                render: "#Field",
-                field: {
-                    name: "category",
-                    widget: "#Select",
-                    label: "form.categoryLabel",
-                    placeholder: "form.categoryPlaceholder",
-                    required: true,
+                    name: "description",
+                    widget: "#Textarea",
+                    label: "form.descriptionLabel",
+                    placeholder: "form.descriptionPlaceholder",
                     widgetProps: {
-                        options: categoryOptions,
-                        className: "grow w-full",
+                        rows: 5,
+                        maxLength: CLINIC_SERVICE_DESCRIPTION_MAX,
+                        className:
+                            "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
                     },
                 },
             },
             {
-                render: "#Field",
-                field: {
-                    name: "perTooth",
-                    widget: "#Switch",
-                    label: "form.perToothLabel",
-                },
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "category",
+                            widget: "#Select",
+                            label: "form.categoryLabel",
+                            placeholder: "form.categoryPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                options: categoryOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "perTooth",
+                            widget: "#Switch",
+                            label: "form.perToothLabel",
+                        },
+                    },
+                ],
             },
         ],
     },
     {
-        render: "#Field",
-        field: {
-            name: "images",
-            widget: "#MediaField",
-            label: "form.imagesLabel",
-            widgetProps: {mediaType: "image", mode: "multiple", maxCount: 8},
-        },
-    },
-    {
-        render: "#Field",
-        field: {
-            name: "videos",
-            widget: "#MediaField",
-            label: "form.videosLabel",
-            widgetProps: {mediaType: "video", mode: "multiple", maxCount: 3},
-        },
+        render: "#TitleWithCollapse",
+        props: {title: "form.mediaSectionTitle"},
+        children: [
+            {
+                render: "#Field",
+                field: {
+                    name: "images",
+                    widget: "#MediaField",
+                    label: "form.imagesLabel",
+                    widgetProps: {mediaType: "image", mode: "multiple", maxCount: 8},
+                },
+            },
+            {
+                render: "#Field",
+                field: {
+                    name: "videos",
+                    widget: "#MediaField",
+                    label: "form.videosLabel",
+                    widgetProps: {mediaType: "video", mode: "multiple", maxCount: 3},
+                },
+            },
+        ],
     },
     {
         render: "#TitleWithCollapse",
@@ -421,42 +433,48 @@ const clinicServiceCreateFormNodes: ViewConfig["nodes"] = [
         ],
     },
     {
-        render: "#FormGrid",
-        props: {columns: 3},
+        render: "#TitleWithCollapse",
+        props: {title: "form.visibilitySectionTitle"},
         children: [
             {
-                render: "#Field",
-                field: {
-                    name: "onlineBookable",
-                    widget: "#Switch",
-                    label: "form.onlineBookableLabel",
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "isPublic",
-                    widget: "#Switch",
-                    label: "form.isPublicLabel",
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "isActive",
-                    widget: "#Switch",
-                    label: "form.isActiveLabel",
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "sortOrder",
-                    widget: "#Input",
-                    label: "form.sortOrderLabel",
-                    placeholder: "form.sortOrderPlaceholder",
-                    widgetProps: {type: "number", min: 0, step: "any"},
-                },
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "onlineBookable",
+                            widget: "#Switch",
+                            label: "form.onlineBookableLabel",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "isPublic",
+                            widget: "#Switch",
+                            label: "form.isPublicLabel",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "isActive",
+                            widget: "#Switch",
+                            label: "form.isActiveLabel",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "sortOrder",
+                            widget: "#Input",
+                            label: "form.sortOrderLabel",
+                            placeholder: "form.sortOrderPlaceholder",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                ],
             },
         ],
     },
@@ -464,105 +482,119 @@ const clinicServiceCreateFormNodes: ViewConfig["nodes"] = [
 
 const clinicServiceEditFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
-        permissions: {readAny: ["name", "slug"], writeAny: ["name", "slug"]},
+        render: "#TitleWithCollapse",
+        props: {title: "form.basicsSectionTitle"},
+        permissions: {readAny: ["name", "slug", "description", "category", "perTooth"], writeAny: ["name", "slug", "description", "category", "perTooth"]},
         children: [
             {
-                render: "#Field",
-                permissions: {read: "name", write: "name"},
-                field: {
-                    name: "name",
-                    widget: "#Input",
-                    label: "form.nameLabel",
-                    placeholder: "form.namePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: CLINIC_SERVICE_NAME_MAX},
-                },
+                render: "#FormGrid",
+                props: {columns: 2},
+                permissions: {readAny: ["name", "slug"], writeAny: ["name", "slug"]},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "name", write: "name"},
+                        field: {
+                            name: "name",
+                            widget: "#Input",
+                            label: "form.nameLabel",
+                            placeholder: "form.namePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: CLINIC_SERVICE_NAME_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "slug", write: "slug"},
+                        field: {
+                            name: "slug",
+                            widget: "#Input",
+                            label: "form.slugLabel",
+                            placeholder: "form.slugPlaceholder",
+                            description: "form.slugDescription",
+                            widgetProps: {maxLength: CLINIC_SERVICE_SLUG_MAX},
+                        },
+                    },
+                ],
             },
             {
                 render: "#Field",
-                permissions: {read: "slug", write: "slug"},
+                permissions: {read: "description", write: "description"},
                 field: {
-                    name: "slug",
-                    widget: "#Input",
-                    label: "form.slugLabel",
-                    placeholder: "form.slugPlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: CLINIC_SERVICE_SLUG_MAX},
-                },
-            },
-        ],
-    },
-    {
-        render: "#Field",
-        permissions: {read: "description", write: "description"},
-        field: {
-            name: "description",
-            widget: "#Textarea",
-            label: "form.descriptionLabel",
-            placeholder: "form.descriptionPlaceholder",
-            widgetProps: {
-                rows: 5,
-                maxLength: CLINIC_SERVICE_DESCRIPTION_MAX,
-                className:
-                    "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
-            },
-        },
-    },
-    {
-        render: "#FormGrid",
-        props: {columns: 2},
-        permissions: {
-            readAny: ["category", "perTooth"],
-            writeAny: ["category", "perTooth"],
-        },
-        children: [
-            {
-                render: "#Field",
-                permissions: {read: "category", write: "category"},
-                field: {
-                    name: "category",
-                    widget: "#Select",
-                    label: "form.categoryLabel",
-                    placeholder: "form.categoryPlaceholder",
-                    required: true,
+                    name: "description",
+                    widget: "#Textarea",
+                    label: "form.descriptionLabel",
+                    placeholder: "form.descriptionPlaceholder",
                     widgetProps: {
-                        options: categoryOptions,
-                        className: "grow w-full",
+                        rows: 5,
+                        maxLength: CLINIC_SERVICE_DESCRIPTION_MAX,
+                        className:
+                            "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
                     },
                 },
             },
             {
-                render: "#Field",
-                permissions: {read: "perTooth", write: "perTooth"},
-                field: {
-                    name: "perTooth",
-                    widget: "#Switch",
-                    label: "form.perToothLabel",
+                render: "#FormGrid",
+                props: {columns: 2},
+                permissions: {
+                    readAny: ["category", "perTooth"],
+                    writeAny: ["category", "perTooth"],
                 },
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "category", write: "category"},
+                        field: {
+                            name: "category",
+                            widget: "#Select",
+                            label: "form.categoryLabel",
+                            placeholder: "form.categoryPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                options: categoryOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "perTooth", write: "perTooth"},
+                        field: {
+                            name: "perTooth",
+                            widget: "#Switch",
+                            label: "form.perToothLabel",
+                        },
+                    },
+                ],
             },
         ],
     },
     {
-        render: "#Field",
-        permissions: {read: "images", write: "images"},
-        field: {
-            name: "images",
-            widget: "#MediaField",
-            label: "form.imagesLabel",
-            widgetProps: {mediaType: "image", mode: "multiple", maxCount: 8},
-        },
-    },
-    {
-        render: "#Field",
-        permissions: {read: "videos", write: "videos"},
-        field: {
-            name: "videos",
-            widget: "#MediaField",
-            label: "form.videosLabel",
-            widgetProps: {mediaType: "video", mode: "multiple", maxCount: 3},
-        },
+        render: "#TitleWithCollapse",
+        props: {title: "form.mediaSectionTitle"},
+        permissions: {readAny: ["images", "videos"], writeAny: ["images", "videos"]},
+        children: [
+            {
+                render: "#Field",
+                permissions: {read: "images", write: "images"},
+                field: {
+                    name: "images",
+                    widget: "#MediaField",
+                    label: "form.imagesLabel",
+                    widgetProps: {mediaType: "image", mode: "multiple", maxCount: 8},
+                },
+            },
+            {
+                render: "#Field",
+                permissions: {read: "videos", write: "videos"},
+                field: {
+                    name: "videos",
+                    widget: "#MediaField",
+                    label: "form.videosLabel",
+                    widgetProps: {mediaType: "video", mode: "multiple", maxCount: 3},
+                },
+            },
+        ],
     },
     {
         render: "#TitleWithCollapse",
@@ -703,50 +735,57 @@ const clinicServiceEditFormNodes: ViewConfig["nodes"] = [
         ],
     },
     {
-        render: "#FormGrid",
-        props: {columns: 3},
-        permissions: {
-            readAny: ["onlineBookable", "isPublic", "isActive", "sortOrder"],
-            writeAny: ["onlineBookable", "isPublic", "isActive", "sortOrder"],
-        },
+        render: "#TitleWithCollapse",
+        props: {title: "form.visibilitySectionTitle"},
+        permissions: {readAny: ["onlineBookable", "isPublic", "isActive", "sortOrder"], writeAny: ["onlineBookable", "isPublic", "isActive", "sortOrder"]},
         children: [
             {
-                render: "#Field",
-                permissions: {read: "onlineBookable", write: "onlineBookable"},
-                field: {
-                    name: "onlineBookable",
-                    widget: "#Switch",
-                    label: "form.onlineBookableLabel",
+                render: "#FormGrid",
+                props: {columns: 3},
+                permissions: {
+                    readAny: ["onlineBookable", "isPublic", "isActive", "sortOrder"],
+                    writeAny: ["onlineBookable", "isPublic", "isActive", "sortOrder"],
                 },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "isPublic", write: "isPublic"},
-                field: {
-                    name: "isPublic",
-                    widget: "#Switch",
-                    label: "form.isPublicLabel",
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "isActive", write: "isActive"},
-                field: {
-                    name: "isActive",
-                    widget: "#Switch",
-                    label: "form.isActiveLabel",
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "sortOrder", write: "sortOrder"},
-                field: {
-                    name: "sortOrder",
-                    widget: "#Input",
-                    label: "form.sortOrderLabel",
-                    placeholder: "form.sortOrderPlaceholder",
-                    widgetProps: {type: "number", min: 0, step: "any"},
-                },
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "onlineBookable", write: "onlineBookable"},
+                        field: {
+                            name: "onlineBookable",
+                            widget: "#Switch",
+                            label: "form.onlineBookableLabel",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "isPublic", write: "isPublic"},
+                        field: {
+                            name: "isPublic",
+                            widget: "#Switch",
+                            label: "form.isPublicLabel",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "isActive", write: "isActive"},
+                        field: {
+                            name: "isActive",
+                            widget: "#Switch",
+                            label: "form.isActiveLabel",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "sortOrder", write: "sortOrder"},
+                        field: {
+                            name: "sortOrder",
+                            widget: "#Input",
+                            label: "form.sortOrderLabel",
+                            placeholder: "form.sortOrderPlaceholder",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                ],
             },
         ],
     },

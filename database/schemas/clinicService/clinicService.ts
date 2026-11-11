@@ -1,4 +1,5 @@
 import {Document, model, Schema, SchemaTypes} from "mongoose";
+import slugify from "slugify";
 import {IMedia} from "@coreModule/database/schemas/media/media";
 import {normalizeSchemaPermissions} from "@coreModule/database/utilities";
 import ownershipPlugin from "@coreModule/database/plugins/ownershipPlugin";
@@ -80,6 +81,20 @@ const ClinicServiceSchema = new Schema<IClinicService>(
     },
     {accessMode: "loose"},
 );
+
+/**
+ * A treatment saved without a web address gets one from its name, unique among the company's live treatments
+ * ("composite-filling", then "composite-filling-2"): the clinic shouldn't have to invent a slug (UX-05).
+ */
+ClinicServiceSchema.pre("validate", async function () {
+    if (this.slug || !this.name) return;
+    const base = slugify(this.name, {lower: true, strict: true}).slice(0, CLINIC_SERVICE_SLUG_MAX - 4) || "treatment";
+    let candidate = base;
+    for (let n = 2; await ClinicService.exists({company: this.get("company"), slug: candidate, deletedAt: null, _id: {$ne: this._id}}); n += 1) {
+        candidate = `${base}-${n}`;
+    }
+    this.slug = candidate;
+});
 
 ownershipPlugin(ClinicServiceSchema);
 publicMediaPlugin(ClinicServiceSchema, {schemaDef: ClinicServiceSchemaDef});

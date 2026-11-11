@@ -351,81 +351,87 @@ export const patientSheetView: ViewConfig = {
 
 const patientCreateFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
+        render: "#TitleWithCollapse",
+        props: {title: "form.basicsSectionTitle"},
         children: [
             {
-                render: "#Field",
-                field: {
-                    name: "firstName",
-                    widget: "#Input",
-                    label: "form.firstNameLabel",
-                    placeholder: "form.firstNamePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: PATIENT_NAME_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "lastName",
-                    widget: "#Input",
-                    label: "form.lastNameLabel",
-                    placeholder: "form.lastNamePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: PATIENT_NAME_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "dateOfBirth",
-                    widget: "#DateInput",
-                    label: "form.dateOfBirthLabel",
-                    placeholder: "form.dateOfBirthPlaceholder",
-                    widgetProps: {valueFormat: "YYYY-MM-DD"},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "sex",
-                    widget: "#Select",
-                    label: "form.sexLabel",
-                    placeholder: "form.sexPlaceholder",
-                    widgetProps: {
-                        options: sexOptions,
-                        className: "grow w-full",
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "firstName",
+                            widget: "#Input",
+                            label: "form.firstNameLabel",
+                            placeholder: "form.firstNamePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: PATIENT_NAME_MAX},
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "preferredLanguage",
-                    widget: "#Select",
-                    label: "form.preferredLanguageLabel",
-                    placeholder: "form.preferredLanguagePlaceholder",
-                    required: true,
-                    widgetProps: {
-                        options: languageOptions,
-                        className: "grow w-full",
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "lastName",
+                            widget: "#Input",
+                            label: "form.lastNameLabel",
+                            placeholder: "form.lastNamePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: PATIENT_NAME_MAX},
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "source",
-                    widget: "#Select",
-                    label: "form.sourceLabel",
-                    placeholder: "form.sourcePlaceholder",
-                    required: true,
-                    widgetProps: {
-                        options: sourceOptions,
-                        className: "grow w-full",
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "dateOfBirth",
+                            widget: "#DateInput",
+                            label: "form.dateOfBirthLabel",
+                            placeholder: "form.dateOfBirthPlaceholder",
+                            widgetProps: {valueFormat: "YYYY-MM-DD"},
+                        },
                     },
-                },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "sex",
+                            widget: "#Select",
+                            label: "form.sexLabel",
+                            placeholder: "form.sexPlaceholder",
+                            widgetProps: {
+                                options: sexOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "preferredLanguage",
+                            widget: "#Select",
+                            label: "form.preferredLanguageLabel",
+                            placeholder: "form.preferredLanguagePlaceholder",
+                            required: true,
+                            widgetProps: {
+                                options: languageOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "source",
+                            widget: "#Select",
+                            label: "form.sourceLabel",
+                            placeholder: "form.sourcePlaceholder",
+                            required: true,
+                            widgetProps: {
+                                options: sourceOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                ],
             },
         ],
     },
@@ -654,108 +660,115 @@ const patientCreateFormNodes: ViewConfig["nodes"] = [
 
 const patientEditFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
-        permissions: {
-            readAny: [
-                "firstName",
-                "lastName",
-                "dateOfBirth",
-                "sex",
-                "preferredLanguage",
-                "source",
-            ],
-            writeAny: [
-                "firstName",
-                "lastName",
-                "dateOfBirth",
-                "sex",
-                "preferredLanguage",
-                "source",
-            ],
-        },
+        render: "#TitleWithCollapse",
+        props: {title: "form.basicsSectionTitle"},
+        permissions: {readAny: ["firstName", "lastName", "dateOfBirth", "sex", "preferredLanguage", "source"], writeAny: ["firstName", "lastName", "dateOfBirth", "sex", "preferredLanguage", "source"]},
         children: [
             {
-                render: "#Field",
-                permissions: {read: "firstName", write: "firstName"},
-                field: {
-                    name: "firstName",
-                    widget: "#Input",
-                    label: "form.firstNameLabel",
-                    placeholder: "form.firstNamePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: PATIENT_NAME_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "lastName", write: "lastName"},
-                field: {
-                    name: "lastName",
-                    widget: "#Input",
-                    label: "form.lastNameLabel",
-                    placeholder: "form.lastNamePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: PATIENT_NAME_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "dateOfBirth", write: "dateOfBirth"},
-                field: {
-                    name: "dateOfBirth",
-                    widget: "#DateInput",
-                    label: "form.dateOfBirthLabel",
-                    placeholder: "form.dateOfBirthPlaceholder",
-                    widgetProps: {valueFormat: "YYYY-MM-DD"},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "sex", write: "sex"},
-                field: {
-                    name: "sex",
-                    widget: "#Select",
-                    label: "form.sexLabel",
-                    placeholder: "form.sexPlaceholder",
-                    widgetProps: {
-                        options: sexOptions,
-                        className: "grow w-full",
-                    },
-                },
-            },
-            {
-                render: "#Field",
+                render: "#FormGrid",
+                props: {columns: 2},
                 permissions: {
-                    read: "preferredLanguage",
-                    write: "preferredLanguage",
+                    readAny: [
+                        "firstName",
+                        "lastName",
+                        "dateOfBirth",
+                        "sex",
+                        "preferredLanguage",
+                        "source",
+                    ],
+                    writeAny: [
+                        "firstName",
+                        "lastName",
+                        "dateOfBirth",
+                        "sex",
+                        "preferredLanguage",
+                        "source",
+                    ],
                 },
-                field: {
-                    name: "preferredLanguage",
-                    widget: "#Select",
-                    label: "form.preferredLanguageLabel",
-                    placeholder: "form.preferredLanguagePlaceholder",
-                    required: true,
-                    widgetProps: {
-                        options: languageOptions,
-                        className: "grow w-full",
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "firstName", write: "firstName"},
+                        field: {
+                            name: "firstName",
+                            widget: "#Input",
+                            label: "form.firstNameLabel",
+                            placeholder: "form.firstNamePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: PATIENT_NAME_MAX},
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "source", write: "source"},
-                field: {
-                    name: "source",
-                    widget: "#Select",
-                    label: "form.sourceLabel",
-                    placeholder: "form.sourcePlaceholder",
-                    required: true,
-                    widgetProps: {
-                        options: sourceOptions,
-                        className: "grow w-full",
+                    {
+                        render: "#Field",
+                        permissions: {read: "lastName", write: "lastName"},
+                        field: {
+                            name: "lastName",
+                            widget: "#Input",
+                            label: "form.lastNameLabel",
+                            placeholder: "form.lastNamePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: PATIENT_NAME_MAX},
+                        },
                     },
-                },
+                    {
+                        render: "#Field",
+                        permissions: {read: "dateOfBirth", write: "dateOfBirth"},
+                        field: {
+                            name: "dateOfBirth",
+                            widget: "#DateInput",
+                            label: "form.dateOfBirthLabel",
+                            placeholder: "form.dateOfBirthPlaceholder",
+                            widgetProps: {valueFormat: "YYYY-MM-DD"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "sex", write: "sex"},
+                        field: {
+                            name: "sex",
+                            widget: "#Select",
+                            label: "form.sexLabel",
+                            placeholder: "form.sexPlaceholder",
+                            widgetProps: {
+                                options: sexOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {
+                            read: "preferredLanguage",
+                            write: "preferredLanguage",
+                        },
+                        field: {
+                            name: "preferredLanguage",
+                            widget: "#Select",
+                            label: "form.preferredLanguageLabel",
+                            placeholder: "form.preferredLanguagePlaceholder",
+                            required: true,
+                            widgetProps: {
+                                options: languageOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "source", write: "source"},
+                        field: {
+                            name: "source",
+                            widget: "#Select",
+                            label: "form.sourceLabel",
+                            placeholder: "form.sourcePlaceholder",
+                            required: true,
+                            widgetProps: {
+                                options: sourceOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                ],
             },
         ],
     },

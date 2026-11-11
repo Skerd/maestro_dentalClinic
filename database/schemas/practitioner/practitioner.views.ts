@@ -234,97 +234,103 @@ export const practitionerSheetView: ViewConfig = {
 
 const practitionerCreateFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
+        render: "#TitleWithCollapse",
+        props: {title: "form.profileSectionTitle"},
         children: [
             {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "displayName",
+                            widget: "#Input",
+                            label: "form.displayNameLabel",
+                            placeholder: "form.displayNamePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: PRACTITIONER_NAME_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "title",
+                            widget: "#Input",
+                            label: "form.titleLabel",
+                            placeholder: "form.titlePlaceholder",
+                            widgetProps: {maxLength: PRACTITIONER_TITLE_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "role",
+                            widget: "#Select",
+                            label: "form.roleLabel",
+                            placeholder: "form.rolePlaceholder",
+                            required: true,
+                            widgetProps: {
+                                options: roleOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "staffUser",
+                            widget: "#ApiSelect",
+                            label: "form.staffUserLabel",
+                            placeholder: "form.staffUserPlaceholder",
+                            widgetProps: {
+                                apiUrl: "/api/company/users/select",
+                                postBody: {administration: true},
+                                method: "POST",
+                                pageSize: 50,
+                            },
+                        },
+                    },
+                ],
+            },
+            {
                 render: "#Field",
                 field: {
-                    name: "displayName",
-                    widget: "#Input",
-                    label: "form.displayNameLabel",
-                    placeholder: "form.displayNamePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: PRACTITIONER_NAME_MAX},
+                    name: "photo",
+                    widget: "#MediaField",
+                    label: "form.photoLabel",
+                    widgetProps: {mediaType: "image", mode: "single"},
                 },
             },
             {
                 render: "#Field",
                 field: {
-                    name: "title",
-                    widget: "#Input",
-                    label: "form.titleLabel",
-                    placeholder: "form.titlePlaceholder",
-                    widgetProps: {maxLength: PRACTITIONER_TITLE_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "role",
-                    widget: "#Select",
-                    label: "form.roleLabel",
-                    placeholder: "form.rolePlaceholder",
-                    required: true,
+                    name: "bio",
+                    widget: "#Textarea",
+                    label: "form.bioLabel",
+                    placeholder: "form.bioPlaceholder",
                     widgetProps: {
-                        options: roleOptions,
-                        className: "grow w-full",
+                        rows: 5,
+                        maxLength: PRACTITIONER_BIO_MAX,
+                        className:
+                            "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
                     },
                 },
             },
             {
                 render: "#Field",
                 field: {
-                    name: "staffUser",
-                    widget: "#ApiSelect",
-                    label: "form.staffUserLabel",
-                    placeholder: "form.staffUserPlaceholder",
+                    name: "languages",
+                    widget: "#StringArrayInput",
+                    label: "form.languagesLabel",
+                    placeholder: "form.languagesPlaceholder",
                     widgetProps: {
-                        apiUrl: "/api/company/users/select",
-                        postBody: {administration: true},
-                        method: "POST",
-                        pageSize: 50,
+                        removeTooltipKey: "form.removeItem",
+                        maxLength: PRACTITIONER_LANGUAGE_MAX,
                     },
                 },
             },
         ],
-    },
-    {
-        render: "#Field",
-        field: {
-            name: "photo",
-            widget: "#MediaField",
-            label: "form.photoLabel",
-            widgetProps: {mediaType: "image", mode: "single"},
-        },
-    },
-    {
-        render: "#Field",
-        field: {
-            name: "bio",
-            widget: "#Textarea",
-            label: "form.bioLabel",
-            placeholder: "form.bioPlaceholder",
-            widgetProps: {
-                rows: 5,
-                maxLength: PRACTITIONER_BIO_MAX,
-                className:
-                    "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
-            },
-        },
-    },
-    {
-        render: "#Field",
-        field: {
-            name: "languages",
-            widget: "#StringArrayInput",
-            label: "form.languagesLabel",
-            placeholder: "form.languagesPlaceholder",
-            widgetProps: {
-                removeTooltipKey: "form.removeItem",
-                maxLength: PRACTITIONER_LANGUAGE_MAX,
-            },
-        },
     },
     {
         render: "#TitleWithCollapse",
@@ -451,34 +457,40 @@ const practitionerCreateFormNodes: ViewConfig["nodes"] = [
         },
     },
     {
-        render: "#FormGrid",
-        props: {columns: 3},
+        render: "#TitleWithCollapse",
+        props: {title: "form.visibilitySectionTitle"},
         children: [
             {
-                render: "#Field",
-                field: {
-                    name: "isBookable",
-                    widget: "#Switch",
-                    label: "form.isBookableLabel",
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "isActive",
-                    widget: "#Switch",
-                    label: "form.isActiveLabel",
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "sortOrder",
-                    widget: "#Input",
-                    label: "form.sortOrderLabel",
-                    placeholder: "form.sortOrderPlaceholder",
-                    widgetProps: {type: "number", min: 0},
-                },
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "isBookable",
+                            widget: "#Switch",
+                            label: "form.isBookableLabel",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "isActive",
+                            widget: "#Switch",
+                            label: "form.isActiveLabel",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "sortOrder",
+                            widget: "#Input",
+                            label: "form.sortOrderLabel",
+                            placeholder: "form.sortOrderPlaceholder",
+                            widgetProps: {type: "number", min: 0},
+                        },
+                    },
+                ],
             },
         ],
     },
@@ -486,108 +498,115 @@ const practitionerCreateFormNodes: ViewConfig["nodes"] = [
 
 const practitionerEditFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
-        permissions: {
-            readAny: ["displayName", "title", "role", "staffUser"],
-            writeAny: ["displayName", "title", "role", "staffUser"],
-        },
+        render: "#TitleWithCollapse",
+        props: {title: "form.profileSectionTitle"},
+        permissions: {readAny: ["displayName", "title", "role", "staffUser", "photo", "bio", "languages"], writeAny: ["displayName", "title", "role", "staffUser", "photo", "bio", "languages"]},
         children: [
             {
+                render: "#FormGrid",
+                props: {columns: 2},
+                permissions: {
+                    readAny: ["displayName", "title", "role", "staffUser"],
+                    writeAny: ["displayName", "title", "role", "staffUser"],
+                },
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "displayName", write: "displayName"},
+                        field: {
+                            name: "displayName",
+                            widget: "#Input",
+                            label: "form.displayNameLabel",
+                            placeholder: "form.displayNamePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: PRACTITIONER_NAME_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "title", write: "title"},
+                        field: {
+                            name: "title",
+                            widget: "#Input",
+                            label: "form.titleLabel",
+                            placeholder: "form.titlePlaceholder",
+                            widgetProps: {maxLength: PRACTITIONER_TITLE_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "role", write: "role"},
+                        field: {
+                            name: "role",
+                            widget: "#Select",
+                            label: "form.roleLabel",
+                            placeholder: "form.rolePlaceholder",
+                            required: true,
+                            widgetProps: {
+                                options: roleOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "staffUser", write: "staffUser"},
+                        field: {
+                            name: "staffUser",
+                            widget: "#ApiSelect",
+                            label: "form.staffUserLabel",
+                            placeholder: "form.staffUserPlaceholder",
+                            widgetProps: {
+                                apiUrl: "/api/company/users/select",
+                                postBody: {administration: true},
+                                method: "POST",
+                                pageSize: 50,
+                            },
+                        },
+                    },
+                ],
+            },
+            {
                 render: "#Field",
-                permissions: {read: "displayName", write: "displayName"},
+                permissions: {read: "photo", write: "photo"},
                 field: {
-                    name: "displayName",
-                    widget: "#Input",
-                    label: "form.displayNameLabel",
-                    placeholder: "form.displayNamePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: PRACTITIONER_NAME_MAX},
+                    name: "photo",
+                    widget: "#MediaField",
+                    label: "form.photoLabel",
+                    widgetProps: {mediaType: "image", mode: "single"},
                 },
             },
             {
                 render: "#Field",
-                permissions: {read: "title", write: "title"},
+                permissions: {read: "bio", write: "bio"},
                 field: {
-                    name: "title",
-                    widget: "#Input",
-                    label: "form.titleLabel",
-                    placeholder: "form.titlePlaceholder",
-                    widgetProps: {maxLength: PRACTITIONER_TITLE_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "role", write: "role"},
-                field: {
-                    name: "role",
-                    widget: "#Select",
-                    label: "form.roleLabel",
-                    placeholder: "form.rolePlaceholder",
-                    required: true,
+                    name: "bio",
+                    widget: "#Textarea",
+                    label: "form.bioLabel",
+                    placeholder: "form.bioPlaceholder",
                     widgetProps: {
-                        options: roleOptions,
-                        className: "grow w-full",
+                        rows: 5,
+                        maxLength: PRACTITIONER_BIO_MAX,
+                        className:
+                            "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
                     },
                 },
             },
             {
                 render: "#Field",
-                permissions: {read: "staffUser", write: "staffUser"},
+                permissions: {read: "languages", write: "languages"},
                 field: {
-                    name: "staffUser",
-                    widget: "#ApiSelect",
-                    label: "form.staffUserLabel",
-                    placeholder: "form.staffUserPlaceholder",
+                    name: "languages",
+                    widget: "#StringArrayInput",
+                    label: "form.languagesLabel",
+                    placeholder: "form.languagesPlaceholder",
                     widgetProps: {
-                        apiUrl: "/api/company/users/select",
-                        postBody: {administration: true},
-                        method: "POST",
-                        pageSize: 50,
+                        removeTooltipKey: "form.removeItem",
+                        maxLength: PRACTITIONER_LANGUAGE_MAX,
                     },
                 },
             },
         ],
-    },
-    {
-        render: "#Field",
-        permissions: {read: "photo", write: "photo"},
-        field: {
-            name: "photo",
-            widget: "#MediaField",
-            label: "form.photoLabel",
-            widgetProps: {mediaType: "image", mode: "single"},
-        },
-    },
-    {
-        render: "#Field",
-        permissions: {read: "bio", write: "bio"},
-        field: {
-            name: "bio",
-            widget: "#Textarea",
-            label: "form.bioLabel",
-            placeholder: "form.bioPlaceholder",
-            widgetProps: {
-                rows: 5,
-                maxLength: PRACTITIONER_BIO_MAX,
-                className:
-                    "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
-            },
-        },
-    },
-    {
-        render: "#Field",
-        permissions: {read: "languages", write: "languages"},
-        field: {
-            name: "languages",
-            widget: "#StringArrayInput",
-            label: "form.languagesLabel",
-            placeholder: "form.languagesPlaceholder",
-            widgetProps: {
-                removeTooltipKey: "form.removeItem",
-                maxLength: PRACTITIONER_LANGUAGE_MAX,
-            },
-        },
     },
     {
         render: "#TitleWithCollapse",
@@ -721,41 +740,48 @@ const practitionerEditFormNodes: ViewConfig["nodes"] = [
         },
     },
     {
-        render: "#FormGrid",
-        props: {columns: 3},
-        permissions: {
-            readAny: ["isBookable", "isActive", "sortOrder"],
-            writeAny: ["isBookable", "isActive", "sortOrder"],
-        },
+        render: "#TitleWithCollapse",
+        props: {title: "form.visibilitySectionTitle"},
+        permissions: {readAny: ["isBookable", "isActive", "sortOrder"], writeAny: ["isBookable", "isActive", "sortOrder"]},
         children: [
             {
-                render: "#Field",
-                permissions: {read: "isBookable", write: "isBookable"},
-                field: {
-                    name: "isBookable",
-                    widget: "#Switch",
-                    label: "form.isBookableLabel",
+                render: "#FormGrid",
+                props: {columns: 3},
+                permissions: {
+                    readAny: ["isBookable", "isActive", "sortOrder"],
+                    writeAny: ["isBookable", "isActive", "sortOrder"],
                 },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "isActive", write: "isActive"},
-                field: {
-                    name: "isActive",
-                    widget: "#Switch",
-                    label: "form.isActiveLabel",
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "sortOrder", write: "sortOrder"},
-                field: {
-                    name: "sortOrder",
-                    widget: "#Input",
-                    label: "form.sortOrderLabel",
-                    placeholder: "form.sortOrderPlaceholder",
-                    widgetProps: {type: "number", min: 0},
-                },
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "isBookable", write: "isBookable"},
+                        field: {
+                            name: "isBookable",
+                            widget: "#Switch",
+                            label: "form.isBookableLabel",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "isActive", write: "isActive"},
+                        field: {
+                            name: "isActive",
+                            widget: "#Switch",
+                            label: "form.isActiveLabel",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "sortOrder", write: "sortOrder"},
+                        field: {
+                            name: "sortOrder",
+                            widget: "#Input",
+                            label: "form.sortOrderLabel",
+                            placeholder: "form.sortOrderPlaceholder",
+                            widgetProps: {type: "number", min: 0},
+                        },
+                    },
+                ],
             },
         ],
     },

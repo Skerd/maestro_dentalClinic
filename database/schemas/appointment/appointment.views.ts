@@ -465,60 +465,11 @@ export const appointmentCreateFormView: ViewConfig = {
                         {
                             render: "#Field",
                             field: {
-                                name: "patient.firstName",
-                                widget: "#Input",
-                                label: "form.firstNameLabel",
-                                placeholder: "form.firstNamePlaceholder",
-                                required: true,
-                                widgetProps: {
-                                    maxLength: APPOINTMENT_PATIENT_NAME_MAX,
-                                },
-                            },
-                        },
-                        {
-                            render: "#Field",
-                            field: {
-                                name: "patient.lastName",
-                                widget: "#Input",
-                                label: "form.lastNameLabel",
-                                placeholder: "form.lastNamePlaceholder",
-                                required: true,
-                                widgetProps: {
-                                    maxLength: APPOINTMENT_PATIENT_NAME_MAX,
-                                },
-                            },
-                        },
-                        {
-                            render: "#Field",
-                            field: {
-                                name: "patient.email",
-                                widget: "#Input",
-                                label: "form.emailLabel",
-                                placeholder: "form.emailPlaceholder",
-                                required: true,
-                                widgetProps: {type: "email"},
-                            },
-                        },
-                        {
-                            render: "#Field",
-                            field: {
-                                name: "patient.phone",
-                                widget: "#Input",
-                                label: "form.phoneLabel",
-                                placeholder: "form.phonePlaceholder",
-                                required: true,
-                                widgetProps: {
-                                    maxLength: APPOINTMENT_PATIENT_PHONE_MAX,
-                                },
-                            },
-                        },
-                        {
-                            render: "#Field",
-                            field: {
                                 name: "patientRecord",
                                 widget: "#ApiSelect",
                                 label: "form.patientRecordLabel",
                                 placeholder: "form.patientRecordPlaceholder",
+                                description: "form.patientRecordDescription",
                                 widgetProps: {
                                     apiUrl: "/api/dentalClinic/patient/select",
                                     method: "POST",
@@ -542,6 +493,73 @@ export const appointmentCreateFormView: ViewConfig = {
                                     normalizeEmptyToUndefined: true,
                                 },
                             },
+                        },
+                    ],
+                },
+                {
+                    // A picked folder supplies the contact; the new-patient fields show only without one (UX-05).
+                    render: "#FormWhenFieldValueIn",
+                    props: {
+                        watchField: "patientRecord",
+                        whenValues: [""],
+                        clearFields: ["patient.firstName", "patient.lastName", "patient.email", "patient.phone"],
+                    },
+                    children: [
+                        {
+                            render: "#FormGrid",
+                            props: {columns: 2},
+                            children: [
+                                {
+                                    render: "#Field",
+                                    field: {
+                                        name: "patient.firstName",
+                                        widget: "#Input",
+                                        label: "form.firstNameLabel",
+                                        placeholder: "form.firstNamePlaceholder",
+                                        required: true,
+                                        widgetProps: {
+                                            maxLength: APPOINTMENT_PATIENT_NAME_MAX,
+                                        },
+                                    },
+                                },
+                                {
+                                    render: "#Field",
+                                    field: {
+                                        name: "patient.lastName",
+                                        widget: "#Input",
+                                        label: "form.lastNameLabel",
+                                        placeholder: "form.lastNamePlaceholder",
+                                        required: true,
+                                        widgetProps: {
+                                            maxLength: APPOINTMENT_PATIENT_NAME_MAX,
+                                        },
+                                    },
+                                },
+                                {
+                                    render: "#Field",
+                                    field: {
+                                        name: "patient.email",
+                                        widget: "#Input",
+                                        label: "form.emailLabel",
+                                        placeholder: "form.emailPlaceholder",
+                                        required: true,
+                                        widgetProps: {type: "email"},
+                                    },
+                                },
+                                {
+                                    render: "#Field",
+                                    field: {
+                                        name: "patient.phone",
+                                        widget: "#Input",
+                                        label: "form.phoneLabel",
+                                        placeholder: "form.phonePlaceholder",
+                                        required: true,
+                                        widgetProps: {
+                                            maxLength: APPOINTMENT_PATIENT_PHONE_MAX,
+                                        },
+                                    },
+                                },
+                            ],
                         },
                     ],
                 },

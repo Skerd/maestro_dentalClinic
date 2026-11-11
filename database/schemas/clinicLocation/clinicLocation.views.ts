@@ -238,64 +238,56 @@ export const clinicLocationSheetView: ViewConfig = {
 
 const clinicLocationCreateFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
+        render: "#TitleWithCollapse",
+        props: {title: "form.basicsSectionTitle"},
         children: [
             {
-                render: "#Field",
-                field: {
-                    name: "name",
-                    widget: "#Input",
-                    label: "form.nameLabel",
-                    placeholder: "form.namePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: CLINIC_LOCATION_NAME_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "timezone",
-                    widget: "#Input",
-                    label: "form.timezoneLabel",
-                    placeholder: "form.timezonePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: CLINIC_LOCATION_TIMEZONE_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "phone",
-                    widget: "#Input",
-                    label: "form.phoneLabel",
-                    placeholder: "form.phonePlaceholder",
-                    widgetProps: {maxLength: CLINIC_LOCATION_PHONE_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "email",
-                    widget: "#Input",
-                    label: "form.emailLabel",
-                    placeholder: "form.emailPlaceholder",
-                    widgetProps: {type: "email"},
-                },
-            },
-        ],
-    },
-    {
-        render: "#FormGrid",
-        props: {columns: 3},
-        children: [
-            {
-                render: "#Field",
-                field: {
-                    name: "isActive",
-                    widget: "#Switch",
-                    label: "form.isActiveLabel",
-                },
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "name",
+                            widget: "#Input",
+                            label: "form.nameLabel",
+                            placeholder: "form.namePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: CLINIC_LOCATION_NAME_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "timezone",
+                            widget: "#Input",
+                            label: "form.timezoneLabel",
+                            placeholder: "form.timezonePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: CLINIC_LOCATION_TIMEZONE_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "phone",
+                            widget: "#Input",
+                            label: "form.phoneLabel",
+                            placeholder: "form.phonePlaceholder",
+                            widgetProps: {maxLength: CLINIC_LOCATION_PHONE_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "email",
+                            widget: "#Input",
+                            label: "form.emailLabel",
+                            placeholder: "form.emailPlaceholder",
+                            widgetProps: {type: "email"},
+                        },
+                    },
+                ],
             },
         ],
     },
@@ -519,78 +511,89 @@ const clinicLocationCreateFormNodes: ViewConfig["nodes"] = [
             },
         },
     },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.visibilitySectionTitle"},
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "isActive",
+                            widget: "#Switch",
+                            label: "form.isActiveLabel",
+                        },
+                    },
+                ],
+            },
+        ],
+    },
 ];
 
 const clinicLocationEditFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
-        permissions: {
-            readAny: ["name", "timezone", "phone", "email"],
-            writeAny: ["name", "timezone", "phone", "email"],
-        },
+        render: "#TitleWithCollapse",
+        props: {title: "form.basicsSectionTitle"},
+        permissions: {readAny: ["name", "timezone", "phone", "email"], writeAny: ["name", "timezone", "phone", "email"]},
         children: [
             {
-                render: "#Field",
-                permissions: {read: "name", write: "name"},
-                field: {
-                    name: "name",
-                    widget: "#Input",
-                    label: "form.nameLabel",
-                    placeholder: "form.namePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: CLINIC_LOCATION_NAME_MAX},
+                render: "#FormGrid",
+                props: {columns: 2},
+                permissions: {
+                    readAny: ["name", "timezone", "phone", "email"],
+                    writeAny: ["name", "timezone", "phone", "email"],
                 },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "timezone", write: "timezone"},
-                field: {
-                    name: "timezone",
-                    widget: "#Input",
-                    label: "form.timezoneLabel",
-                    placeholder: "form.timezonePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: CLINIC_LOCATION_TIMEZONE_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "phone", write: "phone"},
-                field: {
-                    name: "phone",
-                    widget: "#Input",
-                    label: "form.phoneLabel",
-                    placeholder: "form.phonePlaceholder",
-                    widgetProps: {maxLength: CLINIC_LOCATION_PHONE_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "email", write: "email"},
-                field: {
-                    name: "email",
-                    widget: "#Input",
-                    label: "form.emailLabel",
-                    placeholder: "form.emailPlaceholder",
-                    widgetProps: {type: "email"},
-                },
-            },
-        ],
-    },
-    {
-        render: "#FormGrid",
-        props: {columns: 3},
-        permissions: {readAny: ["isActive"], writeAny: ["isActive"]},
-        children: [
-            {
-                render: "#Field",
-                permissions: {read: "isActive", write: "isActive"},
-                field: {
-                    name: "isActive",
-                    widget: "#Switch",
-                    label: "form.isActiveLabel",
-                },
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "name", write: "name"},
+                        field: {
+                            name: "name",
+                            widget: "#Input",
+                            label: "form.nameLabel",
+                            placeholder: "form.namePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: CLINIC_LOCATION_NAME_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "timezone", write: "timezone"},
+                        field: {
+                            name: "timezone",
+                            widget: "#Input",
+                            label: "form.timezoneLabel",
+                            placeholder: "form.timezonePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: CLINIC_LOCATION_TIMEZONE_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "phone", write: "phone"},
+                        field: {
+                            name: "phone",
+                            widget: "#Input",
+                            label: "form.phoneLabel",
+                            placeholder: "form.phonePlaceholder",
+                            widgetProps: {maxLength: CLINIC_LOCATION_PHONE_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "email", write: "email"},
+                        field: {
+                            name: "email",
+                            widget: "#Input",
+                            label: "form.emailLabel",
+                            placeholder: "form.emailPlaceholder",
+                            widgetProps: {type: "email"},
+                        },
+                    },
+                ],
             },
         ],
     },
@@ -857,6 +860,29 @@ const clinicLocationEditFormNodes: ViewConfig["nodes"] = [
                 ],
             },
         },
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.visibilitySectionTitle"},
+        permissions: {readAny: ["isActive"], writeAny: ["isActive"]},
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 3},
+                permissions: {readAny: ["isActive"], writeAny: ["isActive"]},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "isActive", write: "isActive"},
+                        field: {
+                            name: "isActive",
+                            widget: "#Switch",
+                            label: "form.isActiveLabel",
+                        },
+                    },
+                ],
+            },
+        ],
     },
 ];
 

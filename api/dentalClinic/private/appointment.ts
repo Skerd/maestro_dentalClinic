@@ -1,4 +1,7 @@
 import {ObjectId} from "mongodb";
+import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
+import type {AppointmentPatient} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/appointment/appointment.dto";
+import type {IPatient} from "@dentalClinicModule/database/schemas/patient/patient";
 import {noEditAppointmentFormSchema} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/appointment/noEditAppointment.form.validator";
 import {createCrudRouter} from "@coreModule/api/crudRouterFactory";
 import {appointmentListFormSchema, createAppointmentFormSchema} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/appointment/appointment.form.validators";
@@ -16,6 +19,22 @@ import {notifyPatient} from "@dentalClinicModule/utilities/services/appointmentN
 import {findOrCreatePatient, loadPatientOrThrow} from "@dentalClinicModule/utilities/services/patientRecords";
 
 export const basePath = "/api/dentalClinic/appointment";
+
+/** The contact a booking copies from a picked folder; a folder without email or phone can't be booked from. */
+function folderContact(folder: IPatient, languageCode: string): AppointmentPatient {
+    if (!folder.email || !folder.phone) throw apiValidationException("appointment_patient_folder_incomplete", "", null, languageCode);
+    return {firstName: folder.firstName, lastName: folder.lastName, email: folder.email, phone: folder.phone};
+}
+
+/** The typed contact of a new patient: all four fields, since no folder supplies them. */
+function typedContact(typed: Partial<AppointmentPatient> | undefined, languageCode: string): AppointmentPatient {
+    const firstName = typed?.firstName?.trim();
+    const lastName = typed?.lastName?.trim();
+    const email = typed?.email?.trim();
+    const phone = typed?.phone?.trim();
+    if (!firstName || !lastName || !email || !phone) throw apiValidationException("appointment_patient_contact_required", "", null, languageCode);
+    return {firstName, lastName, email, phone};
+}
 
 /** The "When" quick filter: under way or still to come, on the company's today (GLB-09), or over. */
 async function whenFilter(when: AppointmentWhen | undefined, companyId: ObjectId): Promise<Record<string, unknown>> {
@@ -57,10 +76,11 @@ export const {router} = createCrudRouter({
         const config = await clinicConfigService.getOrCreateForCompany(company._id, ctx);
         const {service, location} = await loadBookingTargets(company._id, params, {languageCode, online: false, session});
         const customerId = params.customer ? new ObjectId(String(params.customer)) : undefined;
-        // Staff pick the folder when they know the patient; otherwise it is found or opened from the contact.
-        const patient = params.patientRecord
-            ? await loadPatientOrThrow(company._id, String(params.patientRecord), ctx)
-            : await findOrCreatePatient({companyId: company._id, accountId: customerId, contact: params.patient, source: "other"}, ctx);
+        // Staff pick the folder when they know the patient, and its contact is used; otherwise the typed contact
+        // is required and a folder is found or opened from it (UX-05: pick before type).
+        const folder = params.patientRecord ? await loadPatientOrThrow(company._id, String(params.patientRecord), ctx) : undefined;
+        const contact = folder ? folderContact(folder, languageCode) : typedContact(params.patient, languageCode);
+        const patient = folder ?? await findOrCreatePatient({companyId: company._id, accountId: customerId, contact, source: "other"}, ctx);
         return buildAppointment(
             {
                 companyId: company._id,
@@ -70,7 +90,7 @@ export const {router} = createCrudRouter({
                 practitionerId: params.practitioner,
                 date: params.date,
                 time: params.time,
-                patient: params.patient,
+                patient: contact,
                 customerId,
                 patientId: patient._id,
                 note: params.note,

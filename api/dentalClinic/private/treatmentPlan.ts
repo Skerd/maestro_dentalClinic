@@ -1,4 +1,6 @@
 import {ObjectId} from "mongodb";
+import type {ClientSession} from "mongoose";
+import {clinicServiceService} from "@dentalClinicModule/database/schemas/clinicService/clinicService.service";
 import {createCrudRouter, type CrudCreateParams} from "@coreModule/api/crudRouterFactory";
 import {buildUpdateDataFromSchemaDef} from "@coreModule/api/buildUpdateDataFromSchemaDef";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
@@ -21,10 +23,28 @@ export const basePath = "/api/dentalClinic/treatmentPlan";
 
 const optionalId = (value: string | undefined) => (value ? new ObjectId(value) : undefined);
 
-type PlanLineInput = {phase: number; kind: ITreatmentPlanLine["kind"]; service?: string; name: string; teeth?: string[]; material?: string; brand?: string; quantity: number; unitPrice: number; discount?: number; warrantyYears?: number};
+type PlanLineInput = {phase: number; kind: ITreatmentPlanLine["kind"]; service?: string; name?: string; teeth?: string[]; material?: string; brand?: string; quantity: number; unitPrice?: number; discount?: number; warrantyYears?: number};
 
-const linesOf = (lines: PlanLineInput[]): ITreatmentPlanLine[] =>
-    lines.map((line) => ({...line, service: optionalId(line.service), teeth: line.teeth ?? []}));
+/**
+ * A line picked from the price list takes the treatment's name and price where they were left empty (UX-05:
+ * the price list fills the line). A line with neither a name nor a price to fall back on is refused.
+ */
+async function linesOf(lines: PlanLineInput[], companyId: ObjectId, languageCode: string, session: ClientSession): Promise<ITreatmentPlanLine[]> {
+    const ids = [...new Set(lines.map((line) => line.service).filter((id): id is string => !!id))];
+    const services = ids.length
+        ? await clinicServiceService.find({_id: {$in: ids.map((id) => new ObjectId(id))}, company: companyId}, {session, languageCode})
+        : [];
+    const byId = new Map(services.map((service) => [String(service._id), service]));
+    return lines.map((line) => {
+        const service = line.service ? byId.get(line.service) : undefined;
+        const listPrice = service?.priceType === "free" ? 0 : service?.priceType === "fixed" || service?.priceType === "from" ? service.price : undefined;
+        const name = line.name?.trim() || service?.name;
+        const unitPrice = line.unitPrice ?? listPrice;
+        if (!name) throw apiValidationException("treatment_plan_line_name_required", "", null, languageCode);
+        if (unitPrice == null) throw apiValidationException("treatment_plan_line_price_required", "", null, languageCode, [name]);
+        return {...line, name, unitPrice, service: optionalId(line.service), teeth: line.teeth ?? []};
+    });
+}
 
 // A plan is edited while it is a draft; once sent it changes only through its actions.
 export const {router} = createCrudRouter({
@@ -50,7 +70,7 @@ export const {router} = createCrudRouter({
         const inquiry = params.inquiry ? await loadPlanInquiry(company._id, params.inquiry, ctx) : undefined;
         const patient = params.patient ? await loadPatientOrThrow(company._id, params.patient, ctx) : undefined;
         const config = await clinicConfigService.getOrCreateForCompany(company._id, ctx);
-        const lines = linesOf(params.lines);
+        const lines = await linesOf(params.lines, company._id, languageCode, session);
         const patientId = patient?._id ?? nestedEntityToRef(inquiry?.patient);
         const decimals = await currencyDecimalPlaces(nestedEntityToRef(config.currency), session);
         const now = new Date();
@@ -81,7 +101,7 @@ export const {router} = createCrudRouter({
         // What it answers and who it is for are fixed once the draft exists.
         delete update.inquiry;
         delete update.patient;
-        const lines = params.lines ? linesOf(params.lines) : params.existing.lines;
+        const lines = params.lines ? await linesOf(params.lines, params.company._id, params.languageCode, params.session) : params.existing.lines;
         if (params.lines) update.lines = lines;
         const decimals = await currencyDecimalPlaces(nestedEntityToRef(params.existing.currency), params.session);
         update.totals = planTotals(lines, params.depositType ?? params.existing.depositType, params.depositValue ?? params.existing.depositValue, decimals);

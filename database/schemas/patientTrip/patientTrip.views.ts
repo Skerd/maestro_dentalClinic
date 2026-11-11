@@ -171,288 +171,327 @@ export const patientTripSheetView: ViewConfig = {
 
 const patientTripCreateFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
+        render: "#TitleWithCollapse",
+        props: {title: "form.whoSectionTitle"},
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "patient",
+                            widget: "#ApiSelect",
+                            label: "form.patientLabel",
+                            placeholder: "form.patientPlaceholder",
+                            required: true,
+                            widgetProps: {apiUrl: "/api/dentalClinic/patient/select", method: "POST", pageSize: 50, normalizeEmptyToUndefined: true},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "plan",
+                            widget: "#ApiSelect",
+                            label: "form.planLabel",
+                            placeholder: "form.planPlaceholder",
+                            widgetProps: {apiUrl: "/api/dentalClinic/treatmentPlan/select", method: "POST", pageSize: 50, normalizeEmptyToUndefined: true},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "phase",
+                            widget: "#Input",
+                            label: "form.phaseLabel",
+                            placeholder: "form.phasePlaceholder",
+                            widgetProps: {type: "number", min: PATIENT_TRIP_PHASE.min, max: PATIENT_TRIP_PHASE.max, step: 1},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "status",
+                            widget: "#Select",
+                            label: "form.statusLabel",
+                            required: true,
+                            widgetProps: {options: statusOptions, className: "grow w-full"},
+                        },
+                    },
+                ],
+            },
+            {render: "#FormAlert", props: {message: "form.planHint"}},
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.travelSectionTitle"},
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "arrivalAt",
+                            widget: "#DateInput",
+                            label: "form.arrivalAtLabel",
+                            placeholder: "form.arrivalAtPlaceholder",
+                            required: true,
+                            widgetProps: {valueFormat: "YYYY-MM-DD HH:mm"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "departureAt",
+                            widget: "#DateInput",
+                            label: "form.departureAtLabel",
+                            placeholder: "form.departureAtPlaceholder",
+                            required: true,
+                            widgetProps: {valueFormat: "YYYY-MM-DD HH:mm"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "arrivalFlight",
+                            widget: "#Input",
+                            label: "form.arrivalFlightLabel",
+                            placeholder: "form.arrivalFlightPlaceholder",
+                            widgetProps: {maxLength: PATIENT_TRIP_FLIGHT_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "departureFlight",
+                            widget: "#Input",
+                            label: "form.departureFlightLabel",
+                            placeholder: "form.departureFlightPlaceholder",
+                            widgetProps: {maxLength: PATIENT_TRIP_FLIGHT_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "companions",
+                            widget: "#Input",
+                            label: "form.companionsLabel",
+                            placeholder: "form.companionsPlaceholder",
+                            widgetProps: {type: "number", min: PATIENT_TRIP_COMPANIONS.min, max: PATIENT_TRIP_COMPANIONS.max, step: 1},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "transfer",
+                            widget: "#Switch",
+                            label: "form.transferLabel",
+                        },
+                    },
+                ],
+            },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.stayNotesSectionTitle"},
         children: [
             {
                 render: "#Field",
                 field: {
-                    name: "patient",
-                    widget: "#ApiSelect",
-                    label: "form.patientLabel",
-                    placeholder: "form.patientPlaceholder",
-                    required: true,
-                    widgetProps: {apiUrl: "/api/dentalClinic/patient/select", method: "POST", pageSize: 50, normalizeEmptyToUndefined: true},
+                    name: "accommodation",
+                    widget: "#Textarea",
+                    label: "form.accommodationLabel",
+                    placeholder: "form.accommodationPlaceholder",
+                    widgetProps: {rows: 2, maxLength: PATIENT_TRIP_ACCOMMODATION_MAX},
                 },
             },
             {
                 render: "#Field",
                 field: {
-                    name: "plan",
-                    widget: "#ApiSelect",
-                    label: "form.planLabel",
-                    placeholder: "form.planPlaceholder",
-                    widgetProps: {apiUrl: "/api/dentalClinic/treatmentPlan/select", method: "POST", pageSize: 50, normalizeEmptyToUndefined: true},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "phase",
-                    widget: "#Input",
-                    label: "form.phaseLabel",
-                    placeholder: "form.phasePlaceholder",
-                    widgetProps: {type: "number", min: PATIENT_TRIP_PHASE.min, max: PATIENT_TRIP_PHASE.max, step: 1},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "status",
-                    widget: "#Select",
-                    label: "form.statusLabel",
-                    required: true,
-                    widgetProps: {options: statusOptions, className: "grow w-full"},
+                    name: "notes",
+                    widget: "#Textarea",
+                    label: "form.notesLabel",
+                    placeholder: "form.notesPlaceholder",
+                    widgetProps: {rows: 3, maxLength: PATIENT_TRIP_NOTES_MAX},
                 },
             },
         ],
-    },
-    {render: "#FormAlert", props: {message: "form.planHint"}},
-    {
-        render: "#FormGrid",
-        props: {columns: 2},
-        children: [
-            {
-                render: "#Field",
-                field: {
-                    name: "arrivalAt",
-                    widget: "#DateInput",
-                    label: "form.arrivalAtLabel",
-                    placeholder: "form.arrivalAtPlaceholder",
-                    required: true,
-                    widgetProps: {valueFormat: "YYYY-MM-DD HH:mm"},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "departureAt",
-                    widget: "#DateInput",
-                    label: "form.departureAtLabel",
-                    placeholder: "form.departureAtPlaceholder",
-                    required: true,
-                    widgetProps: {valueFormat: "YYYY-MM-DD HH:mm"},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "arrivalFlight",
-                    widget: "#Input",
-                    label: "form.arrivalFlightLabel",
-                    placeholder: "form.arrivalFlightPlaceholder",
-                    widgetProps: {maxLength: PATIENT_TRIP_FLIGHT_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "departureFlight",
-                    widget: "#Input",
-                    label: "form.departureFlightLabel",
-                    placeholder: "form.departureFlightPlaceholder",
-                    widgetProps: {maxLength: PATIENT_TRIP_FLIGHT_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "companions",
-                    widget: "#Input",
-                    label: "form.companionsLabel",
-                    placeholder: "form.companionsPlaceholder",
-                    widgetProps: {type: "number", min: PATIENT_TRIP_COMPANIONS.min, max: PATIENT_TRIP_COMPANIONS.max, step: 1},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "transfer",
-                    widget: "#Switch",
-                    label: "form.transferLabel",
-                },
-            },
-        ],
-    },
-    {
-        render: "#Field",
-        field: {
-            name: "accommodation",
-            widget: "#Textarea",
-            label: "form.accommodationLabel",
-            placeholder: "form.accommodationPlaceholder",
-            widgetProps: {rows: 2, maxLength: PATIENT_TRIP_ACCOMMODATION_MAX},
-        },
-    },
-    {
-        render: "#Field",
-        field: {
-            name: "notes",
-            widget: "#Textarea",
-            label: "form.notesLabel",
-            placeholder: "form.notesPlaceholder",
-            widgetProps: {rows: 3, maxLength: PATIENT_TRIP_NOTES_MAX},
-        },
     },
 ];
 
 /** The same fields as create, each gated by the caller's permissions. */
 const patientTripEditFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
+        render: "#TitleWithCollapse",
+        props: {title: "form.whoSectionTitle"},
+        permissions: {readAny: ["patient", "plan", "phase", "status"], writeAny: ["patient", "plan", "phase", "status"]},
         children: [
             {
-                render: "#Field",
-                permissions: {read: "patient", write: "patient"},
-                field: {
-                    name: "patient",
-                    widget: "#ApiSelect",
-                    label: "form.patientLabel",
-                    placeholder: "form.patientPlaceholder",
-                    required: true,
-                    widgetProps: {apiUrl: "/api/dentalClinic/patient/select", method: "POST", pageSize: 50, normalizeEmptyToUndefined: true},
-                },
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "patient", write: "patient"},
+                        field: {
+                            name: "patient",
+                            widget: "#ApiSelect",
+                            label: "form.patientLabel",
+                            placeholder: "form.patientPlaceholder",
+                            required: true,
+                            widgetProps: {apiUrl: "/api/dentalClinic/patient/select", method: "POST", pageSize: 50, normalizeEmptyToUndefined: true},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "plan", write: "plan"},
+                        field: {
+                            name: "plan",
+                            widget: "#ApiSelect",
+                            label: "form.planLabel",
+                            placeholder: "form.planPlaceholder",
+                            widgetProps: {apiUrl: "/api/dentalClinic/treatmentPlan/select", method: "POST", pageSize: 50, normalizeEmptyToUndefined: true},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "phase", write: "phase"},
+                        field: {
+                            name: "phase",
+                            widget: "#Input",
+                            label: "form.phaseLabel",
+                            placeholder: "form.phasePlaceholder",
+                            widgetProps: {type: "number", min: PATIENT_TRIP_PHASE.min, max: PATIENT_TRIP_PHASE.max, step: 1},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "status", write: "status"},
+                        field: {
+                            name: "status",
+                            widget: "#Select",
+                            label: "form.statusLabel",
+                            required: true,
+                            widgetProps: {options: statusOptions, className: "grow w-full"},
+                        },
+                    },
+                ],
             },
-            {
-                render: "#Field",
-                permissions: {read: "plan", write: "plan"},
-                field: {
-                    name: "plan",
-                    widget: "#ApiSelect",
-                    label: "form.planLabel",
-                    placeholder: "form.planPlaceholder",
-                    widgetProps: {apiUrl: "/api/dentalClinic/treatmentPlan/select", method: "POST", pageSize: 50, normalizeEmptyToUndefined: true},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "phase", write: "phase"},
-                field: {
-                    name: "phase",
-                    widget: "#Input",
-                    label: "form.phaseLabel",
-                    placeholder: "form.phasePlaceholder",
-                    widgetProps: {type: "number", min: PATIENT_TRIP_PHASE.min, max: PATIENT_TRIP_PHASE.max, step: 1},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "status", write: "status"},
-                field: {
-                    name: "status",
-                    widget: "#Select",
-                    label: "form.statusLabel",
-                    required: true,
-                    widgetProps: {options: statusOptions, className: "grow w-full"},
-                },
-            },
-        ],
-    },
-    {render: "#FormAlert", props: {message: "form.planHint"}},
-    {
-        render: "#FormGrid",
-        props: {columns: 2},
-        children: [
-            {
-                render: "#Field",
-                permissions: {read: "arrivalAt", write: "arrivalAt"},
-                field: {
-                    name: "arrivalAt",
-                    widget: "#DateInput",
-                    label: "form.arrivalAtLabel",
-                    placeholder: "form.arrivalAtPlaceholder",
-                    required: true,
-                    widgetProps: {valueFormat: "YYYY-MM-DD HH:mm"},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "departureAt", write: "departureAt"},
-                field: {
-                    name: "departureAt",
-                    widget: "#DateInput",
-                    label: "form.departureAtLabel",
-                    placeholder: "form.departureAtPlaceholder",
-                    required: true,
-                    widgetProps: {valueFormat: "YYYY-MM-DD HH:mm"},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "arrivalFlight", write: "arrivalFlight"},
-                field: {
-                    name: "arrivalFlight",
-                    widget: "#Input",
-                    label: "form.arrivalFlightLabel",
-                    placeholder: "form.arrivalFlightPlaceholder",
-                    widgetProps: {maxLength: PATIENT_TRIP_FLIGHT_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "departureFlight", write: "departureFlight"},
-                field: {
-                    name: "departureFlight",
-                    widget: "#Input",
-                    label: "form.departureFlightLabel",
-                    placeholder: "form.departureFlightPlaceholder",
-                    widgetProps: {maxLength: PATIENT_TRIP_FLIGHT_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "companions", write: "companions"},
-                field: {
-                    name: "companions",
-                    widget: "#Input",
-                    label: "form.companionsLabel",
-                    placeholder: "form.companionsPlaceholder",
-                    widgetProps: {type: "number", min: PATIENT_TRIP_COMPANIONS.min, max: PATIENT_TRIP_COMPANIONS.max, step: 1},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "transfer", write: "transfer"},
-                field: {
-                    name: "transfer",
-                    widget: "#Switch",
-                    label: "form.transferLabel",
-                },
-            },
+            {render: "#FormAlert", props: {message: "form.planHint"}},
         ],
     },
     {
-        render: "#Field",
-        permissions: {read: "accommodation", write: "accommodation"},
-        field: {
-            name: "accommodation",
-            widget: "#Textarea",
-            label: "form.accommodationLabel",
-            placeholder: "form.accommodationPlaceholder",
-            widgetProps: {rows: 2, maxLength: PATIENT_TRIP_ACCOMMODATION_MAX},
-        },
+        render: "#TitleWithCollapse",
+        props: {title: "form.travelSectionTitle"},
+        permissions: {readAny: ["arrivalAt", "departureAt", "arrivalFlight", "departureFlight", "companions", "transfer"], writeAny: ["arrivalAt", "departureAt", "arrivalFlight", "departureFlight", "companions", "transfer"]},
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "arrivalAt", write: "arrivalAt"},
+                        field: {
+                            name: "arrivalAt",
+                            widget: "#DateInput",
+                            label: "form.arrivalAtLabel",
+                            placeholder: "form.arrivalAtPlaceholder",
+                            required: true,
+                            widgetProps: {valueFormat: "YYYY-MM-DD HH:mm"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "departureAt", write: "departureAt"},
+                        field: {
+                            name: "departureAt",
+                            widget: "#DateInput",
+                            label: "form.departureAtLabel",
+                            placeholder: "form.departureAtPlaceholder",
+                            required: true,
+                            widgetProps: {valueFormat: "YYYY-MM-DD HH:mm"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "arrivalFlight", write: "arrivalFlight"},
+                        field: {
+                            name: "arrivalFlight",
+                            widget: "#Input",
+                            label: "form.arrivalFlightLabel",
+                            placeholder: "form.arrivalFlightPlaceholder",
+                            widgetProps: {maxLength: PATIENT_TRIP_FLIGHT_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "departureFlight", write: "departureFlight"},
+                        field: {
+                            name: "departureFlight",
+                            widget: "#Input",
+                            label: "form.departureFlightLabel",
+                            placeholder: "form.departureFlightPlaceholder",
+                            widgetProps: {maxLength: PATIENT_TRIP_FLIGHT_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "companions", write: "companions"},
+                        field: {
+                            name: "companions",
+                            widget: "#Input",
+                            label: "form.companionsLabel",
+                            placeholder: "form.companionsPlaceholder",
+                            widgetProps: {type: "number", min: PATIENT_TRIP_COMPANIONS.min, max: PATIENT_TRIP_COMPANIONS.max, step: 1},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "transfer", write: "transfer"},
+                        field: {
+                            name: "transfer",
+                            widget: "#Switch",
+                            label: "form.transferLabel",
+                        },
+                    },
+                ],
+            },
+        ],
     },
     {
-        render: "#Field",
-        permissions: {read: "notes", write: "notes"},
-        field: {
-            name: "notes",
-            widget: "#Textarea",
-            label: "form.notesLabel",
-            placeholder: "form.notesPlaceholder",
-            widgetProps: {rows: 3, maxLength: PATIENT_TRIP_NOTES_MAX},
-        },
+        render: "#TitleWithCollapse",
+        props: {title: "form.stayNotesSectionTitle"},
+        permissions: {readAny: ["accommodation", "notes"], writeAny: ["accommodation", "notes"]},
+        children: [
+            {
+                render: "#Field",
+                permissions: {read: "accommodation", write: "accommodation"},
+                field: {
+                    name: "accommodation",
+                    widget: "#Textarea",
+                    label: "form.accommodationLabel",
+                    placeholder: "form.accommodationPlaceholder",
+                    widgetProps: {rows: 2, maxLength: PATIENT_TRIP_ACCOMMODATION_MAX},
+                },
+            },
+            {
+                render: "#Field",
+                permissions: {read: "notes", write: "notes"},
+                field: {
+                    name: "notes",
+                    widget: "#Textarea",
+                    label: "form.notesLabel",
+                    placeholder: "form.notesPlaceholder",
+                    widgetProps: {rows: 3, maxLength: PATIENT_TRIP_NOTES_MAX},
+                },
+            },
+        ],
     },
 ];
 
