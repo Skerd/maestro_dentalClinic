@@ -66,7 +66,7 @@ const PractitionerSchema = new Schema<IPractitioner>(
             type: SchemaTypes.ObjectId,
             ref: "User",
             refAllowlist: SimpleBlankUserSnippet,
-            dynamicTableConfiguration: {refDisplayKey: ["name", "surname"]},
+            dynamicTableConfiguration: {visible: false, refDisplayKey: ["name", "surname"]},
         },
         displayName: {type: SchemaTypes.String, required: true, trim: true, minlength: 1, maxlength: PRACTITIONER_NAME_MAX},
         title: {type: SchemaTypes.String, trim: true, maxlength: PRACTITIONER_TITLE_MAX},
@@ -116,7 +116,7 @@ const PractitionerSchema = new Schema<IPractitioner>(
         },
         isBookable: {type: SchemaTypes.Boolean, default: true},
         isActive: {type: SchemaTypes.Boolean, default: true},
-        sortOrder: {type: SchemaTypes.Number, default: 0},
+        sortOrder: {type: SchemaTypes.Number, default: 0, dynamicTableConfiguration: {visible: false}},
         bookingVersion: {
             type: SchemaTypes.Number,
             default: 0,

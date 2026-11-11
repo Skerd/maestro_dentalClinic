@@ -46,7 +46,7 @@ export interface IClinicService extends Document, IOwnershipPluginFields, ISoftD
 const ClinicServiceSchema = new Schema<IClinicService>(
     {
         name: {type: SchemaTypes.String, required: true, trim: true, minlength: 1, maxlength: CLINIC_SERVICE_NAME_MAX},
-        slug: {type: SchemaTypes.String, required: true, trim: true, lowercase: true, minlength: 1, maxlength: CLINIC_SERVICE_SLUG_MAX},
+        slug: {type: SchemaTypes.String, required: true, trim: true, lowercase: true, minlength: 1, maxlength: CLINIC_SERVICE_SLUG_MAX, dynamicTableConfiguration: {visible: false}},
         description: {type: SchemaTypes.String, maxlength: CLINIC_SERVICE_DESCRIPTION_MAX, dynamicTableConfiguration: {hideColumn: true}},
         category: {type: SchemaTypes.String, enum: TREATMENT_CATEGORIES, required: true, default: "other"},
         perTooth: {type: SchemaTypes.Boolean, default: false},
@@ -63,7 +63,7 @@ const ClinicServiceSchema = new Schema<IClinicService>(
             dynamicTableConfiguration: {sortable: false, filterable: false, hideColumn: true},
         },
         durationMinutes: {type: SchemaTypes.Number, required: true, ...CLINIC_SERVICE_DURATION_MINUTES},
-        bufferBeforeMinutes: {type: SchemaTypes.Number, default: 0, ...CLINIC_SERVICE_BUFFER_MINUTES},
+        bufferBeforeMinutes: {type: SchemaTypes.Number, default: 0, ...CLINIC_SERVICE_BUFFER_MINUTES, dynamicTableConfiguration: {visible: false}},
         bufferAfterMinutes: {type: SchemaTypes.Number, default: 0, ...CLINIC_SERVICE_BUFFER_MINUTES},
         priceType: {
             type: SchemaTypes.String,
@@ -76,7 +76,7 @@ const ClinicServiceSchema = new Schema<IClinicService>(
         onlineBookable: {type: SchemaTypes.Boolean, default: true},
         isPublic: {type: SchemaTypes.Boolean, default: true},
         isActive: {type: SchemaTypes.Boolean, default: true},
-        sortOrder: {type: SchemaTypes.Number, default: 0},
+        sortOrder: {type: SchemaTypes.Number, default: 0, dynamicTableConfiguration: {visible: false}},
     },
     {accessMode: "loose"},
 );

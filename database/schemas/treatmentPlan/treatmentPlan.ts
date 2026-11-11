@@ -138,7 +138,7 @@ const TreatmentPlanSchema = new Schema<ITreatmentPlan>(
             immutable: true,
             refAllowlist: CurrencySimpleSnippet,
             permissions: NoWritePermission,
-            dynamicTableConfiguration: {refDisplayKey: ["abbreviation"]},
+            dynamicTableConfiguration: {visible: false, refDisplayKey: ["abbreviation"]},
         },
         phases: {
             type: [{

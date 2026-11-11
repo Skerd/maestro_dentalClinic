@@ -107,7 +107,7 @@ const AppointmentSchema = new Schema<IAppointment>(
                 enumTones: {pending: "warning", confirmed: "info", completed: "success", cancelled: "neutral", no_show: "danger"},
             },
         },
-        source: {type: SchemaTypes.String, enum: APPOINTMENT_SOURCES, required: true, immutable: true, permissions: NoWritePermission},
+        source: {type: SchemaTypes.String, enum: APPOINTMENT_SOURCES, required: true, immutable: true, permissions: NoWritePermission, dynamicTableConfiguration: {visible: false}},
         service: {...refField("ClinicService", ClinicServiceSimpleSnippet, ["name"]), immutable: true},
         location: {...refField("ClinicLocation", ClinicLocationSimpleSnippet, ["name"]), immutable: true},
         practitioner: refField("Practitioner", PractitionerSimpleSnippet, ["displayName"]),
@@ -116,7 +116,7 @@ const AppointmentSchema = new Schema<IAppointment>(
             ref: "User",
             refAllowlist: SimpleBlankUserSnippet,
             permissions: NoWritePermission,
-            dynamicTableConfiguration: {refDisplayKey: ["name", "surname"]},
+            dynamicTableConfiguration: {visible: false, refDisplayKey: ["name", "surname"]},
         },
         patientRecord: {
             type: SchemaTypes.ObjectId,
