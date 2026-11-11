@@ -303,7 +303,8 @@ describe("moving an appointment", {timeout: 60000}, () => {
         const stored = await Appointment.findById(body.data.appointment._id);
         expect(String(stored!.practitioner)).toBe(anaId);
         expect(stored!.rescheduleCount).toBe(1);
-        expect(stored!.timeline.at(-1)).toMatchObject({event: "rescheduled"});
+        // The history reads the location's clock, the date once when the day stays the same.
+        expect(stored!.timeline.at(-1)).toMatchObject({event: "rescheduled", note: `${DATE} 09:00 → 09:30`});
         expect(mail.sent.at(-1)).toMatchObject({kind: "rescheduled"});
     }));
 

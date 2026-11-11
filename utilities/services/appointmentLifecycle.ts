@@ -1,6 +1,7 @@
 import {ObjectId} from "mongodb";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
+import {localDateOf, localTimeOf} from "@coreModule/utilities/time/timeWindows";
 import type {AppointmentStatus} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/appointment/appointment.constants";
 import type {IAppointment} from "@dentalClinicModule/database/schemas/appointment/appointment";
 import {clinicConfigService} from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig.service";
@@ -67,6 +68,17 @@ export async function cancelAppointment(appointment: IAppointment, input: Actor 
  * Patients keep their practitioner and must stay before the deadline and inside
  * the online booking rules. Old guest links stop working.
  */
+/**
+ * How a move reads in the history: wall-clock times at the location, the second date only when the day changed, and
+ * the dentists when they changed ("2026-11-11 10:00 → 11:15 · Dr. Shehu → Dr. Rossi").
+ */
+export function moveNote(from: Date, to: Date, timeZone: string, fromDentist: string | undefined, toDentist: string): string {
+    const fromDay = localDateOf(from, timeZone);
+    const toDay = localDateOf(to, timeZone);
+    const times = `${fromDay} ${localTimeOf(from, timeZone)} → ${toDay === fromDay ? "" : `${toDay} `}${localTimeOf(to, timeZone)}`;
+    return fromDentist && fromDentist !== toDentist ? `${times} · ${fromDentist} → ${toDentist}` : times;
+}
+
 export async function rescheduleAppointment(
     appointment: IAppointment,
     input: Actor & {date: string; time: string; practitionerId?: string},
@@ -102,13 +114,14 @@ export async function rescheduleAppointment(
         ctx,
     );
 
-    const from = appointment.startAt.toISOString();
+    const fromStart = appointment.startAt;
+    const fromDentist = appointment.snapshot.practitionerName;
     Object.assign(appointment, scheduledFields(service, practitioner, start));
     appointment.snapshot.practitionerName = practitioner.displayName;
     appointment.rescheduleCount += 1;
     appointment.reminderSentAt = undefined;
     appointment.manageTokenVersion += 1;
-    appointment.timeline.push({event: "rescheduled", at: now, by: byOf(input.userId), note: `${from} → ${start.toISOString()}`});
+    appointment.timeline.push({event: "rescheduled", at: now, by: byOf(input.userId), note: moveNote(fromStart, start, location.timezone, fromDentist, practitioner.displayName)});
     await appointment.save({session: ctx.session});
     await notifyPatient("rescheduled", appointment, ctx);
 }
