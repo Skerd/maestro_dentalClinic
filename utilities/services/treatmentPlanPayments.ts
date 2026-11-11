@@ -1,5 +1,4 @@
 import type {ObjectId} from "mongodb";
-import type {ClientSession} from "mongoose";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import type {TreatmentPlanPaymentStatus} from "armonia/src/modules/dentalClinic/constants";
 import {DEFAULT_DECIMAL_PLACES, minorToNumber, roundToCurrency, subtractMoney, toMinor, type MoneyInput} from "armonia/src/modules/core/helpers/money";
@@ -43,12 +42,16 @@ export function onlinePaymentAvailable(): boolean {
     return Boolean(PAYMENTS.STRIPE_ENABLED && getPaymentAdapter("stripe")?.isEnabled());
 }
 
-/** The plan currency: its lowercase code for the gateway and its `decimalPlaces` (TD-B38). */
-async function planCurrency(plan: ITreatmentPlan, session: ClientSession): Promise<{code: string; decimalPlaces: number}> {
-    const currency = await currencyService.findById(nestedEntityToRef(plan.currency), {session: session}, undefined, "abbreviation decimalPlaces");
+/**
+ * The plan currency: its lowercase code for the gateway and its `decimalPlaces` (TD-B38).
+ * A plan always carries the clinic's currency; a missing one is refused rather than guessed (GLB-08).
+ */
+async function planCurrency(plan: ITreatmentPlan, ctx: ClinicCtx): Promise<{code: string; decimalPlaces: number}> {
+    const currency = await currencyService.findById(nestedEntityToRef(plan.currency), {session: ctx.session}, undefined, "abbreviation decimalPlaces");
+    if (!currency?.abbreviation) throw apiValidationException("clinic_currency_not_configured", "", null, ctx.languageCode);
     return {
-        code: (currency?.abbreviation ?? "eur").toLowerCase(),
-        decimalPlaces: currency?.decimalPlaces ?? DEFAULT_DECIMAL_PLACES,
+        code: currency.abbreviation.toLowerCase(),
+        decimalPlaces: currency.decimalPlaces ?? DEFAULT_DECIMAL_PLACES,
     };
 }
 
@@ -57,8 +60,8 @@ function paidAfter(plan: ITreatmentPlan, amount: MoneyInput, decimalPlaces: numb
     return minorToNumber(toMinor(plan.amountPaid ?? 0, decimalPlaces) + toMinor(amount, decimalPlaces), decimalPlaces);
 }
 
-async function planSource(plan: ITreatmentPlan, session: ClientSession): Promise<PaymentSource> {
-    const currency = await planCurrency(plan, session);
+async function planSource(plan: ITreatmentPlan, ctx: ClinicCtx): Promise<PaymentSource> {
+    const currency = await planCurrency(plan, ctx);
     return {
         sourceType: "treatmentPlan",
         sourceId: plan._id,
@@ -88,7 +91,7 @@ async function notifyPaid(plan: ITreatmentPlan, ctx: ClinicCtx): Promise<void> {
  */
 export async function startDepositPayment(plan: ITreatmentPlan, ctx: ClinicCtx): Promise<{clientSecret: string; amount: number}> {
     assertAccepted(plan, ctx.languageCode);
-    const source = await planSource(plan, ctx.session);
+    const source = await planSource(plan, ctx);
     const amount = depositDue(plan, source.decimalPlaces);
     if (amount <= 0) throw apiValidationException("treatment_plan_nothing_to_pay", "", null, ctx.languageCode);
     const adapter = getPaymentAdapter("stripe");
@@ -130,7 +133,7 @@ export async function settleDepositPayment(plan: ITreatmentPlan, intent: Settled
     if (plan.stripePaymentIntentId !== intent.id) return;
     const charge = await paymentTransactionService.findOne({gatewayTransactionId: intent.id, type: "charge"}, {session: ctx.session});
     const adapter = getPaymentAdapter("stripe");
-    const currency = await planCurrency(plan, ctx.session);
+    const currency = await planCurrency(plan, ctx);
     if (!charge || !adapter || adapter.toMinorUnits(charge.amount, currency.code, currency.decimalPlaces) !== intent.amountMinor
         || (intent.currencyCode && intent.currencyCode.toLowerCase() !== currency.code)) {
         ctx.logger.err(`Deposit payment ${intent.id} does not match plan ${plan.number}; left for staff to review`);
@@ -160,7 +163,7 @@ export async function recordClinicPayment(
     now = new Date(),
 ): Promise<void> {
     assertAccepted(plan, ctx.languageCode);
-    const source = await planSource(plan, ctx.session);
+    const source = await planSource(plan, ctx);
     const decimals = source.decimalPlaces ?? DEFAULT_DECIMAL_PLACES;
     const due = amountDue(plan, decimals);
     // Compared in the currency's minor units: a fixed tolerance would let a 3-decimal currency overpay.
@@ -181,7 +184,7 @@ export async function refundPlanPayments(
     ctx: ClinicCtx,
 ): Promise<number> {
     const paid = plan.amountPaid ?? 0;
-    const source = await planSource(plan, ctx.session);
+    const source = await planSource(plan, ctx);
     const decimals = source.decimalPlaces ?? DEFAULT_DECIMAL_PLACES;
     if (toMinor(input.amount, decimals) > toMinor(paid, decimals)) {
         throw apiValidationException("treatment_plan_refund_exceeds_paid", "", null, ctx.languageCode, [String(paid)]);

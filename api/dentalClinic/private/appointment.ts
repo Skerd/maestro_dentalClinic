@@ -1,7 +1,10 @@
 import {ObjectId} from "mongodb";
 import {noEditAppointmentFormSchema} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/appointment/noEditAppointment.form.validator";
 import {createCrudRouter} from "@coreModule/api/crudRouterFactory";
-import {createAppointmentFormSchema} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/appointment/appointment.form.validators";
+import {appointmentListFormSchema, createAppointmentFormSchema} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/appointment/appointment.form.validators";
+import type {AppointmentWhen} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/appointment/appointment.constants";
+import {companyTodayOf, companyTimeZoneOf} from "@coreModule/utilities/time/companyTimeZone";
+import {localDayInterval} from "@coreModule/utilities/time/timeWindows";
 import Appointment from "@dentalClinicModule/database/schemas/appointment/appointment";
 import {appointmentService} from "@dentalClinicModule/database/schemas/appointment/appointment.service";
 import {AppointmentActions} from "@dentalClinicModule/database/schemas/appointment/appointment.actions";
@@ -13,6 +16,16 @@ import {notifyPatient} from "@dentalClinicModule/utilities/services/appointmentN
 import {findOrCreatePatient, loadPatientOrThrow} from "@dentalClinicModule/utilities/services/patientRecords";
 
 export const basePath = "/api/dentalClinic/appointment";
+
+/** The "When" quick filter: under way or still to come, on the company's today (GLB-09), or over. */
+async function whenFilter(when: AppointmentWhen | undefined, companyId: ObjectId): Promise<Record<string, unknown>> {
+    if (!when) return {};
+    const now = new Date();
+    if (when === "upcoming") return {endAt: {$gt: now}};
+    if (when === "past") return {endAt: {$lte: now}};
+    const day = localDayInterval(await companyTodayOf(companyId, {now}), await companyTimeZoneOf(companyId));
+    return {startAt: {$gte: day.start, $lt: day.end}};
+}
 
 // Appointments are immutable after create — every change goes through AppointmentActions.
 // editSchema/buildUpdateData are stubs required by createCrudRouter; PATCH is a no-op.
@@ -29,8 +42,12 @@ export const {router} = createCrudRouter({
     selectSearchField: "number",
     defaultSort: {startAt: -1},
     actions: AppointmentActions,
+    listSchema: appointmentListFormSchema,
     // A dentist linked to a profile sees only their own appointments.
-    extraListFilter: ({company, actionUserCtx}: any) => appointmentScopeFilter(company._id, actionUserCtx),
+    extraListFilter: async ({company, actionUserCtx, when}: any) => ({
+        ...(await appointmentScopeFilter(company._id, actionUserCtx)),
+        ...(await whenFilter(when, company._id)),
+    }),
     extraSelectFilter: ({company, actionUserCtx}: any) => appointmentScopeFilter(company._id, actionUserCtx),
     documentFilter: async ({company, actionUserCtx}: any) => ({company: company._id, ...(await appointmentScopeFilter(company._id, actionUserCtx))}),
     /** Staff booking: the same free-time checks and practitioner lock as online, without the online notice rules. */
