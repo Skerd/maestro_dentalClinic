@@ -1,6 +1,6 @@
 import {registerPortalProvider} from "@coreModule/domain/portal/portalProviderRegistry";
 import type {PortalBrowseParams} from "@coreModule/domain/portal/portalProvider.types";
-import {catalogItems, configCurrencies, priceRange} from "@coreModule/domain/portal/portalCatalog";
+import {catalogItems, configCurrencies, priceRange, samePriceCurrencyCompanies} from "@coreModule/domain/portal/portalCatalog";
 import {addressCitiesByCompany, portalListedCompanyIds, type PortalScope} from "@coreModule/utilities/marketing/portalCompanies";
 import {escapeRegex} from "@coreModule/utilities/helpers";
 import {publicMediaUrl} from "@coreModule/utilities/media/publicMediaUrl";
@@ -21,15 +21,17 @@ export function clinicPortalCompanyIds(scope: PortalScope) {
 const SERVICE_SORTS = {newest: {createdAt: -1}, priceAsc: {price: 1}, priceDesc: {price: -1}} as const;
 
 /** Public treatments of these clinics; each opens the booking wizard on it. */
-async function browseTreatments({companyIds, query, priceMin, priceMax, sort, skip, limit}: PortalBrowseParams) {
-    const clause: Record<string, unknown> = {company: {$in: companyIds}, isActive: true, isPublic: true, deletedAt: null};
+async function browseTreatments({companyIds, query, priceMin, priceMax, sort, filters, skip, limit}: PortalBrowseParams) {
+    const currencies = await configCurrencies(ClinicConfig, companyIds);
+    // Prices are compared only between clinics charging in one currency.
+    const comparable = samePriceCurrencyCompanies(companyIds, currencies, {priceMin, priceMax, sort, filters});
+    const clause: Record<string, unknown> = {company: {$in: comparable}, isActive: true, isPublic: true, deletedAt: null};
     if (query) clause.name = {$regex: escapeRegex(query), $options: "i"};
     const price = priceRange(priceMin, priceMax);
     if (price) clause.price = price;
-    const [services, total, currencies] = await Promise.all([
+    const [services, total] = await Promise.all([
         clinicServiceService.findPortalCards(clause, SERVICE_SORTS[sort ?? "newest"], skip, limit),
         clinicServiceService.count(clause),
-        configCurrencies(ClinicConfig, companyIds),
     ]);
     const items = await catalogItems(services, (service) => {
         const currency = currencies.get(service.company.toString());
