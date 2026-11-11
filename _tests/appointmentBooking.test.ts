@@ -331,5 +331,7 @@ describe("patient folders", {timeout: 60000}, () => {
         expect(booked.status).toBe(200);
         const stored = await Appointment.findById(booked.body._id);
         expect(stored!.patient.email).toBe("folder@example.com");
+        // The history names the visit's time, at the location's clock.
+        expect(stored!.timeline[0]).toMatchObject({event: "created", note: `${DATE} 09:00`});
     }));
 });

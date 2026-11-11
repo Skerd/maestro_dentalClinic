@@ -5,7 +5,7 @@ import {apiValidationException} from "armonia/src/modules/core/helpers/exception
 import type {serverLogger} from "@coreModule/loggers/serverLog";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {formatPostalAddress} from "@coreModule/utilities/helpers/postalAddress";
-import {localDateOf, localDayInterval, localToUtc} from "@coreModule/utilities/time/timeWindows";
+import {localDateOf, localDayInterval, localTimeOf, localToUtc} from "@coreModule/utilities/time/timeWindows";
 import type {CreateInput} from "@coreModule/database/services/baseCrudService";
 import type {IClinicConfig} from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig";
 import {type IClinicLocation} from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation";
@@ -204,7 +204,11 @@ export async function buildAppointment(input: CreateAppointmentInput, ctx: Clini
         policy: {cancellationDeadlineHours: config.cancellationDeadlineHours, rescheduleDeadlineHours: config.rescheduleDeadlineHours},
         ...(input.consentAt ? {consent: {version: config.privacyNoticeVersion, at: input.consentAt}} : {}),
         idempotencyKey,
-        timeline: [{event: "created", at: now}, ...(confirmed ? [{event: "confirmed" as const, at: now}] : [])],
+        // The booking records the time it is for, so the history says when the visit is, not only when it was booked.
+        timeline: [
+            {event: "created", at: now, note: `${localDateOf(start, location.timezone)} ${localTimeOf(start, location.timezone)}`},
+            ...(confirmed ? [{event: "confirmed" as const, at: now}] : []),
+        ],
         rescheduleCount: 0,
         manageTokenVersion: 1,
     };

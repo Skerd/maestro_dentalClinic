@@ -326,7 +326,8 @@ export const appointmentSheetView: ViewConfig = {
                                             entityCards: true,
                                             columns: 2,
                                             sortField: "at",
-                                            compactSummaryFields: ["event", "at"],
+                                            // What happened, the visit's time it names (booked for / moved from → to), then when.
+                                            compactSummaryFields: ["event", "note", "at"],
                                             compactSummaryJoinSeparator: " · ",
                                             fields: [
                                                 {name: "event", type: "text", languageKeyCategory: "timelineEvent", labelKey: "event", className: "text-sm font-medium", icon: "#IconHistory"},
