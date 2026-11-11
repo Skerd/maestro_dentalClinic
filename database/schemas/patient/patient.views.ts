@@ -232,8 +232,11 @@ export const patientSheetView: ViewConfig = {
                                             compactRow: {
                                                 icon: "#IconCalendarEvent",
                                                 label: "appointmentsGroup",
-                                                valuePath: ["number", "snapshot.serviceName", "status"],
-                                                valueLanguageKeyCategories: [null, null, "appointmentStatus"],
+                                                // When, what, with whom, how it stands; the code stays on the opened sheet.
+                                                labelPath: "startAt",
+                                                labelFormat: "dateTime",
+                                                valuePath: ["snapshot.serviceName", "snapshot.practitionerName", "snapshot.locationName", "status"],
+                                                valueLanguageKeyCategories: [null, null, null, "appointmentStatus"],
                                                 joinSeparator: " · ",
                                                 linkedSheetModel: "appointments",
                                                 linkedSheetWidget: "#AppointmentSheetView",
@@ -276,8 +279,10 @@ export const patientSheetView: ViewConfig = {
                                             compactRow: {
                                                 icon: "#IconFileInvoice",
                                                 label: "plansGroup",
-                                                valuePath: ["number", "optionLabel", "status"],
-                                                valueLanguageKeyCategories: [null, null, "planStatus"],
+                                                labelPath: "optionLabel",
+                                                valuePath: ["totals.total", "status"],
+                                                valueFormats: [{money: "currency"}, null],
+                                                valueLanguageKeyCategories: [null, "planStatus"],
                                                 joinSeparator: " · ",
                                                 linkedSheetModel: "treatmentplans",
                                                 linkedSheetWidget: "#TreatmentPlanSheetView",
@@ -320,7 +325,10 @@ export const patientSheetView: ViewConfig = {
                                             compactRow: {
                                                 icon: "#IconPlane",
                                                 label: "tripsGroup",
-                                                valuePath: ["plan.number", "status"],
+                                                // The stay as the title (arrival → departure), then where and how it stands.
+                                                labelPath: ["arrivalAt", "departureAt"],
+                                                labelFormat: "dateTime",
+                                                valuePath: ["accommodation", "status"],
                                                 valueLanguageKeyCategories: [null, "tripStatus"],
                                                 joinSeparator: " · ",
                                                 linkedSheetModel: "patienttrips",
@@ -364,8 +372,11 @@ export const patientSheetView: ViewConfig = {
                                             compactRow: {
                                                 icon: "#IconMessageQuestion",
                                                 label: "inquiriesGroup",
-                                                valuePath: ["number", "status"],
-                                                valueLanguageKeyCategories: [null, "inquiryStatus"],
+                                                labelPath: "createdAt",
+                                                labelFormat: "date",
+                                                valuePath: ["treatmentsWanted", "budget", "status"],
+                                                valueFormats: [null, {money: "budgetCurrency"}, null],
+                                                valueLanguageKeyCategories: ["treatmentWanted", null, "inquiryStatus"],
                                                 joinSeparator: " · ",
                                                 linkedSheetModel: "clinicinquiries",
                                                 linkedSheetWidget: "#ClinicInquirySheetView",
