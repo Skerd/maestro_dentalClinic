@@ -287,7 +287,9 @@ describe("the panel's day view (P8.6)", {timeout: 60000}, () => {
         expect(centre.opening).toHaveLength(1);
         expect(centre.practitioners.map((p: {displayName: string}) => p.displayName).sort()).toEqual(["Dr. Ana", "Dr. Ben"]);
         expect(all.body.data.locations.find((entry: {_id: string}) => entry._id === second._id.toString()).practitioners).toEqual([]);
-        expect(all.body.data.appointments).toEqual([expect.objectContaining({locationId, practitionerId: anaId})]);
+        expect(all.body.data.appointments).toEqual([expect.objectContaining({locationId, practitionerId: anaId, serviceId})]);
+        // Each dentist says which treatments they do, so a drag can tell whether they could take the appointment.
+        expect(centre.practitioners.map((p: {serviceIds: string[]}) => p.serviceIds)).toEqual([[serviceId], [serviceId]]);
 
         const one = await dayView({date: DATE, location: locationId});
         expect(one.body.data.locations.map((entry: {_id: string}) => entry._id)).toEqual([locationId]);
