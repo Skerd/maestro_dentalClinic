@@ -18,10 +18,10 @@ export class ClinicServiceService extends BaseCrudService<IClinicService, typeof
     /** One page of treatment cards for the portal. */
     findPortalCards(filter: FilterQuery<IClinicService>, sort: Record<string, SortOrder>, skip: number, limit: number) {
         return this.model.find(filter)
-            .select("company name images price priceType")
+            .select("company name slug images price priceType")
             .sort(sort)
             .skip(skip).limit(limit)
-            .lean<{_id: ObjectId; company: ObjectId; name: string; images?: ObjectId[]; price?: number; priceType: ClinicServicePriceType}[]>();
+            .lean<{_id: ObjectId; company: ObjectId; name: string; slug?: string; images?: ObjectId[]; price?: number; priceType: ClinicServicePriceType}[]>();
     }
 }
 

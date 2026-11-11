@@ -44,7 +44,7 @@ async function browseTreatments({companyIds, query, priceMin, priceMax, sort, fi
             image: publicMediaUrl(service.images?.[0]),
             ...(priced && service.price != null && currency ? {price: {amount: service.price, currency, from: service.priceType === "from"}} : {}),
             section: "dentalClinic",
-            path: `/treatments/${service._id.toString()}`,
+            path: `/treatments/${service.slug || service._id.toString()}`,
         };
     });
     return {items, total};

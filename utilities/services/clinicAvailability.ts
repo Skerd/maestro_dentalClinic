@@ -194,7 +194,8 @@ export async function isStartFree(input: {
     return fitsWorkingTime(start, work, busy, service);
 }
 
-export type DaySlots = {date: string; slots: {time: string; startAt: string; practitioners: string[]}[]};
+/** `closed`: nobody who does the treatment works that day (a day off or a closure), as opposed to a full or past day. */
+export type DaySlots = {date: string; closed: boolean; slots: {time: string; startAt: string; practitioners: string[]}[]};
 
 /** Free online start times per local day, merged across the candidates ("anyone" lists everyone free). */
 export async function availableSlots(input: {
@@ -216,9 +217,12 @@ export async function availableSlots(input: {
         : new Map<string, TimeInterval[]>();
 
     const byStart = new Map<number, string[]>();
+    const working: TimeInterval[] = [];
     for (const practitioner of practitioners) {
         const id = String(practitioner._id);
-        for (const start of slotStarts(workingIntervals(practitioner, location, range), busy.get(id) ?? [], service, rules, now)) {
+        const work = workingIntervals(practitioner, location, range);
+        working.push(...work);
+        for (const start of slotStarts(work, busy.get(id) ?? [], service, rules, now)) {
             const ids = byStart.get(start.getTime()) ?? [];
             ids.push(id);
             byStart.set(start.getTime(), ids);
@@ -226,7 +230,11 @@ export async function availableSlots(input: {
     }
 
     const result: DaySlots[] = [];
-    for (let i = 0; i < days; i++) result.push({date: addLocalDays(fromDate, i), slots: []});
+    for (let i = 0; i < days; i++) {
+        const date = addLocalDays(fromDate, i);
+        const day = localDayInterval(date, timeZone);
+        result.push({date, closed: !working.some((interval) => overlaps(interval, day)), slots: []});
+    }
     const byDate = new Map(result.map((day) => [day.date, day]));
     for (const time of [...byStart.keys()].sort((a, b) => a - b)) {
         const start = new Date(time);
