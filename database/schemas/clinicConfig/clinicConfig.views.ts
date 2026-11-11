@@ -47,7 +47,6 @@ export const clinicConfigEditFormView: ViewConfig = {
                     "listedOnPortal",
                     "guestBookingAllowed",
                     "requireStaffConfirmation",
-                    "currency",
                     "slotIntervalMinutes",
                     "minNoticeHours",
                     "maxAdvanceDays",
@@ -60,7 +59,6 @@ export const clinicConfigEditFormView: ViewConfig = {
                     "listedOnPortal",
                     "guestBookingAllowed",
                     "requireStaffConfirmation",
-                    "currency",
                     "slotIntervalMinutes",
                     "minNoticeHours",
                     "maxAdvanceDays",
@@ -120,22 +118,6 @@ export const clinicConfigEditFormView: ViewConfig = {
                                 name: "requireStaffConfirmation",
                                 widget: "#Switch",
                                 label: "form.requireStaffConfirmationLabel",
-                            },
-                        },
-                        {
-                            render: "#Field",
-                            permissions: {read: "currency", write: "currency"},
-                            field: {
-                                name: "currency",
-                                widget: "#ApiSelect",
-                                label: "form.currencyLabel",
-                                placeholder: "form.currencyPlaceholder",
-                                required: true,
-                                widgetProps: {
-                                    apiUrl: "/api/finance/currency/select",
-                                    method: "POST",
-                                    pageSize: 50,
-                                },
                             },
                         },
                         {
@@ -253,6 +235,37 @@ export const clinicConfigEditFormView: ViewConfig = {
                                     type: "number",
                                     min: CLINIC_NO_SHOW_GRACE_MINUTES.min,
                                     max: CLINIC_NO_SHOW_GRACE_MINUTES.max,
+                                },
+                            },
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            // Its own page: the currency is not a booking detail, it prices every treatment, quote and payment.
+            render: "#TitleWithCollapse",
+            props: {title: "form.pricesSectionTitle", skipRenderWhenFormExtraNotTruthy: "sectionPrices"},
+            permissions: {readAny: ["currency"], writeAny: ["currency"]},
+            children: [
+                {
+                    render: "#FormGrid",
+                    props: {columns: 2},
+                    children: [
+                        {
+                            render: "#Field",
+                            permissions: {read: "currency", write: "currency"},
+                            field: {
+                                name: "currency",
+                                widget: "#ApiSelect",
+                                label: "form.currencyLabel",
+                                placeholder: "form.currencyPlaceholder",
+                                description: "form.currencyDescription",
+                                required: true,
+                                widgetProps: {
+                                    apiUrl: "/api/finance/currency/select",
+                                    method: "POST",
+                                    pageSize: 50,
                                 },
                             },
                         },

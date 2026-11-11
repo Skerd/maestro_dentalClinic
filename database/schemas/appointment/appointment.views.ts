@@ -266,7 +266,11 @@ export const appointmentSheetView: ViewConfig = {
                                 label: "price",
                                 widgetProps: {
                                     icon: "#IconCash",
-                                    type: "number",
+                                    format: "locale",
+                                    // The currency the booking was priced in, never the clinic's current one (UX-07).
+                                    valuePath: ["currency.symbol", "snapshot.price"],
+                                    joinSeparator: " ",
+                                    type: "currency",
                                 },
                             },
                         },

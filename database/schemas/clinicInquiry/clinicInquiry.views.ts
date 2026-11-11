@@ -117,18 +117,12 @@ export const clinicInquirySheetView: ViewConfig = {
                                 label: "budget",
                                 widgetProps: {
                                     icon: "#IconCash",
-                                    type: "number",
+                                    format: "locale",
+                                    // Amount and currency in one card (UX-07).
+                                    valuePath: ["budgetCurrency.symbol", "budget"],
+                                    joinSeparator: " ",
+                                    type: "currency",
                                 },
-                            },
-                        },
-                        {
-                            render: "#DisplayCard",
-                            permissions: {read: "budgetCurrency"},
-                            field: {
-                                name: "budgetCurrency.abbreviation",
-                                widget: "#DisplayCard",
-                                label: "budgetCurrency",
-                                widgetProps: {icon: "#IconCurrencyEuro"},
                             },
                         },
                         {

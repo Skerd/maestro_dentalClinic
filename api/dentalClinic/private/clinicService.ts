@@ -11,6 +11,9 @@ import {clinicServiceService} from "@dentalClinicModule/database/schemas/clinicS
 import {clinicServiceToDTO, clinicServicesToDTO} from "@dentalClinicModule/utilities/mappers/clinicService/clinicServiceMapper.dto";
 import {clinicServicesToSelect} from "@dentalClinicModule/utilities/mappers/clinicService/clinicServiceMapper.select";
 import {ClinicServiceActions} from "@dentalClinicModule/database/schemas/clinicService/clinicService.actions";
+import {clinicConfigService} from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig.service";
+import type {IClinicService} from "@dentalClinicModule/database/schemas/clinicService/clinicService";
+import type {ObjectId} from "mongodb";
 
 const mediaUpload = mediaUploadMW({
     fields: {images: 8, videos: 3},
@@ -32,6 +35,13 @@ function assertPrice(data: {priceType?: string; price?: number}, existing: {pric
 
 export const basePath = "/api/dentalClinic/clinicService";
 
+/** Treatments with the clinic currency their prices are in (none yet when the clinic settings were never opened). */
+async function withClinicCurrency(docs: IClinicService[], companyId: ObjectId, languageCode: string) {
+    const config = await clinicConfigService.findForCompany(companyId, {languageCode});
+    const currency = config ? await clinicConfigService.currencyOf(config, languageCode) : undefined;
+    return clinicServicesToDTO(docs).map((service) => (currency ? {...service, currency} : service));
+}
+
 export const {router} = createCrudRouter({
     collectionName: "clinicservices",
     model: ClinicService,
@@ -45,6 +55,9 @@ export const {router} = createCrudRouter({
     defaultSort: {sortOrder: 1, name: 1},
     extraSelectFilter: () => ({isActive: true}),
     actions: ClinicServiceActions,
+    enrichList: (docs, params) => withClinicCurrency(docs, params.company._id, params.languageCode),
+    enrichSingle: async (doc, params: any) => (await withClinicCurrency([doc], params.company._id, params.languageCode))[0],
+    enrichUpdate: async (doc, params: any) => (await withClinicCurrency([doc], params.company._id, params.languageCode))[0],
     createMiddleware: [mediaUpload],
     editMiddleware: [mediaUpload],
     buildCreateData: (params: any) => {

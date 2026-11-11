@@ -157,7 +157,11 @@ export const clinicServiceSheetView: ViewConfig = {
                                 label: "price",
                                 widgetProps: {
                                     icon: "#IconCash",
-                                    type: "number",
+                                    format: "locale",
+                                    // The clinic currency, added by the route (UX-07).
+                                    valuePath: ["currency.symbol", "price"],
+                                    joinSeparator: " ",
+                                    type: "currency",
                                 },
                             },
                         },
@@ -402,6 +406,7 @@ const clinicServiceCreateFormNodes: ViewConfig["nodes"] = [
                                     widget: "#Input",
                                     label: "form.priceLabel",
                                     placeholder: "form.pricePlaceholder",
+                                    description: "form.priceDescription",
                                     widgetProps: {
                                         type: "number",
                                         min: 0,
@@ -683,6 +688,7 @@ const clinicServiceEditFormNodes: ViewConfig["nodes"] = [
                                     widget: "#Input",
                                     label: "form.priceLabel",
                                     placeholder: "form.pricePlaceholder",
+                                    description: "form.priceDescription",
                                     widgetProps: {
                                         type: "number",
                                         min: 0,

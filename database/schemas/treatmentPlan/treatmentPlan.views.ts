@@ -109,16 +109,6 @@ export const treatmentPlanSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
-                            permissions: {read: "currency"},
-                            field: {
-                                name: "currency.abbreviation",
-                                widget: "#DisplayCard",
-                                label: "currency",
-                                widgetProps: {icon: "#IconCurrencyEuro"},
-                            },
-                        },
-                        {
-                            render: "#DisplayCard",
                             permissions: {read: "validUntil"},
                             field: {
                                 name: "validUntil",
@@ -156,6 +146,23 @@ export const treatmentPlanSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            permissions: {read: "totals"},
+                            field: {
+                                // What the deposit comes to, whichever way it was set (amount or percentage).
+                                name: "totals.deposit",
+                                widget: "#DisplayCard",
+                                label: "depositAmount",
+                                widgetProps: {
+                                    icon: "#IconCoins",
+                                    format: "locale",
+                                    valuePath: ["currency.symbol", "totals.deposit"],
+                                    joinSeparator: " ",
+                                    type: "currency",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
                             permissions: {read: "paymentStatus"},
                             field: {
                                 name: "paymentStatus",
@@ -177,7 +184,10 @@ export const treatmentPlanSheetView: ViewConfig = {
                                 label: "amountPaid",
                                 widgetProps: {
                                     icon: "#IconReceipt",
-                                    type: "number",
+                                    format: "locale",
+                                    valuePath: ["currency.symbol", "amountPaid"],
+                                    joinSeparator: " ",
+                                    type: "currency",
                                 },
                             },
                         },
@@ -514,6 +524,7 @@ const treatmentPlanCreateFormNodes: ViewConfig["nodes"] = [
                                     label: "form.lineUnitPriceLabel",
                                     placeholder:
                                         "form.lineUnitPricePlaceholder",
+                                    description: "form.lineUnitPriceDescription",
                                     required: true,
                                     widgetProps: {
                                         type: "number",
@@ -910,6 +921,7 @@ const treatmentPlanEditFormNodes: ViewConfig["nodes"] = [
                                     label: "form.lineUnitPriceLabel",
                                     placeholder:
                                         "form.lineUnitPricePlaceholder",
+                                    description: "form.lineUnitPriceDescription",
                                     required: true,
                                     widgetProps: {
                                         type: "number",

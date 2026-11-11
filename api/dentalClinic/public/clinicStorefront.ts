@@ -13,10 +13,8 @@ import {resolveCompanyByOrigin} from "@coreModule/utilities/marketing/resolveCom
 import {isPortalApexOrigin} from "@coreModule/utilities/marketing/portalOrigin";
 import {publicMediaUrl, publicMediaUrls} from "@coreModule/utilities/media/publicMediaUrl";
 import {validateRecordAccessToken} from "@coreModule/utilities/security/recordAccessToken";
-import {mapSnippet, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
+import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {formatPostalAddress} from "@coreModule/utilities/helpers/postalAddress";
-import {CurrencySimpleSnippet} from "@coreModule/database/schemas/currency/currency.snippets";
-import type {CurrencySimple} from "armonia/src/modules/core/dto/currency.dto";
 import type {ICompany} from "@coreModule/database/schemas/company/company";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {
@@ -51,7 +49,6 @@ import {cancelAppointment, rescheduleAppointment} from "@dentalClinicModule/util
 import {manageTokenFor, notifyClinicStaff, notifyPatient} from "@dentalClinicModule/utilities/services/appointmentNotify";
 import {NotificationEventCodes} from "@dentalClinicModule/domain/notifications/notificationEventCodes";
 
-import {currencyService} from "@coreModule/database/schemas/currency/currency.service";
 import {appointmentService} from "@dentalClinicModule/database/schemas/appointment/appointment.service";
 import {clinicLocationService} from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation.service";
 import {clinicServiceService} from "@dentalClinicModule/database/schemas/clinicService/clinicService.service";
@@ -98,12 +95,6 @@ function storefrontProfile(config: IClinicConfig, languageCode: string): ClinicS
     };
 }
 
-async function currencyOf(config: IClinicConfig, languageCode: string): Promise<CurrencySimple> {
-    const currency = mapSnippet<CurrencySimple>()(await currencyService.findById(nestedEntityToRef(config.currency)!, {}, undefined, "name symbol abbreviation"), CurrencySimpleSnippet);
-    if (!currency) throw apiValidationException("clinic_currency_not_configured", "", null, languageCode);
-    return currency;
-}
-
 /** An appointment for its patient, with the currency populated for display. */
 async function publicAppointment(appointment: IAppointment) {
     await appointment.populate({path: "currency", select: "name symbol abbreviation"});
@@ -133,7 +124,7 @@ router.post(
             clinicLocationService.find({company: company._id, isActive: true, deletedAt: null}, {}, [{path: "address.city", select: "name"}], undefined, {name: 1}),
             clinicServiceService.find({company: company._id, isActive: true, isPublic: true, deletedAt: null}, {}, undefined, undefined, {sortOrder: 1, name: 1}),
             practitionerService.find({company: company._id, isActive: true, deletedAt: null}, {}, undefined, undefined, {sortOrder: 1, displayName: 1}),
-            currencyOf(config, languageCode),
+            clinicConfigService.currencyOf(config, languageCode),
         ]);
         const bookableServiceIds = new Set(services.filter((service) => service.onlineBookable).map((service) => String(service._id)));
         return {

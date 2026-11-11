@@ -2,6 +2,10 @@ import {ObjectId} from "mongodb";
 import {BaseCrudService, CrudOptions} from "@coreModule/database/services/baseCrudService";
 import Currency from "@coreModule/database/schemas/currency/currency";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
+import type {CurrencySimple} from "armonia/src/modules/core/dto/currency.dto";
+import {currencyService} from "@coreModule/database/schemas/currency/currency.service";
+import {CurrencySimpleSnippet} from "@coreModule/database/schemas/currency/currency.snippets";
+import {mapSnippet, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import ClinicConfig, {IClinicConfig} from "./clinicConfig";
 
 export class ClinicConfigService extends BaseCrudService<IClinicConfig, typeof ClinicConfig> {
@@ -12,6 +16,18 @@ export class ClinicConfigService extends BaseCrudService<IClinicConfig, typeof C
     /** The company's clinic settings, or null when the company never set up online booking. */
     async findForCompany(companyId: ObjectId, options: CrudOptions = {}): Promise<IClinicConfig | null> {
         return this.findOne({company: companyId}, {...options, withDeleted: false});
+    }
+
+    /**
+     * The clinic's one currency, ready for display: treatment prices are in it, and new quotes and bookings copy it.
+     * Refused (`clinic_currency_not_configured`) when the settings point at no currency.
+     */
+    async currencyOf(config: IClinicConfig, languageCode: string): Promise<CurrencySimple> {
+        const id = nestedEntityToRef(config.currency);
+        const found = id ? await currencyService.findById(id, {}, undefined, "name symbol abbreviation decimalPlaces") : null;
+        const currency = mapSnippet<CurrencySimple>()(found, CurrencySimpleSnippet);
+        if (!currency) throw apiValidationException("clinic_currency_not_configured", "", null, languageCode);
+        return currency;
     }
 
     /**
