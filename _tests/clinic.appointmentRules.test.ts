@@ -35,6 +35,7 @@ import Currency from "@coreModule/database/schemas/currency/currency";
 import {addLocalDays, localDateOf} from "@coreModule/utilities/time/timeWindows";
 import {withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import * as appointmentRoute from "@dentalClinicModule/api/dentalClinic/private/appointment";
+import * as clinicDayRoute from "@dentalClinicModule/api/dentalClinic/private/clinicDay";
 import * as myAppointmentRoute from "@dentalClinicModule/api/dentalClinic/private/myAppointment";
 import * as scheduleExceptionRoute from "@dentalClinicModule/api/dentalClinic/private/scheduleException";
 import * as storefrontRoute from "@dentalClinicModule/api/dentalClinic/public/clinicStorefront";
@@ -50,7 +51,7 @@ const companyId = new ObjectId();
 const otherCompanyId = new ObjectId();
 /** The tests act on this company's data, as its requests and jobs do (D16). */
 const asCompany = <T>(fn: () => PromiseLike<T>): Promise<T> => withTenant(companyId, fn);
-const app = appFor([appointmentRoute, myAppointmentRoute, scheduleExceptionRoute, storefrontRoute].map((route) => ({...route, module: "dentalClinic"})));
+const app = appFor([appointmentRoute, clinicDayRoute, myAppointmentRoute, scheduleExceptionRoute, storefrontRoute].map((route) => ({...route, module: "dentalClinic"})));
 
 const ZURICH = "Europe/Zurich";
 const HOUR = 3600 * 1000;
@@ -267,6 +268,29 @@ describe("time off and closures", {timeout: 60000}, () => {
         const stored = await ScheduleException.findById(created.body._id);
         expect(stored!.startAt.toISOString()).toBe(at(14));
         expect(stored!.reason).toBe("training");
+    }));
+});
+
+describe("the panel's day view (P8.6)", {timeout: 60000}, () => {
+    const dayView = (body: Record<string, unknown>) => request(app).post("/api/dentalClinic/clinicDay/view").set(callerHeader(admin)).send(body);
+
+    it("lays out every active location when none is picked, with its opening hours, its dentists and the booking grid", () => asCompany(async () => {
+        const second = await ClinicLocation.create({company: companyId, name: "Zurich West", timezone: ZURICH, openingHours: [], isActive: true});
+        await ClinicLocation.create({company: companyId, name: "Closed branch", timezone: ZURICH, openingHours: [], isActive: false});
+        expect((await staffBook()).status).toBe(200);
+
+        const all = await dayView({date: DATE});
+        expect(all.status).toBe(200);
+        expect(all.body.data.slotIntervalMinutes).toBe(30);
+        expect(all.body.data.locations.map((entry: {name: string}) => entry.name).sort()).toEqual(["Zurich Centre", "Zurich West"]);
+        const centre = all.body.data.locations.find((entry: {_id: string}) => entry._id === locationId);
+        expect(centre.opening).toHaveLength(1);
+        expect(centre.practitioners.map((p: {displayName: string}) => p.displayName).sort()).toEqual(["Dr. Ana", "Dr. Ben"]);
+        expect(all.body.data.locations.find((entry: {_id: string}) => entry._id === second._id.toString()).practitioners).toEqual([]);
+        expect(all.body.data.appointments).toEqual([expect.objectContaining({locationId, practitionerId: anaId})]);
+
+        const one = await dayView({date: DATE, location: locationId});
+        expect(one.body.data.locations.map((entry: {_id: string}) => entry._id)).toEqual([locationId]);
     }));
 });
 
