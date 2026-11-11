@@ -29,7 +29,6 @@ import {
     localDateOf,
     localToUtc,
 } from "@coreModule/utilities/time/timeWindows";
-import Currency from "@coreModule/database/schemas/currency/currency";
 import ClinicConfig from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig";
 import Patient from "@dentalClinicModule/database/schemas/patient/patient";
 import ClinicInquiry from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry";
@@ -49,7 +48,12 @@ import {
     createAppointment,
     loadBookingTargets,
 } from "@dentalClinicModule/utilities/services/appointmentBooking";
+import {cancelAppointment, completeAppointment, markNoShow} from "@dentalClinicModule/utilities/services/appointmentLifecycle";
+import {acceptPlanAtClinic} from "@dentalClinicModule/utilities/services/treatmentPlans";
+import {recordClinicPayment} from "@dentalClinicModule/utilities/services/treatmentPlanPayments";
+import type {IClinicConfig} from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig";
 import City from "@coreModule/database/schemas/city/city";
+import Country from "@coreModule/database/schemas/country/country";
 import {MEDICAL_HISTORY_QUESTIONS} from "armonia/src/modules/dentalClinic/constants";
 import {
     DEMO_VIDEO_URLS,
@@ -339,6 +343,14 @@ export async function seedDentalClinicDemoData(
                     requireStaffConfirmation: false,
                     patientNoteEnabled: true,
                     privacyNoticeVersion: "demo-1",
+                    privacyNoticeText:
+                        "Blloku Dental keeps your contact details and the health answers you give us to plan and carry out your treatment. We share them only with the dentists treating you, keep them for as long as the law requires, and you can ask us for a copy or to delete them at any time.",
+                    inquiriesEnabled: true,
+                    notifyUsers: [createdBy],
+                    inquiryNotifyUsers: [createdBy],
+                    quoteValidityDays: 30,
+                    quoteTerms:
+                        "Prices include the consultation and X-rays. The deposit secures your dates and is refundable up to 14 days before treatment.",
                 },
             },
         );
@@ -461,6 +473,7 @@ export async function seedDentalClinicDemoData(
             },
             {
                 ...owned,
+                reason: "training",
                 startAt: localToUtc(offDay, "13:00", TIMEZONE),
                 endAt: localToUtc(offDay, "17:00", TIMEZONE),
             },
@@ -526,6 +539,15 @@ export async function seedDentalClinicDemoData(
             today,
             services: serviceBySlug,
         });
+        await seedClinicHistory({
+            logger,
+            companyId: company._id,
+            createdBy,
+            config,
+            today,
+            services: serviceBySlug,
+            locations: locationDocs,
+        });
 
         logger.finish(
             `Finished seeding dental clinic demo data (${booked} new appointments)!`,
@@ -559,8 +581,10 @@ async function seedPatientRecords(input: {
     services: Map<string, IClinicService>;
 }): Promise<void> {
     const {companyId, owned, today, services} = input;
-    const currency = await Currency.findOne({company: companyId}).select("_id");
-    if (!currency)
+    // Every quote is in the clinic's one currency (P8.2), not just any currency of the company.
+    const clinicCurrency = (await ClinicConfig.findOne({company: companyId}).select("currency"))?.currency;
+    const currency = clinicCurrency ? {_id: nestedEntityToRef(clinicCurrency)} : null;
+    if (!currency?._id)
         throw new Error(
             "Demo clinic has no currency; treatment plans need one",
         );
@@ -592,6 +616,7 @@ async function seedPatientRecords(input: {
             phone: "+39 333 000 4403",
             preferredLanguage: "it-IT" as const,
             source: "referral" as const,
+            countryCode: "IT",
         },
         {
             number: "PT-DEMO-0004",
@@ -610,10 +635,42 @@ async function seedPatientRecords(input: {
             phone: "+49 170 000 5505",
             preferredLanguage: "de-CH" as const,
             source: "portal" as const,
+            countryCode: "DE",
+        },
+        {
+            number: "PT-DEMO-0006",
+            firstName: "Luca",
+            lastName: "Ferri",
+            email: "luca.ferri@clinic.demo",
+            phone: "+39 347 000 6606",
+            preferredLanguage: "it-IT" as const,
+            source: "portal" as const,
+            countryCode: "IT",
+        },
+        {
+            number: "PT-DEMO-0007",
+            firstName: "Hannah",
+            lastName: "Weber",
+            email: "hannah.weber@clinic.demo",
+            phone: "+41 79 000 7707",
+            preferredLanguage: "de-CH" as const,
+            source: "portal" as const,
+            countryCode: "CH",
+        },
+        {
+            number: "PT-DEMO-0008",
+            firstName: "Arben",
+            lastName: "Hoxha",
+            email: "arben.hoxha@clinic.demo",
+            phone: "+355 69 222 3308",
+            preferredLanguage: "sq-AL" as const,
+            source: "walk_in" as const,
         },
     ];
     const patientByEmail = new Map<string, ObjectId>();
-    for (const person of people) {
+    for (const {countryCode, ...person} of people) {
+        // Tourists carry their home country; countries are seeded per company.
+        const country = countryCode ? (await Country.findOne({company: companyId, code: countryCode}).select("_id"))?._id : undefined;
         const history =
             person.email === "besa.leka@clinic.demo"
                 ? {
@@ -640,6 +697,7 @@ async function seedPatientRecords(input: {
             {
                 ...owned,
                 ...person,
+                ...(country ? {address: {country}} : {}),
                 tags: [],
                 ...history,
             },
@@ -693,6 +751,44 @@ async function seedPatientRecords(input: {
             travelFrom: addLocalDays(today, 40),
             travelTo: addLocalDays(today, 47),
             patient: patientByEmail.get("elena.fischer@clinic.demo"),
+            files: [],
+        },
+    );
+
+    await ensure(
+        ClinicInquiry,
+        {company: companyId, idempotencyKey: "demo-inquiry-hannah"},
+        {
+            ...owned,
+            number: "INQ-DEMO-0003",
+            source: "portal",
+            status: "new",
+            contact: {
+                firstName: "Hannah",
+                lastName: "Weber",
+                email: "hannah.weber@clinic.demo",
+                phone: "+41 79 000 7707",
+                preferredLanguage: "de-CH",
+            },
+            contactShared: true,
+            treatmentsWanted: ["crown", "veneer"],
+            description: "Two old crowns at the front need replacing, and I would like the teeth next to them to match.",
+            budget: 3000,
+            budgetCurrency: currency._id,
+            travelFrom: addLocalDays(today, 25),
+            travelTo: addLocalDays(today, 32),
+            medicalHistory: {
+                version: "demo-1",
+                answers: MEDICAL_HISTORY_QUESTIONS.map((question) =>
+                    question === "anticoagulants"
+                        ? {question, answer: "yes" as const, detail: "Aspirin 100 mg daily"}
+                        : {question, answer: "no" as const},
+                ),
+                medications: "Aspirin 100 mg",
+                signedName: "Hannah Weber",
+                submittedAt: localToUtc(today, "08:15", TIMEZONE),
+            },
+            patient: patientByEmail.get("hannah.weber@clinic.demo"),
             files: [],
         },
     );
@@ -826,6 +922,161 @@ async function seedPatientRecords(input: {
             accommodation: "Hotel Rogner, Tirana",
             transfer: true,
             companions: 1,
+        },
+    );
+}
+
+/** The n-th local date before `today` whose day of week is one of `days`. */
+function pastDay(today: string, days: readonly number[], n: number): string {
+    let date = today;
+    for (let found = 0; found < n; ) {
+        date = addLocalDays(date, -1);
+        if (days.includes(new Date(`${date}T12:00:00Z`).getUTCDay())) found += 1;
+    }
+    return date;
+}
+
+const DEMO_CONTACTS = {
+    gent: {firstName: "Gent", lastName: "Mema", email: "gent.mema@clinic.demo", phone: "+355 69 222 3302"},
+    ilir: {firstName: "Ilir", lastName: "Gjoka", email: "ilir.gjoka@clinic.demo", phone: "+355 69 222 3304"},
+    arben: {firstName: "Arben", lastName: "Hoxha", email: "arben.hoxha@clinic.demo", phone: "+355 69 222 3308"},
+};
+
+/** Visits that are already over (or called off), closed the way staff close them. `nth` counts working days back, or ahead for `cancel`. */
+const closedVisits = [
+    {key: "demo-appt-past-gent", practitioner: "Anila Doda", location: 1, service: "cleaning", nth: 2, time: "10:00", patient: DEMO_CONTACTS.gent, close: "complete"},
+    {key: "demo-appt-past-ilir", practitioner: "Dr. Elira Shehu", location: 0, service: "check-up", nth: 1, time: "15:00", patient: DEMO_CONTACTS.ilir, close: "noShow"},
+    {key: "demo-appt-cancelled-arben", practitioner: "Dr. Elira Shehu", location: 0, service: "filling", nth: 4, time: "11:00", patient: DEMO_CONTACTS.arben, close: "cancel"},
+] as const;
+
+/**
+ * The clinic's recent past, made through the real booking and lifecycle code so every row is one the app could have
+ * made: a completed visit, a no-show, a cancelled booking, and quotes in the closed states, one accepted at the desk
+ * and part paid. Keyed by idempotency key and plan number; a second run changes nothing.
+ */
+async function seedClinicHistory(input: {
+    logger: serverLogger;
+    companyId: ObjectId;
+    createdBy: ObjectId;
+    config: IClinicConfig;
+    today: string;
+    services: Map<string, IClinicService>;
+    locations: IClinicLocation[];
+}): Promise<void> {
+    const {logger, companyId, createdBy, config, today, services, locations} = input;
+    const owned = {company: companyId, createdBy};
+    const staff = {by: "staff" as const, userId: String(createdBy)};
+    const ctxOf = (session: Parameters<Parameters<typeof runInTransaction>[1]>[0]) => ({session, logger, languageCode: LANGUAGE, auditUserId: createdBy});
+
+    for (const visit of closedVisits) {
+        const practitioner = await Practitioner.findOne({company: companyId, displayName: visit.practitioner}).select("_id");
+        const days = workingDays(visit.practitioner, visit.location);
+        const date = visit.close === "cancel" ? comingDay(today, days, visit.nth) : pastDay(today, days, visit.nth);
+        await runInTransaction(logger, async (session) => {
+            const ctx = ctxOf(session);
+            const {service, location} = await loadBookingTargets(
+                companyId,
+                {service: String(services.get(visit.service)!._id), location: String(locations[visit.location]._id)},
+                {languageCode: LANGUAGE, online: false, session},
+            );
+            // A past visit was booked a week before it happened.
+            const bookedAt = visit.close === "cancel" ? undefined : localToUtc(addLocalDays(date, -7), "09:00", TIMEZONE);
+            const {appointment} = await createAppointment(
+                {
+                    companyId, config, service, location, practitionerId: String(practitioner!._id), date, time: visit.time,
+                    patient: {...visit.patient}, idempotencyKey: visit.key, source: "staff", ...(bookedAt ? {now: bookedAt} : {}),
+                },
+                ctx,
+            );
+            if (appointment.status !== "confirmed") return;
+            if (visit.close === "complete") await completeAppointment(appointment, staff, ctx);
+            if (visit.close === "noShow") await markNoShow(appointment, {...staff, graceMinutes: config.noShowGraceMinutes}, ctx);
+            if (visit.close === "cancel") await cancelAppointment(appointment, {...staff, reason: "The patient called to move to next month."}, ctx);
+        });
+    }
+
+    const currency = {_id: nestedEntityToRef(config.currency)};
+    const patientOf = async (email: string) => (await Patient.findOne({company: companyId, email}).select("_id"))?._id;
+    const cleaning = services.get("cleaning");
+    const whitening = services.get("whitening");
+    const filling = services.get("filling");
+    if (!currency._id || !cleaning || !whitening || !filling) throw new Error("Demo currency or services are missing");
+
+    // Accepted at the desk, then part paid in cash.
+    const accepted = await ensure(
+        TreatmentPlan,
+        {company: companyId, number: "TP-DEMO-0003"},
+        {
+            ...owned,
+            status: "sent",
+            patient: await patientOf("gent.mema@clinic.demo"),
+            optionLabel: "Cleaning and whitening",
+            version: 1,
+            currency: currency._id,
+            phases: [{title: "Cleaning, then whitening", visits: 2, estimatedDays: 7}],
+            lines: [
+                {phase: 1, kind: "treatment", service: cleaning._id, name: "Professional cleaning", teeth: [], quantity: 1, unitPrice: 45},
+                {phase: 1, kind: "treatment", service: whitening._id, name: "Teeth whitening", teeth: [], quantity: 1, unitPrice: 200, discount: 20},
+            ],
+            depositType: "fixed",
+            depositValue: 50,
+            totals: {subtotal: 245, discount: 20, total: 225, deposit: 50},
+            validUntil: addLocalDays(today, 30),
+            sentAt: localToUtc(addLocalDays(today, -3), "12:00", TIMEZONE),
+            notes: "Whitening a week after the cleaning, once the gums have settled.",
+        },
+    );
+    if (accepted.status === "sent") {
+        await runInTransaction(logger, async (session) => {
+            const ctx = ctxOf(session);
+            const plan = await TreatmentPlan.findById(accepted._id).session(session);
+            await acceptPlanAtClinic(plan!, {userId: createdBy, channel: "in_person"}, ctx);
+            await recordClinicPayment(plan!, {amount: 100, note: "Cash at the desk", by: createdBy}, ctx);
+        });
+    }
+
+    await ensure(
+        TreatmentPlan,
+        {company: companyId, number: "TP-DEMO-0004"},
+        {
+            ...owned,
+            status: "rejected",
+            patient: await patientOf("ilir.gjoka@clinic.demo"),
+            optionLabel: "Crown instead of a filling",
+            version: 1,
+            currency: currency._id,
+            phases: [{title: "Crown", visits: 2, estimatedDays: 5}],
+            lines: [{phase: 1, kind: "treatment", name: "Zirconia crown", teeth: ["36"], material: "Zirconia", quantity: 1, unitPrice: 280}],
+            depositType: "none",
+            totals: {subtotal: 280, discount: 0, total: 280, deposit: 0},
+            validUntil: addLocalDays(today, 10),
+            sentAt: localToUtc(addLocalDays(today, -20), "10:00", TIMEZONE),
+            notes: "The patient chose the filling.",
+        },
+    );
+    await ensure(
+        TreatmentPlan,
+        {company: companyId, number: "TP-DEMO-0005"},
+        {
+            ...owned,
+            status: "expired",
+            patient: await patientOf("luca.ferri@clinic.demo"),
+            optionLabel: "Single implant",
+            version: 1,
+            currency: currency._id,
+            phases: [
+                {title: "Implant", visits: 2, estimatedDays: 5},
+                {title: "Crown", visits: 2, estimatedDays: 4, minGapDaysAfterPrevious: 90},
+            ],
+            lines: [
+                {phase: 1, kind: "treatment", name: "Implant", teeth: ["46"], brand: "Straumann", quantity: 1, unitPrice: 750, warrantyYears: 10},
+                {phase: 2, kind: "treatment", name: "Zirconia crown on implant", teeth: ["46"], material: "Zirconia", quantity: 1, unitPrice: 300},
+            ],
+            depositType: "percent",
+            depositValue: 10,
+            totals: {subtotal: 1050, discount: 0, total: 1050, deposit: 105},
+            validUntil: addLocalDays(today, -5),
+            sentAt: localToUtc(addLocalDays(today, -40), "16:00", TIMEZONE),
         },
     );
 }
