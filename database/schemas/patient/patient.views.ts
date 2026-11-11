@@ -156,6 +156,11 @@ export const patientSheetView: ViewConfig = {
                                     show: true,
                                     format: "locale",
                                     valuePath: ["balanceCurrency.symbol", "balanceDue"],
+                                    // The amount opens its currency (UX-07).
+                                    linkedRefPath: "balanceCurrency",
+                                    linkedSheetModel: "currencies",
+                                    linkedSheetWidget: "#CurrencySheetView",
+                                    linkedSheetEntityProp: "currency",
                                     joinSeparator: " ",
                                     type: "currency",
                                 },
@@ -200,70 +205,178 @@ export const patientSheetView: ViewConfig = {
             ],
         },
         {
-            // Read with the caller's own grants on that model; absent when they may not read it (patientHub).
-            render: "#SheetGroup",
-            dependent: "appointments",
-            dependentRuntimeOnly: true,
-            props: {title: "appointmentsGroup"},
+            // Cards or one line each, the reader's choice (remembered per list).
+            render: "#ReferencesViewModeScope",
+            props: {storageKey: "dentalClinic.patient.sheet.appointments.listDisplay", defaultMode: "cards"},
             children: [
                 {
-                    render: "#ReferencesRender",
-                    field: {
-                        name: "appointments",
-                        widget: "#ReferencesRender",
-                        widgetProps: {cardWidget: "#AppointmentCard", pageSize: 4, columns: 2},
-                    },
+                    // Read with the caller's own grants on that model; absent when they may not read it (patientHub).
+                    render: "#SheetGroup",
+                    dependent: "appointments",
+                    dependentRuntimeOnly: true,
+                    props: {title: "appointmentsGroup", titleActions: "#ReferencesViewModeToggle"},
+                    children: [
+                        {
+                            render: "div",
+                            props: {className: "rounded-lg bg-muted/30 border border-border/50"},
+                            children: [
+                                {
+                                    render: "#ReferencesRender",
+                                    field: {
+                                        name: "appointments",
+                                        widget: "#ReferencesRender",
+                                        widgetProps: {
+                                            cardWidget: "#AppointmentCard",
+                                            pageSize: 4,
+                                            columns: 2,
+                                            compactRow: {
+                                                icon: "#IconCalendarEvent",
+                                                label: "appointmentsGroup",
+                                                valuePath: ["number", "snapshot.serviceName", "status"],
+                                                valueLanguageKeyCategories: [null, null, "appointmentStatus"],
+                                                joinSeparator: " · ",
+                                                linkedSheetModel: "appointments",
+                                                linkedSheetWidget: "#AppointmentSheetView",
+                                                linkedSheetEntityProp: "appointment",
+                                            },
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    ],
                 },
             ],
         },
         {
-            // Read with the caller's own grants on that model; absent when they may not read it (patientHub).
-            render: "#SheetGroup",
-            dependent: "plans",
-            dependentRuntimeOnly: true,
-            props: {title: "plansGroup"},
+            // Cards or one line each, the reader's choice (remembered per list).
+            render: "#ReferencesViewModeScope",
+            props: {storageKey: "dentalClinic.patient.sheet.plans.listDisplay", defaultMode: "cards"},
             children: [
                 {
-                    render: "#ReferencesRender",
-                    field: {
-                        name: "plans",
-                        widget: "#ReferencesRender",
-                        widgetProps: {cardWidget: "#TreatmentPlanCard", pageSize: 4, columns: 2},
-                    },
+                    // Read with the caller's own grants on that model; absent when they may not read it (patientHub).
+                    render: "#SheetGroup",
+                    dependent: "plans",
+                    dependentRuntimeOnly: true,
+                    props: {title: "plansGroup", titleActions: "#ReferencesViewModeToggle"},
+                    children: [
+                        {
+                            render: "div",
+                            props: {className: "rounded-lg bg-muted/30 border border-border/50"},
+                            children: [
+                                {
+                                    render: "#ReferencesRender",
+                                    field: {
+                                        name: "plans",
+                                        widget: "#ReferencesRender",
+                                        widgetProps: {
+                                            cardWidget: "#TreatmentPlanCard",
+                                            pageSize: 4,
+                                            columns: 2,
+                                            compactRow: {
+                                                icon: "#IconFileInvoice",
+                                                label: "plansGroup",
+                                                valuePath: ["number", "optionLabel", "status"],
+                                                valueLanguageKeyCategories: [null, null, "planStatus"],
+                                                joinSeparator: " · ",
+                                                linkedSheetModel: "treatmentplans",
+                                                linkedSheetWidget: "#TreatmentPlanSheetView",
+                                                linkedSheetEntityProp: "plan",
+                                            },
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    ],
                 },
             ],
         },
         {
-            // Read with the caller's own grants on that model; absent when they may not read it (patientHub).
-            render: "#SheetGroup",
-            dependent: "trips",
-            dependentRuntimeOnly: true,
-            props: {title: "tripsGroup"},
+            // Cards or one line each, the reader's choice (remembered per list).
+            render: "#ReferencesViewModeScope",
+            props: {storageKey: "dentalClinic.patient.sheet.trips.listDisplay", defaultMode: "cards"},
             children: [
                 {
-                    render: "#ReferencesRender",
-                    field: {
-                        name: "trips",
-                        widget: "#ReferencesRender",
-                        widgetProps: {cardWidget: "#PatientTripCard", pageSize: 4, columns: 2},
-                    },
+                    // Read with the caller's own grants on that model; absent when they may not read it (patientHub).
+                    render: "#SheetGroup",
+                    dependent: "trips",
+                    dependentRuntimeOnly: true,
+                    props: {title: "tripsGroup", titleActions: "#ReferencesViewModeToggle"},
+                    children: [
+                        {
+                            render: "div",
+                            props: {className: "rounded-lg bg-muted/30 border border-border/50"},
+                            children: [
+                                {
+                                    render: "#ReferencesRender",
+                                    field: {
+                                        name: "trips",
+                                        widget: "#ReferencesRender",
+                                        widgetProps: {
+                                            cardWidget: "#PatientTripCard",
+                                            pageSize: 4,
+                                            columns: 2,
+                                            compactRow: {
+                                                icon: "#IconPlane",
+                                                label: "tripsGroup",
+                                                valuePath: ["plan.number", "status"],
+                                                valueLanguageKeyCategories: [null, "tripStatus"],
+                                                joinSeparator: " · ",
+                                                linkedSheetModel: "patienttrips",
+                                                linkedSheetWidget: "#PatientTripSheetView",
+                                                linkedSheetEntityProp: "patientTrip",
+                                            },
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    ],
                 },
             ],
         },
         {
-            // Read with the caller's own grants on that model; absent when they may not read it (patientHub).
-            render: "#SheetGroup",
-            dependent: "inquiries",
-            dependentRuntimeOnly: true,
-            props: {title: "inquiriesGroup"},
+            // Cards or one line each, the reader's choice (remembered per list).
+            render: "#ReferencesViewModeScope",
+            props: {storageKey: "dentalClinic.patient.sheet.inquiries.listDisplay", defaultMode: "cards"},
             children: [
                 {
-                    render: "#ReferencesRender",
-                    field: {
-                        name: "inquiries",
-                        widget: "#ReferencesRender",
-                        widgetProps: {cardWidget: "#ClinicInquiryCard", pageSize: 4, columns: 2},
-                    },
+                    // Read with the caller's own grants on that model; absent when they may not read it (patientHub).
+                    render: "#SheetGroup",
+                    dependent: "inquiries",
+                    dependentRuntimeOnly: true,
+                    props: {title: "inquiriesGroup", titleActions: "#ReferencesViewModeToggle"},
+                    children: [
+                        {
+                            render: "div",
+                            props: {className: "rounded-lg bg-muted/30 border border-border/50"},
+                            children: [
+                                {
+                                    render: "#ReferencesRender",
+                                    field: {
+                                        name: "inquiries",
+                                        widget: "#ReferencesRender",
+                                        widgetProps: {
+                                            cardWidget: "#ClinicInquiryCard",
+                                            pageSize: 4,
+                                            columns: 2,
+                                            compactRow: {
+                                                icon: "#IconMessageQuestion",
+                                                label: "inquiriesGroup",
+                                                valuePath: ["number", "status"],
+                                                valueLanguageKeyCategories: [null, "inquiryStatus"],
+                                                joinSeparator: " · ",
+                                                linkedSheetModel: "clinicinquiries",
+                                                linkedSheetWidget: "#ClinicInquirySheetView",
+                                                linkedSheetEntityProp: "inquiry",
+                                            },
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    ],
                 },
             ],
         },

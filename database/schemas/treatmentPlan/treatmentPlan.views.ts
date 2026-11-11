@@ -160,6 +160,11 @@ export const treatmentPlanSheetView: ViewConfig = {
                                     icon: "#IconCoins",
                                     format: "locale",
                                     valuePath: ["currency.symbol", "totals.deposit"],
+                                    // The amount opens its currency (UX-07).
+                                    linkedRefPath: "currency",
+                                    linkedSheetModel: "currencies",
+                                    linkedSheetWidget: "#CurrencySheetView",
+                                    linkedSheetEntityProp: "currency",
                                     joinSeparator: " ",
                                     type: "currency",
                                 },
@@ -190,6 +195,11 @@ export const treatmentPlanSheetView: ViewConfig = {
                                     icon: "#IconReceipt",
                                     format: "locale",
                                     valuePath: ["currency.symbol", "amountPaid"],
+                                    // The amount opens its currency (UX-07).
+                                    linkedRefPath: "currency",
+                                    linkedSheetModel: "currencies",
+                                    linkedSheetWidget: "#CurrencySheetView",
+                                    linkedSheetEntityProp: "currency",
                                     joinSeparator: " ",
                                     type: "currency",
                                 },

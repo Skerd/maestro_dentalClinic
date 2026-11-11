@@ -124,6 +124,11 @@ export const clinicInquirySheetView: ViewConfig = {
                                     format: "locale",
                                     // Amount and currency in one card (UX-07).
                                     valuePath: ["budgetCurrency.symbol", "budget"],
+                                    // The amount opens its currency (UX-07).
+                                    linkedRefPath: "budgetCurrency",
+                                    linkedSheetModel: "currencies",
+                                    linkedSheetWidget: "#CurrencySheetView",
+                                    linkedSheetEntityProp: "currency",
                                     joinSeparator: " ",
                                     type: "currency",
                                 },

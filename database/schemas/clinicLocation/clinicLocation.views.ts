@@ -161,37 +161,42 @@ export const clinicLocationSheetView: ViewConfig = {
             ],
         },
         {
-            render: "#SheetGroup",
-            props: {title: "closures"},
-            dependent: "closures",
-            permissions: {read: "closures"},
+            // Cards or one line each, the reader's choice (remembered per list).
+            render: "#ReferencesViewModeScope",
+            props: {storageKey: "dentalClinic.location.sheet.closures.listDisplay", defaultMode: "compact"},
             children: [
                 {
-                    render: "#SheetEmbeddedItemsList",
+                    render: "#SheetGroup",
+                    props: {title: "closures", titleActions: "#ReferencesViewModeToggle"},
+                    dependent: "closures",
                     permissions: {read: "closures"},
-                    field: {
-                        name: "closures",
-                        widget: "#SheetEmbeddedItemsList",
-                        widgetProps: {
-                            cardColumns: 3,
-                            fields: [
+                    children: [
+                        {
+                            render: "div",
+                            props: {className: "rounded-lg bg-muted/30 border border-border/50"},
+                            children: [
                                 {
-                                    name: "date",
-                                    type: "text",
-                                    labelKey: "closureDate",
-                                    className: "text-sm font-medium",
-                                },
-                                {
-                                    name: "reason",
-                                    type: "text",
-                                    labelKey: "closureReason",
-                                    className: "text-sm",
+                                    render: "#SheetEmbeddedItemsList",
+                                    permissions: {read: "closures"},
+                                    field: {
+                                        name: "closures",
+                                        widget: "#SheetEmbeddedItemsList",
+                                        widgetProps: {
+                                            pageSize: 6,
+                                            entityCards: true,
+                                            columns: 2,
+                                            compactSummaryFields: ["date", "reason"],
+                                            compactSummaryJoinSeparator: " · ",
+                                            fields: [
+                                                {name: "date", type: "text", labelKey: "closureDate", className: "text-sm font-medium", icon: "#IconCalendarOff"},
+                                                {name: "reason", type: "text", labelKey: "closureReason", className: "text-sm", icon: "#IconNotes"},
+                                            ],
+                                        },
+                                    },
                                 },
                             ],
-                            compactSummaryFields: ["date", "reason"],
-                            compactSummaryJoinSeparator: " · ",
                         },
-                    },
+                    ],
                 },
             ],
         },

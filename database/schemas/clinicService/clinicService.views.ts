@@ -188,6 +188,11 @@ export const clinicServiceSheetView: ViewConfig = {
                                     format: "locale",
                                     // The clinic currency, added by the route (UX-07).
                                     valuePath: ["currency.symbol", "price"],
+                                    // The amount opens its currency (UX-07).
+                                    linkedRefPath: "currency",
+                                    linkedSheetModel: "currencies",
+                                    linkedSheetWidget: "#CurrencySheetView",
+                                    linkedSheetEntityProp: "currency",
                                     joinSeparator: " ",
                                     type: "currency",
                                 },

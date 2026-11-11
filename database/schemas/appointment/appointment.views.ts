@@ -254,6 +254,8 @@ export const appointmentSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "snapshot"},
+                            // Free and on-request treatments have no price; "Price display" already says so.
+                            dependent: "snapshot.price",
                             field: {
                                 name: "snapshot.price",
                                 widget: "#DisplayCard",
@@ -263,6 +265,11 @@ export const appointmentSheetView: ViewConfig = {
                                     format: "locale",
                                     // The currency the booking was priced in, never the clinic's current one (UX-07).
                                     valuePath: ["currency.symbol", "snapshot.price"],
+                                    // The amount opens its currency (UX-07).
+                                    linkedRefPath: "currency",
+                                    linkedSheetModel: "currencies",
+                                    linkedSheetWidget: "#CurrencySheetView",
+                                    linkedSheetEntityProp: "currency",
                                     joinSeparator: " ",
                                     type: "currency",
                                 },
@@ -294,45 +301,44 @@ export const appointmentSheetView: ViewConfig = {
             ],
         },
         {
-            render: "#SheetGroup",
-            props: {title: "timeline", defaultOpen: false},
-            permissions: {read: "timeline"},
+            // Cards or one line each, the reader's choice (remembered per list).
+            render: "#ReferencesViewModeScope",
+            props: {storageKey: "dentalClinic.appointment.sheet.timeline.listDisplay", defaultMode: "compact"},
             children: [
                 {
-                    render: "#SheetEmbeddedItemsList",
+                    render: "#SheetGroup",
+                    props: {title: "timeline", titleActions: "#ReferencesViewModeToggle", defaultOpen: false},
+                    dependent: "timeline",
                     permissions: {read: "timeline"},
-                    field: {
-                        name: "timeline",
-                        widget: "#SheetEmbeddedItemsList",
-                        widgetProps: {
-                            cardColumns: 1,
-                            sortField: "at",
-                            fields: [
+                    children: [
+                        {
+                            render: "div",
+                            props: {className: "rounded-lg bg-muted/30 border border-border/50"},
+                            children: [
                                 {
-                                    name: "event",
-                                    type: "text",
-                                    languageKeyCategory: "timelineEvent",
-                                    labelKey: "event",
-                                    className: "text-sm font-medium",
-                                },
-                                {
-                                    name: "at",
-                                    type: "text",
-                                    format: "dateTime",
-                                    labelKey: "at",
-                                    className: "text-sm",
-                                },
-                                {
-                                    name: "note",
-                                    type: "text",
-                                    labelKey: "note",
-                                    className: "text-sm",
+                                    render: "#SheetEmbeddedItemsList",
+                                    permissions: {read: "timeline"},
+                                    field: {
+                                        name: "timeline",
+                                        widget: "#SheetEmbeddedItemsList",
+                                        widgetProps: {
+                                            pageSize: 6,
+                                            entityCards: true,
+                                            columns: 2,
+                                            sortField: "at",
+                                            compactSummaryFields: ["event", "at"],
+                                            compactSummaryJoinSeparator: " · ",
+                                            fields: [
+                                                {name: "event", type: "text", languageKeyCategory: "timelineEvent", labelKey: "event", className: "text-sm font-medium", icon: "#IconHistory"},
+                                                {name: "at", type: "text", format: "dateTime", labelKey: "at", className: "text-sm", icon: "#IconClock"},
+                                                {name: "note", type: "text", labelKey: "note", className: "text-sm", icon: "#IconNotes"},
+                                            ],
+                                        },
+                                    },
                                 },
                             ],
-                            compactSummaryFields: ["event", "at"],
-                            compactSummaryJoinSeparator: " · ",
                         },
-                    },
+                    ],
                 },
             ],
         },

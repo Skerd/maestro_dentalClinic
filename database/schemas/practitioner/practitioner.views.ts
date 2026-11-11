@@ -127,58 +127,80 @@ export const practitionerSheetView: ViewConfig = {
             ],
         },
         {
-            render: "#SheetGroup",
-            props: {title: "services"},
-            dependent: "services",
-            permissions: {read: "services"},
+            // Cards or one line each, the reader's choice (remembered per list).
+            render: "#ReferencesViewModeScope",
+            props: {storageKey: "dentalClinic.team.sheet.services.listDisplay", defaultMode: "cards"},
             children: [
                 {
-                    render: "#SheetEmbeddedItemsList",
+                    render: "#SheetGroup",
+                    props: {title: "services", titleActions: "#ReferencesViewModeToggle"},
+                    dependent: "services",
                     permissions: {read: "services"},
-                    field: {
-                        name: "services",
-                        widget: "#SheetEmbeddedItemsList",
-                        widgetProps: {
-                            entityCards: true,
-                            columns: 3,
-                            fields: [
+                    children: [
+                        {
+                            render: "div",
+                            props: {className: "rounded-lg bg-muted/30 border border-border/50"},
+                            children: [
                                 {
-                                    name: "name",
-                                    type: "text",
-                                    className: "text-sm font-medium",
+                                    render: "#SheetEmbeddedItemsList",
+                                    permissions: {read: "services"},
+                                    field: {
+                                        name: "services",
+                                        widget: "#SheetEmbeddedItemsList",
+                                        widgetProps: {
+                                            pageSize: 6,
+                                            entityCards: true,
+                                            columns: 2,
+                                            compactSummaryFields: ["name"],
+                                            compactSummaryJoinSeparator: " · ",
+                                            fields: [
+                                                {name: "name", type: "text", className: "text-sm font-medium", icon: "#IconDental"},
+                                            ],
+                                        },
+                                    },
                                 },
                             ],
-                            compactSummaryFields: ["name"],
                         },
-                    },
+                    ],
                 },
             ],
         },
         {
-            render: "#SheetGroup",
-            props: {title: "locations"},
-            dependent: "locations",
-            permissions: {read: "locations"},
+            // Cards or one line each, the reader's choice (remembered per list).
+            render: "#ReferencesViewModeScope",
+            props: {storageKey: "dentalClinic.team.sheet.locations.listDisplay", defaultMode: "cards"},
             children: [
                 {
-                    render: "#SheetEmbeddedItemsList",
+                    render: "#SheetGroup",
+                    props: {title: "locations", titleActions: "#ReferencesViewModeToggle"},
+                    dependent: "locations",
                     permissions: {read: "locations"},
-                    field: {
-                        name: "locations",
-                        widget: "#SheetEmbeddedItemsList",
-                        widgetProps: {
-                            entityCards: true,
-                            columns: 3,
-                            fields: [
+                    children: [
+                        {
+                            render: "div",
+                            props: {className: "rounded-lg bg-muted/30 border border-border/50"},
+                            children: [
                                 {
-                                    name: "name",
-                                    type: "text",
-                                    className: "text-sm font-medium",
+                                    render: "#SheetEmbeddedItemsList",
+                                    permissions: {read: "locations"},
+                                    field: {
+                                        name: "locations",
+                                        widget: "#SheetEmbeddedItemsList",
+                                        widgetProps: {
+                                            pageSize: 6,
+                                            entityCards: true,
+                                            columns: 2,
+                                            compactSummaryFields: ["name"],
+                                            compactSummaryJoinSeparator: " · ",
+                                            fields: [
+                                                {name: "name", type: "text", className: "text-sm font-medium", icon: "#IconMapPin"},
+                                            ],
+                                        },
+                                    },
                                 },
                             ],
-                            compactSummaryFields: ["name"],
                         },
-                    },
+                    ],
                 },
             ],
         },
