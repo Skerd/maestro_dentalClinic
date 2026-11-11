@@ -12,11 +12,13 @@ import {CurrencySimpleSnippet} from "@coreModule/database/schemas/currency/curre
 import {validateSchemaDefAgainstMongoose} from "@coreModule/database/utilities/validateSchemaDefAgainstMongoose";
 import {
     DEPOSIT_TYPES,
+    TREATMENT_PLAN_ACCEPTANCE_CHANNELS,
     TREATMENT_PLAN_LINE_KINDS,
     TREATMENT_PLAN_PAYMENT_STATUSES,
     TREATMENT_PLAN_STATUSES,
     TREATMENT_PLAN_TEXT_MAX,
     type DepositType,
+    type TreatmentPlanAcceptanceChannel,
     type TreatmentPlanLineKind,
     type TreatmentPlanPaymentStatus,
     type TreatmentPlanStatus,
@@ -87,7 +89,8 @@ export interface ITreatmentPlan extends Document, IOwnershipPluginFields, ISoftD
     terms?: string;
     sentAt?: Date;
     /** The patient's signature: their typed name, when, from where, and a hash of what they accepted. */
-    acceptance?: {name: string; at: Date; ip?: string; userAgent?: string; contentHash: string};
+    /** The patient's signature (portal), or the staff member who recorded a yes given in person or by phone. */
+    acceptance?: {name: string; at: Date; ip?: string; userAgent?: string; contentHash: string; acceptedBy?: Types.ObjectId; channel?: TreatmentPlanAcceptanceChannel};
     /** Follows from the payments; set by the payment service only. */
     paymentStatus: TreatmentPlanPaymentStatus;
     amountPaid: number;
@@ -193,6 +196,8 @@ const TreatmentPlanSchema = new Schema<ITreatmentPlan>(
                 ip: {type: SchemaTypes.String, dynamicTableConfiguration: hiddenNestedColumn},
                 userAgent: {type: SchemaTypes.String, dynamicTableConfiguration: hiddenNestedColumn},
                 contentHash: {type: SchemaTypes.String, required: true, dynamicTableConfiguration: hiddenNestedColumn},
+                acceptedBy: {type: SchemaTypes.ObjectId, ref: "User", dynamicTableConfiguration: hiddenNestedColumn},
+                channel: {type: SchemaTypes.String, enum: TREATMENT_PLAN_ACCEPTANCE_CHANNELS, dynamicTableConfiguration: hiddenNestedColumn},
             },
             required: false,
             permissions: NoWritePermission,

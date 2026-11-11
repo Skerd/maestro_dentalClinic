@@ -8,10 +8,7 @@ import {ILifeCyclePluginFields, IOwnershipPluginFields, ISoftDeletePluginFields}
 import {addModelData} from "@coreModule/database/collections";
 import {validateSchemaDefAgainstMongoose} from "@coreModule/database/utilities/validateSchemaDefAgainstMongoose";
 import {COLUMN_TYPE} from "armonia/src/modules/core/database/filter/typeOperators";
-import {
-    SCHEDULE_EXCEPTION_NOTE_MAX,
-    ScheduleExceptionSchemaDef,
-} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/scheduleException/scheduleException.schema-def";
+import {SCHEDULE_EXCEPTION_NOTE_MAX, ScheduleExceptionSchemaDef, SCHEDULE_EXCEPTION_REASONS, type ScheduleExceptionReason} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/scheduleException/scheduleException.schema-def";
 import type {IPractitioner} from "../practitioner/practitioner";
 import type {IClinicLocation} from "../clinicLocation/clinicLocation";
 import {PractitionerSimpleSnippet} from "../practitioner/practitioner.snippets";
@@ -24,6 +21,7 @@ export interface IScheduleException extends Document, IOwnershipPluginFields, IS
     location?: IClinicLocation;
     startAt: Date;
     endAt: Date;
+    reason?: ScheduleExceptionReason;
     internalNote?: string;
 }
 
@@ -43,6 +41,7 @@ const ScheduleExceptionSchema = new Schema<IScheduleException>(
         },
         startAt: {type: SchemaTypes.Date, required: true, dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATETIME}},
         endAt: {type: SchemaTypes.Date, required: true, dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATETIME}},
+        reason: {type: SchemaTypes.String, enum: SCHEDULE_EXCEPTION_REASONS},
         internalNote: {type: SchemaTypes.String, maxlength: SCHEDULE_EXCEPTION_NOTE_MAX},
     },
     {accessMode: "loose"},

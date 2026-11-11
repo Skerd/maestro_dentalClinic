@@ -6,11 +6,11 @@ import type {TransactionRequiredParams} from "@coreModule/utilities/middlewares/
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {validateSingleForm} from "armonia/src/modules/core/utilities/zod/shared.validator";
 import type {TreatmentPlan as TreatmentPlanDto} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/treatmentPlan/treatmentPlan.dto";
-import {recordPlanPaymentFormSchema, refundPlanPaymentFormSchema} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/treatmentPlan/treatmentPlan.form.validators";
-import type {RecordPlanPaymentFormType, RefundPlanPaymentFormType} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/treatmentPlan/treatmentPlan.schema-def";
+import {acceptPlanAtClinicFormSchema, recordPlanPaymentFormSchema, refundPlanPaymentFormSchema} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/treatmentPlan/treatmentPlan.form.validators";
+import type {AcceptPlanAtClinicFormType, RecordPlanPaymentFormType, RefundPlanPaymentFormType} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/treatmentPlan/treatmentPlan.schema-def";
 import TreatmentPlan, {type ITreatmentPlan} from "./treatmentPlan";
 import {treatmentPlanToDTO} from "@dentalClinicModule/utilities/mappers/treatmentPlan/treatmentPlanMapper.dto";
-import {revisePlan, sendPlan} from "@dentalClinicModule/utilities/services/treatmentPlans";
+import {acceptPlanAtClinic, revisePlan, sendPlan} from "@dentalClinicModule/utilities/services/treatmentPlans";
 import {recordClinicPayment, refundPlanPayments} from "@dentalClinicModule/utilities/services/treatmentPlanPayments";
 
 type ActionParams<F> = TransactionRequiredParams & F;
@@ -52,6 +52,14 @@ export class TreatmentPlanActions {
         const plan = await loadPlan(params);
         const revision = await revisePlan(plan, {userId: params.actionUserCtx.userId}, ctxOf(params));
         return toDto(revision, params);
+    }
+
+    /** The patient said yes in person or by phone: staff record it (walk-in, phone and single-clinic quotes only). */
+    @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 30}, schema: acceptPlanAtClinicFormSchema})
+    async acceptForPatient(params: ActionParams<AcceptPlanAtClinicFormType>): Promise<TreatmentPlanDto> {
+        const plan = await loadPlan(params);
+        await acceptPlanAtClinic(plan, {userId: params.actionUserCtx.userId, channel: params.channel}, ctxOf(params));
+        return toDto(plan, params);
     }
 
     /** Money the clinic took itself (cash, card terminal, transfer), up to what is still due. */

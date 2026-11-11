@@ -14,6 +14,7 @@ export function scheduleExceptionToDTO(exception: IScheduleException): ScheduleE
         location: mapSnippet<ClinicLocationSimple>()(exception.location, ClinicLocationSimpleSnippet),
         startAt: dateToISOString(exception.startAt),
         endAt: dateToISOString(exception.endAt),
+        reason: exception.reason,
         internalNote: exception.internalNote,
         ...mapSoftDeleteToDTO(exception),
         ...mapOwnershipToDTO(exception),

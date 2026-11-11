@@ -288,7 +288,7 @@ describe("patient folders", {timeout: 60000}, () => {
     }));
 
     it("lets staff book into an existing folder, but only one of their own clinic", () => asCompany(async () => {
-        const folder = await Patient.create({company: companyId, number: "PT-1", firstName: "Ada", lastName: "Lovelace", preferredLanguage: "it-IT", source: "phone"});
+        const folder = await Patient.create({company: companyId, number: "PT-1", firstName: "Ada", lastName: "Lovelace", email: patient.email, phone: patient.phone, preferredLanguage: "it-IT", source: "phone"});
         const foreign = await withTenant(otherCompanyId, () => Patient.create({company: otherCompanyId, number: "PT-2", firstName: "Eve", lastName: "Other", preferredLanguage: "en-US", source: "phone"}));
         const staffBook = (patientRecord: string, time: string) => request(app).put("/api/dentalClinic/appointment").set(callerHeader(admin)).send({
             service: serviceId, location: locationId, practitioner: anaId, date: DATE, time, patient, patientRecord, idempotencyKey: `key-${new ObjectId().toString()}`,
@@ -305,7 +305,7 @@ describe("patient folders", {timeout: 60000}, () => {
     }));
 
     it("confirms a staff booking in the patient's language, not the staff member's (FE-08)", () => asCompany(async () => {
-        const folder = await Patient.create({company: companyId, number: "PT-1", firstName: "Ada", lastName: "Lovelace", preferredLanguage: "sq-AL", source: "phone"});
+        const folder = await Patient.create({company: companyId, number: "PT-1", firstName: "Ada", lastName: "Lovelace", email: patient.email, phone: patient.phone, preferredLanguage: "sq-AL", source: "phone"});
 
         // The staff member's request is in en-US (the auth stub's language).
         const booked = await request(app).put("/api/dentalClinic/appointment").set(callerHeader(admin)).send({
@@ -315,5 +315,21 @@ describe("patient folders", {timeout: 60000}, () => {
 
         expect(booked.status).toBe(200);
         expect(mail.sent).toEqual([expect.objectContaining({kind: "confirmed", languageCode: "sq-AL"})]);
+    }));
+
+    it("books a picked folder with the folder's contact, and refuses a folder that has no email or phone (UX-05)", () => asCompany(async () => {
+        const complete = await Patient.create({company: companyId, number: "PT-1", firstName: "Ada", lastName: "Lovelace", email: "folder@example.com", phone: "+355 69 000 0000", preferredLanguage: "en-US", source: "phone"});
+        const incomplete = await Patient.create({company: companyId, number: "PT-2", firstName: "Bo", lastName: "Noemail", preferredLanguage: "en-US", source: "phone"});
+        const staffBook = (patientRecord: string, time: string) => request(app).put("/api/dentalClinic/appointment").set(callerHeader(admin)).send({
+            service: serviceId, location: locationId, practitioner: anaId, date: DATE, time, patientRecord, idempotencyKey: `key-${new ObjectId().toString()}`,
+        });
+
+        const refused = await staffBook(incomplete._id.toString(), "09:00");
+        expect(refused.body.error_code).toBe("appointment_patient_folder_incomplete");
+
+        const booked = await staffBook(complete._id.toString(), "09:00");
+        expect(booked.status).toBe(200);
+        const stored = await Appointment.findById(booked.body._id);
+        expect(stored!.patient.email).toBe("folder@example.com");
     }));
 });

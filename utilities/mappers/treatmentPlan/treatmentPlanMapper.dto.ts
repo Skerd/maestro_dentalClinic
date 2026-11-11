@@ -72,7 +72,7 @@ export function treatmentPlanToDTO(plan: ITreatmentPlan): TreatmentPlan {
         notes: plan.notes,
         terms: plan.terms,
         sentAt: plan.sentAt ? dateToISOString(plan.sentAt) : undefined,
-        acceptance: plan.acceptance ? {name: plan.acceptance.name, at: dateToISOString(plan.acceptance.at)} : undefined,
+        acceptance: plan.acceptance ? {name: plan.acceptance.name, at: dateToISOString(plan.acceptance.at), ...(plan.acceptance.channel ? {channel: plan.acceptance.channel} : {})} : undefined,
         paymentStatus: plan.paymentStatus ?? "unpaid",
         amountPaid: plan.amountPaid ?? 0,
         amountDue: amountDue(plan, decimals),

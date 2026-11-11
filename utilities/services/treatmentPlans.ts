@@ -9,7 +9,7 @@ import {getGridFSStorage} from "@coreModule/utilities/gridfs/gridfsStorage";
 import {readMediaStream} from "@coreModule/utilities/media/serveMedia";
 import {sealMediaFileStream} from "@coreModule/utilities/security/healthDataCrypto";
 import {localDateOf} from "@coreModule/utilities/time/timeWindows";
-import {FDI_TEETH, type DepositType} from "armonia/src/modules/dentalClinic/constants";
+import {FDI_TEETH, type DepositType, type TreatmentPlanAcceptanceChannel} from "armonia/src/modules/dentalClinic/constants";
 import type {TreatmentPlanTimelineEvent} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/treatmentPlan/treatmentPlan.dto";
 import {type IClinicInquiry} from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry";
 import {type ITreatmentPlan, type ITreatmentPlanLine} from "@dentalClinicModule/database/schemas/treatmentPlan/treatmentPlan";
@@ -23,6 +23,7 @@ import {notifyInquiryPatient, notifyInquiryStaff} from "./inquiryNotify";
 import {findOrCreatePatient, keepMedicalHistory} from "./patientRecords";
 
 import {clinicInquiryService} from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry.service";
+import {patientService} from "@dentalClinicModule/database/schemas/patient/patient.service";
 import {mediaService} from "@coreModule/database/schemas/media/media.service";
 const DAY = 24 * 3600 * 1000;
 const UTC = "UTC";
@@ -315,6 +316,67 @@ export async function acceptPlan(
         }
     });
     return inquiry;
+}
+
+/**
+ * Staff record a yes the patient gave in person or by phone (R6). The quote is accepted with who recorded it and how;
+ * the clinic's other open options for the same request are rejected and the request is converted, as on the portal.
+ * Not for a quote answering a multi-clinic portal request: accepting one closes other clinics' requests, which only
+ * the patient may do from their account.
+ */
+export async function acceptPlanAtClinic(
+    plan: ITreatmentPlan,
+    input: {userId: string | ObjectId; channel: TreatmentPlanAcceptanceChannel; now?: Date},
+    ctx: ClinicCtx,
+): Promise<void> {
+    const now = input.now ?? new Date();
+    if (plan.status !== "sent") throw apiValidationException("treatment_plan_invalid_status", "", null, ctx.languageCode);
+    if (plan.validUntil && plan.validUntil < localDateOf(now, UTC)) throw apiValidationException("treatment_plan_expired", "", null, ctx.languageCode);
+    const companyId = nestedEntityToRef(plan.company);
+    const inquiryId = nestedEntityToRef(plan.inquiry);
+    const inquiry = inquiryId ? await clinicInquiryService.findOne({_id: inquiryId, company: companyId, deletedAt: null}, {session: ctx.session}) : null;
+    if (inquiry?.requestGroup) throw apiValidationException("treatment_plan_patient_accepts_online", "", null, ctx.languageCode);
+
+    let patientId = nestedEntityToRef(plan.patient) ?? nestedEntityToRef(inquiry?.patient);
+    if (!patientId && inquiry && companyId) {
+        const {contact} = inquiry;
+        const opened = await findOrCreatePatient(
+            {
+                companyId,
+                contact: {firstName: contact.firstName, lastName: contact.lastName, email: contact.email, phone: contact.phone, whatsapp: contact.whatsapp, country: nestedEntityToRef(contact.country)},
+                source: inquiry.source,
+                preferredLanguage: contact.preferredLanguage,
+                now,
+            },
+            ctx,
+        );
+        await keepMedicalHistory(opened, inquiry.medicalHistory, ctx);
+        patientId = opened._id;
+    }
+    const patient = patientId ? await patientService.findOne({_id: patientId, company: companyId}, {session: ctx.session}) : null;
+    const name = patient ? `${patient.firstName} ${patient.lastName}`.trim() : `${inquiry?.contact.firstName ?? ""} ${inquiry?.contact.lastName ?? ""}`.trim();
+
+    plan.status = "accepted";
+    if (patientId) plan.set("patient", patientId);
+    plan.acceptance = {name, at: now, contentHash: planContentHash(plan), acceptedBy: new ObjectId(String(input.userId)), channel: input.channel};
+    record(plan, "accepted", {userId: input.userId, now});
+    await plan.save({session: ctx.session});
+
+    if (inquiry) {
+        await treatmentPlanService.updateMany(
+            {inquiry: inquiry._id, _id: {$ne: plan._id}, status: {$in: ["sent", "draft"]}},
+            {$set: {status: "rejected"}, $push: {timeline: {event: "rejected", at: now, note: plan.number}}},
+            {session: ctx.session},
+        );
+        if (isOpenInquiry(inquiry)) {
+            if (patientId) inquiry.set("patient", patientId);
+            inquiry.status = "converted";
+            inquiry.closedAt = now;
+            inquiry.timeline.push({event: "converted", at: now, by: new ObjectId(String(input.userId)), note: plan.number});
+            await inquiry.save({session: ctx.session});
+        }
+        await notifyInquiryStaff(NotificationEventCodes.PLAN_ACCEPTED, inquiry, ctx);
+    }
 }
 
 /** Sent quotes past their last day can no longer be accepted. */

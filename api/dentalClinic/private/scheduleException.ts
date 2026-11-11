@@ -1,4 +1,6 @@
 import {ObjectId} from "mongodb";
+import type {ClientSession} from "mongoose";
+import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {createCrudRouter} from "@coreModule/api/crudRouterFactory";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {createScheduleExceptionFormSchema} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/scheduleException/createScheduleException.form.validator";
@@ -18,6 +20,39 @@ const CLASHES_SHOWN = 5;
 
 export const basePath = "/api/dentalClinic/scheduleException";
 
+/**
+ * Time off over existing appointments would strand those patients: they must be moved or cancelled first. Locking
+ * every practitioner affected stops a booking slipping in while this commits (create and moved windows alike).
+ */
+async function assertNoClashes(
+    target: {practitioner: ObjectId} | {location: ObjectId},
+    start: Date,
+    end: Date,
+    ctx: {companyId: ObjectId; session: ClientSession; languageCode: string},
+): Promise<void> {
+    const {companyId, session, languageCode} = ctx;
+    let practitionerIds: ObjectId[];
+    if ("practitioner" in target) {
+        practitionerIds = [target.practitioner];
+    } else {
+        if (!(await clinicLocationService.exists({_id: target.location, company: companyId, deletedAt: null}, {session}))) {
+            throw apiValidationException("clinic_location_not_found", "", null, languageCode);
+        }
+        practitionerIds = (await practitionerService.find({company: companyId, locations: target.location, deletedAt: null}, {session}, undefined, "_id")).map((p) => p._id);
+    }
+    for (const id of practitionerIds) await lockPractitioner(id, {companyId, session, languageCode});
+    const clashes = await appointmentService.find({
+        company: companyId,
+        ...target,
+        startAt: {$lt: end},
+        endAt: {$gt: start},
+        ...blockingAppointmentFilter(),
+    }, {session}, undefined, "number", {startAt: 1}, CLASHES_SHOWN);
+    if (clashes.length) {
+        throw apiValidationException("schedule_exception_overlaps_appointments", "", null, languageCode, [clashes.map((a) => a.number).join(", ")]);
+    }
+}
+
 export const {router} = createCrudRouter({
     collectionName: "scheduleexceptions",
     model: ScheduleException,
@@ -31,49 +66,32 @@ export const {router} = createCrudRouter({
     selectSearchField: "internalNote",
     defaultSort: {startAt: -1},
     extraListFilter: ({company, actionUserCtx}: any) => scheduleExceptionScopeFilter(company._id, actionUserCtx),
-    /**
-     * Time off over existing appointments would strand those patients: they must
-     * be moved or cancelled first. Locking every practitioner affected stops a
-     * booking slipping in while this commits.
-     */
-    buildCreateData: async ({practitioner, location, startAt, endAt, internalNote, company, session, languageCode}: any) => {
+    buildCreateData: async ({practitioner, location, startAt, endAt, reason, internalNote, company, session, languageCode}: any) => {
         if (Boolean(practitioner) === Boolean(location)) {
             throw apiValidationException("schedule_exception_target_required", "", null, languageCode);
         }
-        const companyId = company._id;
+        const target = practitioner ? {practitioner: new ObjectId(String(practitioner))} : {location: new ObjectId(String(location))};
         const start = new Date(startAt);
         const end = new Date(endAt);
-        let practitionerIds: ObjectId[];
-        if (practitioner) {
-            practitionerIds = [new ObjectId(String(practitioner))];
-        } else {
-            const locationId = new ObjectId(String(location));
-            if (!(await clinicLocationService.exists({_id: locationId, company: companyId, deletedAt: null}, {session: session}))) {
-                throw apiValidationException("clinic_location_not_found", "", null, languageCode);
-            }
-            practitionerIds = (await practitionerService.find({company: companyId, locations: locationId, deletedAt: null}, {session: session}, undefined, "_id")).map((p) => p._id);
-        }
-        for (const id of practitionerIds) await lockPractitioner(id, {companyId, session, languageCode});
-
-        const clashes = await appointmentService.find({
-            company: companyId,
-            ...(practitioner ? {practitioner: practitionerIds[0]} : {location: new ObjectId(String(location))}),
-            startAt: {$lt: end},
-            endAt: {$gt: start},
-            ...blockingAppointmentFilter(),
-        }, {session: session}, undefined, "number", {startAt: 1}, CLASHES_SHOWN);
-        if (clashes.length) {
-            throw apiValidationException("schedule_exception_overlaps_appointments", "", null, languageCode, [clashes.map((a) => a.number).join(", ")]);
+        await assertNoClashes(target, start, end, {companyId: company._id, session, languageCode});
+        return {...target, startAt: start, endAt: end, reason, internalNote};
+    },
+    /** Who it is for stays fixed; a moved window is checked against appointments like a new one. */
+    buildUpdateData: async ({startAt, endAt, reason, internalNote, existing, company, session, languageCode}: any, writeFields) => {
+        const start = startAt !== undefined && writeFields.startAt ? new Date(startAt) : existing.startAt;
+        const end = endAt !== undefined && writeFields.endAt ? new Date(endAt) : existing.endAt;
+        if (start.getTime() !== existing.startAt.getTime() || end.getTime() !== existing.endAt.getTime()) {
+            if (end <= start) throw apiValidationException("schedule_exception_end_before_start", "", null, languageCode);
+            const practitionerId = nestedEntityToRef(existing.practitioner);
+            const locationId = nestedEntityToRef(existing.location);
+            const target = practitionerId ? {practitioner: practitionerId} : {location: locationId!};
+            await assertNoClashes(target, start, end, {companyId: company._id, session, languageCode});
         }
         return {
-            ...(practitioner ? {practitioner: practitionerIds[0]} : {location: new ObjectId(String(location))}),
             startAt: start,
             endAt: end,
-            internalNote,
+            ...(reason !== undefined && writeFields.reason && {reason}),
+            ...(internalNote !== undefined && writeFields.internalNote && {internalNote}),
         };
     },
-    // The window was checked against appointments at create; only the note changes.
-    buildUpdateData: ({internalNote}: any, writeFields) => ({
-        ...(internalNote !== undefined && writeFields.internalNote && {internalNote}),
-    }),
 });

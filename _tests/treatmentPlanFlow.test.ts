@@ -356,6 +356,38 @@ describe("the patient accepting a quote", {timeout: 60000}, () => {
     }));
 });
 
+describe("staff recording an acceptance (P8.4b)", {timeout: 60000}, () => {
+    it("accepts a walk-in or phone quote for the patient, opens their folder and closes the request's other options", () => acrossCompanies(async () => {
+        const inquiry = await ClinicInquiry.create({
+            company: clinicA, number: "INQ-PHONE", source: "phone", status: "new", contact: {firstName: "Arta", lastName: "Hoxha", email: "arta@example.com", preferredLanguage: "sq-AL"},
+            contactShared: true, idempotencyKey: new ObjectId().toString(), timeline: [],
+        });
+        const chosen = await sentPlan(staffA, inquiry._id.toString());
+        const other = await sentPlan(staffA, inquiry._id.toString(), {optionLabel: "Budget"});
+
+        const accepted = await asStaff(staffA, "post", "/acceptForPatient", {_id: chosen, channel: "phone"});
+        expect(accepted.body).toMatchObject({status: "accepted", acceptance: {name: "Arta Hoxha", channel: "phone"}});
+
+        const stored = await TreatmentPlan.findById(chosen);
+        expect(String(stored!.acceptance!.acceptedBy)).toBe(staffA.userId);
+        expect(stored!.timeline.at(-1)).toMatchObject({event: "accepted"});
+        expect((await TreatmentPlan.findById(other))!.status).toBe("rejected");
+        const folder = await Patient.findOne({company: clinicA, email: "arta@example.com"});
+        expect(String(stored!.patient)).toBe(folder!._id.toString());
+        expect((await ClinicInquiry.findById(inquiry._id))!.status).toBe("converted");
+
+        expect((await asStaff(staffA, "post", "/acceptForPatient", {_id: chosen, channel: "phone"})).body.error_code).toBe("treatment_plan_invalid_status");
+    }));
+
+    it("leaves a multi-clinic portal quote to the patient", () => acrossCompanies(async () => {
+        const {atA} = await requestToBoth();
+        const sent = await sentPlan(staffA, atA);
+        const refused = await asStaff(staffA, "post", "/acceptForPatient", {_id: sent, channel: "in_person"});
+        expect(refused.body.error_code).toBe("treatment_plan_patient_accepts_online");
+        expect((await TreatmentPlan.findById(sent))!.status).toBe("sent");
+    }));
+});
+
 describe("the medical history", {timeout: 60000}, () => {
     const answers = (overrides: Record<string, string> = {}) => [
         "allergies", "anticoagulants", "bisphosphonates", "diabetes", "heart_condition",

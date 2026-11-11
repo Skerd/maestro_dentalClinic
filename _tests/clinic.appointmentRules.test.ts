@@ -249,6 +249,25 @@ describe("time off and closures", {timeout: 60000}, () => {
         const created = await timeOff({practitioner: anaId, startAt: await instantOf(DATE, "08:00"), endAt: await instantOf(DATE, "11:00")});
         expect(created.status).toBe(200);
     }));
+
+    it("moves time off only where it clashes with no appointment, and keeps its end after its start", () => asCompany(async () => {
+        // Hours on DATE, from its 09:00 slot (instantOf reads free slots, which time off removes).
+        const nine = Date.parse(await instantOf(DATE, "09:00"));
+        const at = (hour: number) => new Date(nine + (hour - 9) * 3_600_000).toISOString();
+        expect((await staffBook()).status).toBe(200);
+        const created = await timeOff({practitioner: anaId, startAt: at(13), endAt: at(14)});
+        expect(created.status).toBe(200);
+        const edit = (body: Record<string, unknown>) => request(app).patch("/api/dentalClinic/scheduleException").set(callerHeader(admin)).send({_id: created.body._id, ...body});
+
+        expect((await edit({startAt: at(8), endAt: at(11)})).body.error_code).toBe("schedule_exception_overlaps_appointments");
+        expect((await edit({startAt: at(15), endAt: at(14)})).body.error_code).toBe("form_not_correct");
+
+        const moved = await edit({startAt: at(14), endAt: at(17), reason: "training"});
+        expect(moved.status).toBe(200);
+        const stored = await ScheduleException.findById(created.body._id);
+        expect(stored!.startAt.toISOString()).toBe(at(14));
+        expect(stored!.reason).toBe("training");
+    }));
 });
 
 describe("moving an appointment", {timeout: 60000}, () => {
