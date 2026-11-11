@@ -49,20 +49,6 @@ export const clinicInquirySheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
-                            permissions: {read: "status"},
-                            field: {
-                                name: "status",
-                                widget: "#DisplayCard",
-                                label: "status",
-                                widgetProps: {
-                                    icon: "#IconStatusChange",
-                                    type: "enum",
-                                    languageKeyCategory: "statusValues",
-                                },
-                            },
-                        },
-                        {
-                            render: "#DisplayCard",
                             permissions: {read: "source"},
                             field: {
                                 name: "source",

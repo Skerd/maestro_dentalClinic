@@ -52,20 +52,6 @@ export const treatmentPlanSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
-                            permissions: {read: "status"},
-                            field: {
-                                name: "status",
-                                widget: "#DisplayCard",
-                                label: "status",
-                                widgetProps: {
-                                    icon: "#IconStatusChange",
-                                    type: "enum",
-                                    languageKeyCategory: "statusValues",
-                                },
-                            },
-                        },
-                        {
-                            render: "#DisplayCard",
                             permissions: {read: "optionLabel"},
                             field: {
                                 name: "optionLabel",
@@ -77,6 +63,8 @@ export const treatmentPlanSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "version"},
+                            // Only a revision says which version it is; a first quote is just the quote.
+                            dependent: "supersedes",
                             field: {
                                 name: "version",
                                 widget: "#DisplayCard",
