@@ -76,6 +76,7 @@ export const patientSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "dateOfBirth"},
+                            dependent: "dateOfBirth",
                             field: {
                                 name: "dateOfBirth",
                                 widget: "#DisplayCard",
@@ -90,6 +91,7 @@ export const patientSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "sex"},
+                            dependent: "sex",
                             field: {
                                 name: "sex",
                                 widget: "#DisplayCard",
@@ -130,8 +132,39 @@ export const patientSheetView: ViewConfig = {
                             },
                         },
                         {
+                            // Hub summary (P8.5): present only when the caller may read appointments / quotes.
+                            render: "#DisplayCard",
+                            dependent: "nextVisitAt",
+                            dependentRuntimeOnly: true,
+                            field: {
+                                name: "nextVisitAt",
+                                widget: "#DisplayCard",
+                                label: "nextVisitAt",
+                                widgetProps: {icon: "#IconCalendarEvent", type: "dateTime", show: true},
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            dependent: "balanceDue",
+                            dependentRuntimeOnly: true,
+                            field: {
+                                name: "balanceDue",
+                                widget: "#DisplayCard",
+                                label: "balanceDue",
+                                widgetProps: {
+                                    icon: "#IconReceipt",
+                                    show: true,
+                                    format: "locale",
+                                    valuePath: ["balanceCurrency.symbol", "balanceDue"],
+                                    joinSeparator: " ",
+                                    type: "currency",
+                                },
+                            },
+                        },
+                        {
                             render: "#DisplayCard",
                             permissions: {read: "account"},
+                            dependent: "account.name",
                             field: {
                                 name: "account.name",
                                 widget: "#DisplayCard",
@@ -142,6 +175,7 @@ export const patientSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "tags"},
+                            dependent: "tags",
                             field: {
                                 name: "tags",
                                 widget: "#DisplayCard",
@@ -155,7 +189,88 @@ export const patientSheetView: ViewConfig = {
         },
         {
             render: "#SheetGroup",
+            props: {title: "medicalHistoryGroup"},
+            permissions: {read: "medicalHistory"},
+            children: [
+                {
+                    render: "#MedicalHistoryAnswers",
+                    permissions: {read: "medicalHistory"},
+                    field: {name: "medicalHistory", widget: "#MedicalHistoryAnswers"},
+                },
+            ],
+        },
+        {
+            // Read with the caller's own grants on that model; absent when they may not read it (patientHub).
+            render: "#SheetGroup",
+            dependent: "appointments",
+            dependentRuntimeOnly: true,
+            props: {title: "appointmentsGroup"},
+            children: [
+                {
+                    render: "#ReferencesRender",
+                    field: {
+                        name: "appointments",
+                        widget: "#ReferencesRender",
+                        widgetProps: {cardWidget: "#AppointmentCard", pageSize: 4, columns: 2},
+                    },
+                },
+            ],
+        },
+        {
+            // Read with the caller's own grants on that model; absent when they may not read it (patientHub).
+            render: "#SheetGroup",
+            dependent: "plans",
+            dependentRuntimeOnly: true,
+            props: {title: "plansGroup"},
+            children: [
+                {
+                    render: "#ReferencesRender",
+                    field: {
+                        name: "plans",
+                        widget: "#ReferencesRender",
+                        widgetProps: {cardWidget: "#TreatmentPlanCard", pageSize: 4, columns: 2},
+                    },
+                },
+            ],
+        },
+        {
+            // Read with the caller's own grants on that model; absent when they may not read it (patientHub).
+            render: "#SheetGroup",
+            dependent: "trips",
+            dependentRuntimeOnly: true,
+            props: {title: "tripsGroup"},
+            children: [
+                {
+                    render: "#ReferencesRender",
+                    field: {
+                        name: "trips",
+                        widget: "#ReferencesRender",
+                        widgetProps: {cardWidget: "#PatientTripCard", pageSize: 4, columns: 2},
+                    },
+                },
+            ],
+        },
+        {
+            // Read with the caller's own grants on that model; absent when they may not read it (patientHub).
+            render: "#SheetGroup",
+            dependent: "inquiries",
+            dependentRuntimeOnly: true,
+            props: {title: "inquiriesGroup"},
+            children: [
+                {
+                    render: "#ReferencesRender",
+                    field: {
+                        name: "inquiries",
+                        widget: "#ReferencesRender",
+                        widgetProps: {cardWidget: "#ClinicInquiryCard", pageSize: 4, columns: 2},
+                    },
+                },
+            ],
+        },
+        {
+            render: "#SheetGroup",
             props: {title: "contact"},
+            dependentAny: ["email", "phone", "whatsapp", "address"],
             children: [
                 {
                     render: "#SheetGrid",
@@ -164,6 +279,7 @@ export const patientSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "email"},
+                            dependent: "email",
                             field: {
                                 name: "email",
                                 widget: "#DisplayCard",
@@ -174,6 +290,7 @@ export const patientSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "phone"},
+                            dependent: "phone",
                             field: {
                                 name: "phone",
                                 widget: "#DisplayCard",
@@ -184,6 +301,7 @@ export const patientSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "whatsapp"},
+                            dependent: "whatsapp",
                             field: {
                                 name: "whatsapp",
                                 widget: "#DisplayCard",
@@ -194,6 +312,7 @@ export const patientSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "address"},
+                            dependent: "address.country.name",
                             field: {
                                 name: "address.country.name",
                                 widget: "#DisplayCard",
@@ -204,6 +323,7 @@ export const patientSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "address"},
+                            dependent: "address.city",
                             field: {
                                 name: "address.city",
                                 widget: "#DisplayCard",
@@ -214,6 +334,7 @@ export const patientSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "address"},
+                            dependent: "address.street",
                             field: {
                                 name: "address.street",
                                 widget: "#DisplayCard",
@@ -224,6 +345,7 @@ export const patientSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "address"},
+                            dependent: "address.postalCode",
                             field: {
                                 name: "address.postalCode",
                                 widget: "#DisplayCard",
@@ -238,6 +360,7 @@ export const patientSheetView: ViewConfig = {
         {
             render: "#SheetGroup",
             props: {title: "emergencyContact"},
+            dependent: "emergencyContact",
             children: [
                 {
                     render: "#SheetGrid",
@@ -246,6 +369,7 @@ export const patientSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "emergencyContact"},
+                            dependent: "emergencyContact.name",
                             field: {
                                 name: "emergencyContact.name",
                                 widget: "#DisplayCard",
@@ -256,6 +380,7 @@ export const patientSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "emergencyContact"},
+                            dependent: "emergencyContact.phone",
                             field: {
                                 name: "emergencyContact.phone",
                                 widget: "#DisplayCard",
@@ -266,6 +391,7 @@ export const patientSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "emergencyContact"},
+                            dependent: "emergencyContact.relation",
                             field: {
                                 name: "emergencyContact.relation",
                                 widget: "#DisplayCard",
@@ -280,6 +406,7 @@ export const patientSheetView: ViewConfig = {
         {
             render: "#SheetGroup",
             props: {title: "homeDentist"},
+            dependent: "homeDentist",
             children: [
                 {
                     render: "#SheetGrid",
@@ -288,6 +415,7 @@ export const patientSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "homeDentist"},
+                            dependent: "homeDentist.name",
                             field: {
                                 name: "homeDentist.name",
                                 widget: "#DisplayCard",
@@ -298,6 +426,7 @@ export const patientSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "homeDentist"},
+                            dependent: "homeDentist.practice",
                             field: {
                                 name: "homeDentist.practice",
                                 widget: "#DisplayCard",
@@ -308,6 +437,7 @@ export const patientSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "homeDentist"},
+                            dependent: "homeDentist.email",
                             field: {
                                 name: "homeDentist.email",
                                 widget: "#DisplayCard",
@@ -318,6 +448,7 @@ export const patientSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "homeDentist"},
+                            dependent: "homeDentist.phone",
                             field: {
                                 name: "homeDentist.phone",
                                 widget: "#DisplayCard",
@@ -332,10 +463,12 @@ export const patientSheetView: ViewConfig = {
         {
             render: "#SheetGroup",
             props: {title: "notesGroup"},
+            dependent: "notes",
             children: [
                 {
                     render: "#DisplayCard",
                     permissions: {read: "notes"},
+                    dependent: "notes",
                     field: {
                         name: "notes",
                         widget: "#DisplayCard",

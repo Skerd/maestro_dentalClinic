@@ -61,6 +61,7 @@ export const clinicServiceSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "category"},
+                            dependent: "category",
                             field: {
                                 name: "category",
                                 widget: "#DisplayCard",
@@ -85,16 +86,30 @@ export const clinicServiceSheetView: ViewConfig = {
                                 },
                             },
                         },
-                        {
-                            render: "#DisplayCard",
-                            permissions: {read: "slug"},
-                            field: {
-                                name: "slug",
-                                widget: "#DisplayCard",
-                                label: "slug",
-                                widgetProps: {icon: "#Hash"},
-                            },
-                        },
+                    ],
+                },
+                {
+                    render: "#DisplayCard",
+                    permissions: {read: "description"},
+                    dependent: "description",
+                    field: {
+                        name: "description",
+                        widget: "#DisplayCard",
+                        label: "description",
+                        widgetProps: {icon: "#IconAlignLeft"},
+                    },
+                },
+            ],
+        },
+        {
+            render: "#SheetGroup",
+            props: {title: "timingGroup"},
+            permissions: {readAny: ["durationMinutes", "bufferBeforeMinutes", "bufferAfterMinutes"]},
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 3},
+                    children: [
                         {
                             render: "#DisplayCard",
                             permissions: {read: "durationMinutes"},
@@ -134,6 +149,19 @@ export const clinicServiceSheetView: ViewConfig = {
                                 },
                             },
                         },
+                    ],
+                },
+            ],
+        },
+        {
+            render: "#SheetGroup",
+            props: {title: "priceGroup"},
+            permissions: {readAny: ["priceType", "price"]},
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 3},
+                    children: [
                         {
                             render: "#DisplayCard",
                             permissions: {read: "priceType"},
@@ -165,6 +193,19 @@ export const clinicServiceSheetView: ViewConfig = {
                                 },
                             },
                         },
+                    ],
+                },
+            ],
+        },
+        {
+            render: "#SheetGroup",
+            props: {title: "visibilityGroup"},
+            permissions: {readAny: ["onlineBookable", "isPublic", "isActive"]},
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 3},
+                    children: [
                         {
                             render: "#DisplayCard",
                             permissions: {read: "onlineBookable"},
@@ -205,16 +246,6 @@ export const clinicServiceSheetView: ViewConfig = {
                             },
                         },
                     ],
-                },
-                {
-                    render: "#DisplayCard",
-                    permissions: {read: "description"},
-                    field: {
-                        name: "description",
-                        widget: "#DisplayCard",
-                        label: "description",
-                        widgetProps: {icon: "#IconAlignLeft"},
-                    },
                 },
             ],
         },

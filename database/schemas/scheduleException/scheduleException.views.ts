@@ -31,6 +31,7 @@ export const scheduleExceptionSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "practitioner"},
+                            dependent: "practitioner.displayName",
                             field: {
                                 name: "practitioner.displayName",
                                 widget: "#DisplayCard",
@@ -41,6 +42,7 @@ export const scheduleExceptionSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "location"},
+                            dependent: "location.name",
                             field: {
                                 name: "location.name",
                                 widget: "#DisplayCard",
@@ -77,6 +79,7 @@ export const scheduleExceptionSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "reason"},
+                            dependent: "reason",
                             field: {
                                 name: "reason",
                                 widget: "#DisplayCard",
@@ -93,6 +96,7 @@ export const scheduleExceptionSheetView: ViewConfig = {
                 {
                     render: "#DisplayCard",
                     permissions: {read: "internalNote"},
+                    dependent: "internalNote",
                     field: {
                         name: "internalNote",
                         widget: "#DisplayCard",

@@ -8,6 +8,7 @@ import {patientService} from "@dentalClinicModule/database/schemas/patient/patie
 import {patientToDTO, patientsToDTO} from "@dentalClinicModule/utilities/mappers/patient/patientMapper.dto";
 import {patientsToSelect} from "@dentalClinicModule/utilities/mappers/patient/patientMapper.select";
 import {patientNumber} from "@dentalClinicModule/utilities/services/patientRecords";
+import {patientHub} from "@dentalClinicModule/utilities/services/patientHub";
 
 export const basePath = "/api/dentalClinic/patient";
 
@@ -24,6 +25,11 @@ export const {router} = createCrudRouter({
     selectSearchField: "lastName",
     selectProjection: "_id number firstName lastName",
     defaultSort: {lastName: 1, firstName: 1},
+    /** The sheet is the patient's hub: their appointments, quotes, trips and requests, and what they still owe. */
+    enrichSingle: async (doc, {company, actionUserCtx, languageCode}: any) => ({
+        ...patientToDTO(doc),
+        ...(await patientHub(doc._id, {companyId: company._id, actionUserCtx, languageCode})),
+    }),
     buildCreateData: (params: any) => ({
         ...buildCreateDataFromSchemaDef(PatientSchemaDef)(params),
         number: patientNumber(),

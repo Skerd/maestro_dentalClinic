@@ -42,16 +42,6 @@ export const clinicLocationSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
-                            permissions: {read: "name"},
-                            field: {
-                                name: "name",
-                                widget: "#DisplayCard",
-                                label: "name",
-                                widgetProps: {icon: "#IconMapPin"},
-                            },
-                        },
-                        {
-                            render: "#DisplayCard",
                             permissions: {read: "timezone"},
                             field: {
                                 name: "timezone",
@@ -63,6 +53,7 @@ export const clinicLocationSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "phone"},
+                            dependent: "phone",
                             field: {
                                 name: "phone",
                                 widget: "#DisplayCard",
@@ -73,6 +64,7 @@ export const clinicLocationSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "email"},
+                            dependent: "email",
                             field: {
                                 name: "email",
                                 widget: "#DisplayCard",
@@ -110,6 +102,7 @@ export const clinicLocationSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "address"},
+                            dependent: "address.street",
                             field: {
                                 name: "address.street",
                                 widget: "#DisplayCard",
@@ -120,6 +113,7 @@ export const clinicLocationSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "address"},
+                            dependent: "address.postalCode",
                             field: {
                                 name: "address.postalCode",
                                 widget: "#DisplayCard",
@@ -130,6 +124,7 @@ export const clinicLocationSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "address"},
+                            dependent: "address.city.name",
                             field: {
                                 name: "address.city.name",
                                 widget: "#DisplayCard",
@@ -140,6 +135,7 @@ export const clinicLocationSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "address"},
+                            dependent: "address.country.name",
                             field: {
                                 name: "address.country.name",
                                 widget: "#DisplayCard",
@@ -158,42 +154,9 @@ export const clinicLocationSheetView: ViewConfig = {
             permissions: {read: "openingHours"},
             children: [
                 {
-                    render: "#SheetEmbeddedItemsList",
+                    render: "#WeeklyHours",
                     permissions: {read: "openingHours"},
-                    field: {
-                        name: "openingHours",
-                        widget: "#SheetEmbeddedItemsList",
-                        widgetProps: {
-                            cardColumns: 3,
-                            fields: [
-                                {
-                                    name: "dayOfWeek",
-                                    type: "text",
-                                    languageKeyCategory: "weekday",
-                                    labelKey: "dayOfWeek",
-                                    className: "text-sm font-medium",
-                                },
-                                {
-                                    name: "startTime",
-                                    type: "text",
-                                    labelKey: "startTime",
-                                    className: "text-sm",
-                                },
-                                {
-                                    name: "endTime",
-                                    type: "text",
-                                    labelKey: "endTime",
-                                    className: "text-sm",
-                                },
-                            ],
-                            compactSummaryFields: [
-                                "dayOfWeek",
-                                "startTime",
-                                "endTime",
-                            ],
-                            compactSummaryJoinSeparator: " - ",
-                        },
-                    },
+                    field: {name: "openingHours", widget: "#WeeklyHours", widgetProps: {closedKey: "closed"}},
                 },
             ],
         },

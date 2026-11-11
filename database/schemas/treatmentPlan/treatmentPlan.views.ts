@@ -90,6 +90,7 @@ export const treatmentPlanSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "inquiry"},
+                            dependent: "inquiry.number",
                             field: {
                                 name: "inquiry.number",
                                 widget: "#DisplayCard",
@@ -100,6 +101,7 @@ export const treatmentPlanSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "patient"},
+                            dependent: "patient.number",
                             field: {
                                 name: "patient.number",
                                 widget: "#DisplayCard",
@@ -110,6 +112,7 @@ export const treatmentPlanSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "validUntil"},
+                            dependent: "validUntil",
                             field: {
                                 name: "validUntil",
                                 widget: "#DisplayCard",
@@ -120,6 +123,7 @@ export const treatmentPlanSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "sentAt"},
+                            dependent: "sentAt",
                             field: {
                                 name: "sentAt",
                                 widget: "#DisplayCard",
@@ -197,11 +201,25 @@ export const treatmentPlanSheetView: ViewConfig = {
         },
         {
             render: "#SheetGroup",
+            props: {title: "breakdownGroup"},
+            permissions: {read: "lines"},
+            children: [
+                {
+                    render: "#PlanBreakdown",
+                    permissions: {read: "lines"},
+                    field: {name: "lines", widget: "#PlanBreakdown"},
+                },
+            ],
+        },
+        {
+            render: "#SheetGroup",
             props: {title: "textsGroup"},
+            dependentAny: ["notes", "terms"],
             children: [
                 {
                     render: "#DisplayCard",
                     permissions: {read: "notes"},
+                    dependent: "notes",
                     field: {
                         name: "notes",
                         widget: "#DisplayCard",
@@ -212,6 +230,7 @@ export const treatmentPlanSheetView: ViewConfig = {
                 {
                     render: "#DisplayCard",
                     permissions: {read: "terms"},
+                    dependent: "terms",
                     field: {
                         name: "terms",
                         widget: "#DisplayCard",

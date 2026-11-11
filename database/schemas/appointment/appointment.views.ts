@@ -114,6 +114,7 @@ export const appointmentSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "patientRecord"},
+                            dependent: "patientRecord.number",
                             field: {
                                 name: "patientRecord.number",
                                 widget: "#DisplayCard",
@@ -124,6 +125,7 @@ export const appointmentSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "customer"},
+                            dependent: "customer.name",
                             field: {
                                 name: "customer.name",
                                 widget: "#DisplayCard",
@@ -134,6 +136,7 @@ export const appointmentSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "rescheduleCount"},
+                            dependent: "rescheduleCount",
                             field: {
                                 name: "rescheduleCount",
                                 widget: "#DisplayCard",
@@ -202,6 +205,7 @@ export const appointmentSheetView: ViewConfig = {
                 {
                     render: "#DisplayCard",
                     permissions: {read: "note"},
+                    dependent: "note",
                     field: {
                         name: "note",
                         widget: "#DisplayCard",
@@ -220,16 +224,6 @@ export const appointmentSheetView: ViewConfig = {
                     render: "#SheetGrid",
                     props: {columns: 3},
                     children: [
-                        {
-                            render: "#DisplayCard",
-                            permissions: {read: "snapshot"},
-                            field: {
-                                name: "snapshot.serviceName",
-                                widget: "#DisplayCard",
-                                label: "serviceName",
-                                widgetProps: {icon: "#IconDental"},
-                            },
-                        },
                         {
                             render: "#DisplayCard",
                             permissions: {read: "snapshot"},
@@ -287,6 +281,7 @@ export const appointmentSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "consent"},
+                            dependent: "consent.version",
                             field: {
                                 name: "consent.version",
                                 widget: "#DisplayCard",

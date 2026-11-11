@@ -41,6 +41,7 @@ export const practitionerSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "title"},
+                            dependent: "title",
                             field: {
                                 name: "title",
                                 widget: "#DisplayCard",
@@ -65,6 +66,7 @@ export const practitionerSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "staffUser"},
+                            dependent: "staffUser.name",
                             field: {
                                 name: "staffUser.name",
                                 widget: "#DisplayCard",
@@ -75,11 +77,12 @@ export const practitionerSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "languages"},
+                            dependent: "languages",
                             field: {
                                 name: "languages",
                                 widget: "#DisplayCard",
                                 label: "languages",
-                                widgetProps: {icon: "#IconLanguage"},
+                                widgetProps: {icon: "#IconLanguage", valueType: "stringBadgeList", languageKeyCategory: "languageNames"},
                             },
                         },
                         {
@@ -113,6 +116,7 @@ export const practitionerSheetView: ViewConfig = {
                 {
                     render: "#DisplayCard",
                     permissions: {read: "bio"},
+                    dependent: "bio",
                     field: {
                         name: "bio",
                         widget: "#DisplayCard",
@@ -135,7 +139,8 @@ export const practitionerSheetView: ViewConfig = {
                         name: "services",
                         widget: "#SheetEmbeddedItemsList",
                         widgetProps: {
-                            cardColumns: 3,
+                            entityCards: true,
+                            columns: 3,
                             fields: [
                                 {
                                     name: "name",
@@ -162,7 +167,8 @@ export const practitionerSheetView: ViewConfig = {
                         name: "locations",
                         widget: "#SheetEmbeddedItemsList",
                         widgetProps: {
-                            cardColumns: 3,
+                            entityCards: true,
+                            columns: 3,
                             fields: [
                                 {
                                     name: "name",
@@ -183,47 +189,12 @@ export const practitionerSheetView: ViewConfig = {
             permissions: {read: "schedule"},
             children: [
                 {
-                    render: "#SheetEmbeddedItemsList",
+                    render: "#WeeklyHours",
                     permissions: {read: "schedule"},
                     field: {
                         name: "schedule",
-                        widget: "#SheetEmbeddedItemsList",
-                        widgetProps: {
-                            cardColumns: 3,
-                            fields: [
-                                {
-                                    name: "location.name",
-                                    type: "text",
-                                    labelKey: "location",
-                                    className: "text-sm font-medium",
-                                },
-                                {
-                                    name: "dayOfWeek",
-                                    type: "text",
-                                    languageKeyCategory: "weekday",
-                                    labelKey: "dayOfWeek",
-                                    className: "text-sm",
-                                },
-                                {
-                                    name: "startTime",
-                                    type: "text",
-                                    labelKey: "startTime",
-                                    className: "text-sm",
-                                },
-                                {
-                                    name: "endTime",
-                                    type: "text",
-                                    labelKey: "endTime",
-                                    className: "text-sm",
-                                },
-                            ],
-                            compactSummaryFields: [
-                                "dayOfWeek",
-                                "startTime",
-                                "endTime",
-                            ],
-                            compactSummaryJoinSeparator: " - ",
-                        },
+                        widget: "#WeeklyHours",
+                        widgetProps: {placePath: "location.name", closedKey: "notWorking"},
                     },
                 },
             ],

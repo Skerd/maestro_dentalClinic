@@ -48,6 +48,7 @@ export const patientTripSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "plan"},
+                            dependent: "plan.number",
                             field: {
                                 name: "plan.number",
                                 widget: "#DisplayCard",
@@ -58,6 +59,7 @@ export const patientTripSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "phase"},
+                            dependent: "phase",
                             field: {
                                 name: "phase",
                                 widget: "#DisplayCard",
@@ -88,6 +90,7 @@ export const patientTripSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "departureAt"},
+                            dependent: "departureAt",
                             field: {
                                 name: "departureAt",
                                 widget: "#DisplayCard",
@@ -98,6 +101,7 @@ export const patientTripSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "arrivalFlight"},
+                            dependent: "arrivalFlight",
                             field: {
                                 name: "arrivalFlight",
                                 widget: "#DisplayCard",
@@ -108,6 +112,7 @@ export const patientTripSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "departureFlight"},
+                            dependent: "departureFlight",
                             field: {
                                 name: "departureFlight",
                                 widget: "#DisplayCard",
@@ -128,6 +133,7 @@ export const patientTripSheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "companions"},
+                            dependent: "companions",
                             field: {
                                 name: "companions",
                                 widget: "#DisplayCard",
@@ -146,6 +152,7 @@ export const patientTripSheetView: ViewConfig = {
                 {
                     render: "#DisplayCard",
                     permissions: {read: "accommodation"},
+                    dependent: "accommodation",
                     field: {
                         name: "accommodation",
                         widget: "#DisplayCard",
@@ -156,6 +163,7 @@ export const patientTripSheetView: ViewConfig = {
                 {
                     render: "#DisplayCard",
                     permissions: {read: "notes"},
+                    dependent: "notes",
                     field: {
                         name: "notes",
                         widget: "#DisplayCard",

@@ -78,6 +78,7 @@ export const clinicInquirySheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "assignedTo"},
+                            dependent: "assignedTo",
                             field: {
                                 name: "assignedTo",
                                 widget: "#DisplayCard",
@@ -91,6 +92,7 @@ export const clinicInquirySheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "travelFrom"},
+                            dependent: "travelFrom",
                             field: {
                                 name: "travelFrom",
                                 widget: "#DisplayCard",
@@ -101,6 +103,7 @@ export const clinicInquirySheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "travelTo"},
+                            dependent: "travelTo",
                             field: {
                                 name: "travelTo",
                                 widget: "#DisplayCard",
@@ -111,6 +114,7 @@ export const clinicInquirySheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "budget"},
+                            dependent: "budget",
                             field: {
                                 name: "budget",
                                 widget: "#DisplayCard",
@@ -128,6 +132,7 @@ export const clinicInquirySheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "firstResponseAt"},
+                            dependent: "firstResponseAt",
                             field: {
                                 name: "firstResponseAt",
                                 widget: "#DisplayCard",
@@ -141,6 +146,7 @@ export const clinicInquirySheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "lastMessageAt"},
+                            dependent: "lastMessageAt",
                             field: {
                                 name: "lastMessageAt",
                                 widget: "#DisplayCard",
@@ -154,6 +160,7 @@ export const clinicInquirySheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "patient"},
+                            dependent: "patient.number",
                             field: {
                                 name: "patient.number",
                                 widget: "#DisplayCard",
@@ -164,6 +171,60 @@ export const clinicInquirySheetView: ViewConfig = {
                     ],
                 },
             ],
+        },
+        {
+            render: "#SheetGroup",
+            props: {title: "requestGroup"},
+            children: [
+                {
+                    render: "#InquiryRequestDetails",
+                    permissions: {read: "treatmentsWanted"},
+                    field: {name: "treatmentsWanted", widget: "#InquiryRequestDetails"},
+                },
+                {
+                    render: "#DisplayCard",
+                    permissions: {read: "description"},
+                    field: {
+                        name: "description",
+                        widget: "#DisplayCard",
+                        label: "description",
+                        widgetProps: {icon: "#IconAlignLeft", type: "longText"},
+                    },
+                },
+                {
+                    render: "#SheetMediaFilesStrip",
+                    permissions: {read: "files"},
+                    dependent: "files",
+                    field: {
+                        name: "files",
+                        widget: "#SheetMediaFilesStrip",
+                        widgetProps: {canDownload: true, canRemove: false},
+                    },
+                },
+            ],
+        },
+        {
+            render: "#SheetGroup",
+            props: {title: "medicalHistoryGroup"},
+            permissions: {read: "medicalHistory"},
+            children: [
+                {
+                    render: "#MedicalHistoryAnswers",
+                    permissions: {read: "medicalHistory"},
+                    field: {name: "medicalHistory", widget: "#MedicalHistoryAnswers"},
+                },
+            ],
+        },
+        {
+            // The quotes and the conversation check their own models' access.
+            render: "#SheetGroup",
+            props: {title: "quotesGroup"},
+            children: [{render: "#InquiryPlans", field: {name: "_id", widget: "#InquiryPlans"}}],
+        },
+        {
+            render: "#SheetGroup",
+            props: {title: "conversationGroup"},
+            children: [{render: "#InquiryThread", field: {name: "_id", widget: "#InquiryThread"}}],
         },
         {
             render: "#SheetGroup",
@@ -196,6 +257,7 @@ export const clinicInquirySheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "contact"},
+                            dependent: "contact.country.name",
                             field: {
                                 name: "contact.country.name",
                                 widget: "#DisplayCard",
@@ -230,6 +292,7 @@ export const clinicInquirySheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "contact"},
+                            dependent: "contact.phone",
                             field: {
                                 name: "contact.phone",
                                 widget: "#DisplayCard",
@@ -240,6 +303,7 @@ export const clinicInquirySheetView: ViewConfig = {
                         {
                             render: "#DisplayCard",
                             permissions: {read: "contact"},
+                            dependent: "contact.whatsapp",
                             field: {
                                 name: "contact.whatsapp",
                                 widget: "#DisplayCard",
@@ -261,31 +325,6 @@ export const clinicInquirySheetView: ViewConfig = {
                             },
                         },
                     ],
-                },
-            ],
-        },
-        {
-            render: "#SheetGroup",
-            props: {title: "requestGroup"},
-            children: [
-                {
-                    render: "#DisplayCard",
-                    permissions: {read: "description"},
-                    field: {
-                        name: "description",
-                        widget: "#DisplayCard",
-                        label: "description",
-                        widgetProps: {icon: "#IconAlignLeft", type: "longText"},
-                    },
-                },
-                {
-                    render: "#SheetMediaFilesStrip",
-                    permissions: {read: "files"},
-                    field: {
-                        name: "files",
-                        widget: "#SheetMediaFilesStrip",
-                        widgetProps: {canDownload: true, canRemove: false},
-                    },
                 },
             ],
         },
