@@ -179,7 +179,7 @@ const TreatmentPlanSchema = new Schema<ITreatmentPlan>(
             type: {
                 subtotal: {type: SchemaTypes.Number, required: true, dynamicTableConfiguration: hiddenNestedColumn},
                 discount: {type: SchemaTypes.Number, required: true, dynamicTableConfiguration: hiddenNestedColumn},
-                total: {type: SchemaTypes.Number, required: true},
+                total: {type: SchemaTypes.Number, required: true, dynamicTableConfiguration: {currencyPath: "currency"}},
                 deposit: {type: SchemaTypes.Number, required: true, dynamicTableConfiguration: hiddenNestedColumn},
             },
             required: true,
@@ -216,7 +216,7 @@ const TreatmentPlanSchema = new Schema<ITreatmentPlan>(
             },
         },
         // Changed only by the payment and refund actions (D14 action permissions).
-        amountPaid: {type: SchemaTypes.Number, default: 0},
+        amountPaid: {type: SchemaTypes.Number, default: 0, dynamicTableConfiguration: {currencyPath: "currency"}},
         stripePaymentIntentId: {type: SchemaTypes.String, permissions: NoWritePermission, dynamicTableConfiguration: {hideColumn: true}},
         timeline: {
             type: [{

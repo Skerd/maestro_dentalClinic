@@ -73,7 +73,8 @@ const ClinicServiceSchema = new Schema<IClinicService>(
             default: "on_request",
             dynamicTableConfiguration: {enumTones: {fixed: "info", from: "info", on_request: "neutral", free: "success"}},
         },
-        price: {type: SchemaTypes.Number, min: 0},
+        // The list route adds the clinic currency to each row (`withClinicCurrency`).
+        price: {type: SchemaTypes.Number, min: 0, dynamicTableConfiguration: {currencyPath: "currency"}},
         onlineBookable: {type: SchemaTypes.Boolean, default: true},
         isPublic: {type: SchemaTypes.Boolean, default: true},
         isActive: {type: SchemaTypes.Boolean, default: true},
