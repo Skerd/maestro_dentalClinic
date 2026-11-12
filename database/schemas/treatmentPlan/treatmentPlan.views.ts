@@ -3,7 +3,6 @@ import {lifecycleSheetGroup} from "@coreModule/database/schemas/shared/lifecycle
 import {
     DEPOSIT_TYPES,
     TREATMENT_PLAN_LINE_KINDS,
-    TREATMENT_PLAN_PHASES_MAX,
     TREATMENT_PLAN_TEXT_MAX,
 } from "armonia/src/modules/dentalClinic/constants";
 import {
@@ -432,16 +431,12 @@ const treatmentPlanCreateFormNodes: ViewConfig["nodes"] = [
                                 render: "#Field",
                                 field: {
                                     name: "phase",
-                                    widget: "#Input",
+                                    widget: "#Select",
                                     label: "form.linePhaseLabel",
                                     placeholder: "form.linePhasePlaceholder",
                                     required: true,
-                                    widgetProps: {
-                                        type: "number",
-                                        min: 1,
-                                        max: TREATMENT_PLAN_PHASES_MAX,
-                                        step: 1,
-                                    },
+                                    // Pick one of this quote's phases by number and title (TD-F58).
+                                    widgetProps: {optionsFromFormArray: {arrayField: "phases", labelField: "title"}},
                                 },
                             },
                             {
@@ -833,16 +828,12 @@ const treatmentPlanEditFormNodes: ViewConfig["nodes"] = [
                                 render: "#Field",
                                 field: {
                                     name: "phase",
-                                    widget: "#Input",
+                                    widget: "#Select",
                                     label: "form.linePhaseLabel",
                                     placeholder: "form.linePhasePlaceholder",
                                     required: true,
-                                    widgetProps: {
-                                        type: "number",
-                                        min: 1,
-                                        max: TREATMENT_PLAN_PHASES_MAX,
-                                        step: 1,
-                                    },
+                                    // Pick one of this quote's phases by number and title (TD-F58).
+                                    widgetProps: {optionsFromFormArray: {arrayField: "phases", labelField: "title"}},
                                 },
                             },
                             {
