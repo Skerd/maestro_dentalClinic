@@ -6,9 +6,7 @@
  */
 
 import type {ObjectId} from "mongodb";
-import type {Model} from "mongoose";
-import {getModelCollectedData} from "@coreModule/database/collections";
-import SchemaGuard from "@coreModule/database/security/schemaGuard";
+import {readableListFetch} from "@coreModule/database/security/readableListFetch";
 import type {UserContext} from "@coreModule/utilities/types/types";
 import {fromMinor, sumMinor, toMinor} from "armonia/src/modules/core/helpers/money";
 import type {Patient} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/patient/patient.dto";
@@ -33,26 +31,13 @@ const HUB_LIMIT = 20;
 type HubCtx = {companyId: ObjectId; actionUserCtx: UserContext; languageCode: string; now?: Date};
 export type PatientHub = Pick<Patient, "appointments" | "plans" | "trips" | "inquiries" | "nextVisitAt" | "balanceDue" | "balanceCurrency">;
 
-/** The populate and projection the caller's role allows on a model, or null when it allows nothing (no access to that list). */
-function readableFetch(model: Model<any>, collectionName: string, ctx: HubCtx): ReturnType<typeof SchemaGuard.generatePopulate> | null {
-    const collected = getModelCollectedData(collectionName).readFields;
-    if (!collected) return null;
-    try {
-        const readFields = SchemaGuard.sanitizeFields(model, collected, "read", ctx.actionUserCtx, ctx.languageCode);
-        return Object.keys(readFields).length ? SchemaGuard.generatePopulate(readFields, model.schema) : null;
-    } catch {
-        // sanitizeFields refuses a role with no readable field: that list is simply not shown.
-        return null;
-    }
-}
-
 export async function patientHub(patientId: ObjectId, ctx: HubCtx): Promise<PatientHub> {
     const now = ctx.now ?? new Date();
     const base = {company: ctx.companyId, deletedAt: null};
-    const appointmentsFetch = readableFetch(Appointment, "appointments", ctx);
-    const plansFetch = readableFetch(TreatmentPlan, "treatmentplans", ctx);
-    const tripsFetch = readableFetch(PatientTrip, "patienttrips", ctx);
-    const inquiriesFetch = readableFetch(ClinicInquiry, "clinicinquiries", ctx);
+    const appointmentsFetch = readableListFetch(Appointment, ctx);
+    const plansFetch = readableListFetch(TreatmentPlan, ctx);
+    const tripsFetch = readableListFetch(PatientTrip, ctx);
+    const inquiriesFetch = readableListFetch(ClinicInquiry, ctx);
 
     const [appointments, plans, trips, inquiries] = await Promise.all([
         appointmentsFetch
