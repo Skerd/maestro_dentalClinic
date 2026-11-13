@@ -336,7 +336,6 @@ const practitionerCreateFormNodes: ViewConfig["nodes"] = [
                     label: "form.servicesLabel",
                     widgetProps: {
                         apiUrl: "/api/dentalClinic/clinicService/select",
-                        method: "POST",
                         placeholderKey: "form.servicesPlaceholder",
                         removeTooltipKey: "form.removeItem",
                         selectPageSizeCreate: 50,
@@ -353,7 +352,6 @@ const practitionerCreateFormNodes: ViewConfig["nodes"] = [
                     label: "form.locationsLabel",
                     widgetProps: {
                         apiUrl: "/api/dentalClinic/clinicLocation/select",
-                        method: "POST",
                         placeholderKey: "form.locationsPlaceholder",
                         removeTooltipKey: "form.removeItem",
                         selectPageSizeCreate: 50,
@@ -615,7 +613,6 @@ const practitionerEditFormNodes: ViewConfig["nodes"] = [
                     label: "form.servicesLabel",
                     widgetProps: {
                         apiUrl: "/api/dentalClinic/clinicService/select",
-                        method: "POST",
                         placeholderKey: "form.servicesPlaceholder",
                         removeTooltipKey: "form.removeItem",
                         selectPageSizeCreate: 50,
@@ -633,7 +630,6 @@ const practitionerEditFormNodes: ViewConfig["nodes"] = [
                     label: "form.locationsLabel",
                     widgetProps: {
                         apiUrl: "/api/dentalClinic/clinicLocation/select",
-                        method: "POST",
                         placeholderKey: "form.locationsPlaceholder",
                         removeTooltipKey: "form.removeItem",
                         selectPageSizeCreate: 50,

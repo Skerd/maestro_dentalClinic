@@ -445,7 +445,6 @@ export const clinicConfigEditFormView: ViewConfig = {
                         widgetProps: {
                             apiUrl: "/api/company/users/select",
                             postBody: {administration: true},
-                            method: "POST",
                             placeholderKey: "form.selectUser",
                             removeTooltipKey: "form.removeUser",
                             selectPageSizeCreate: 50,
@@ -468,7 +467,6 @@ export const clinicConfigEditFormView: ViewConfig = {
                         widgetProps: {
                             apiUrl: "/api/company/users/select",
                             postBody: {administration: true},
-                            method: "POST",
                             placeholderKey: "form.selectUser",
                             removeTooltipKey: "form.removeUser",
                             selectPageSizeCreate: 50,
