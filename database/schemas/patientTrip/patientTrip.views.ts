@@ -194,7 +194,7 @@ const patientTripCreateFormNodes: ViewConfig["nodes"] = [
                             label: "form.patientLabel",
                             placeholder: "form.patientPlaceholder",
                             required: true,
-                            widgetProps: {apiUrl: "/api/dentalClinic/patient/select", method: "POST", pageSize: 50, normalizeEmptyToUndefined: true},
+                            widgetProps: {apiUrl: "/api/dentalClinic/patient/select", pageSize: 50, normalizeEmptyToUndefined: true},
                         },
                     },
                     {
@@ -204,7 +204,7 @@ const patientTripCreateFormNodes: ViewConfig["nodes"] = [
                             widget: "#ApiSelect",
                             label: "form.planLabel",
                             placeholder: "form.planPlaceholder",
-                            widgetProps: {apiUrl: "/api/dentalClinic/treatmentPlan/select", method: "POST", pageSize: 50, normalizeEmptyToUndefined: true},
+                            widgetProps: {apiUrl: "/api/dentalClinic/treatmentPlan/select", pageSize: 50, normalizeEmptyToUndefined: true},
                         },
                     },
                     {
@@ -352,7 +352,7 @@ const patientTripEditFormNodes: ViewConfig["nodes"] = [
                             label: "form.patientLabel",
                             placeholder: "form.patientPlaceholder",
                             required: true,
-                            widgetProps: {apiUrl: "/api/dentalClinic/patient/select", method: "POST", pageSize: 50, normalizeEmptyToUndefined: true},
+                            widgetProps: {apiUrl: "/api/dentalClinic/patient/select", pageSize: 50, normalizeEmptyToUndefined: true},
                         },
                     },
                     {
@@ -363,7 +363,7 @@ const patientTripEditFormNodes: ViewConfig["nodes"] = [
                             widget: "#ApiSelect",
                             label: "form.planLabel",
                             placeholder: "form.planPlaceholder",
-                            widgetProps: {apiUrl: "/api/dentalClinic/treatmentPlan/select", method: "POST", pageSize: 50, normalizeEmptyToUndefined: true},
+                            widgetProps: {apiUrl: "/api/dentalClinic/treatmentPlan/select", pageSize: 50, normalizeEmptyToUndefined: true},
                         },
                     },
                     {

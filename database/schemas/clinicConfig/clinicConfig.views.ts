@@ -264,7 +264,6 @@ export const clinicConfigEditFormView: ViewConfig = {
                                 required: true,
                                 widgetProps: {
                                     apiUrl: "/api/finance/currency/select",
-                                    method: "POST",
                                     pageSize: 50,
                                 },
                             },

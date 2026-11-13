@@ -374,7 +374,6 @@ export const appointmentCreateFormView: ViewConfig = {
                                 required: true,
                                 widgetProps: {
                                     apiUrl: "/api/dentalClinic/clinicService/select",
-                                    method: "POST",
                                     pageSize: 50,
                                     normalizeEmptyToUndefined: true,
                                     cascadeClearFormFields: ["practitioner"],
@@ -391,7 +390,6 @@ export const appointmentCreateFormView: ViewConfig = {
                                 required: true,
                                 widgetProps: {
                                     apiUrl: "/api/dentalClinic/clinicLocation/select",
-                                    method: "POST",
                                     pageSize: 50,
                                     normalizeEmptyToUndefined: true,
                                     cascadeClearFormFields: ["practitioner"],
@@ -408,7 +406,6 @@ export const appointmentCreateFormView: ViewConfig = {
                                 required: true,
                                 widgetProps: {
                                     apiUrl: "/api/dentalClinic/practitioner/select",
-                                    method: "POST",
                                     pageSize: 50,
                                     normalizeEmptyToUndefined: true,
                                     postBodyFromFormFields: [
@@ -474,7 +471,6 @@ export const appointmentCreateFormView: ViewConfig = {
                                 description: "form.patientRecordDescription",
                                 widgetProps: {
                                     apiUrl: "/api/dentalClinic/patient/select",
-                                    method: "POST",
                                     pageSize: 50,
                                     normalizeEmptyToUndefined: true,
                                 },
@@ -490,7 +486,6 @@ export const appointmentCreateFormView: ViewConfig = {
                                 widgetProps: {
                                     apiUrl: "/api/company/users/select",
                                     postBody: {administration: false},
-                                    method: "POST",
                                     pageSize: 50,
                                     normalizeEmptyToUndefined: true,
                                 },

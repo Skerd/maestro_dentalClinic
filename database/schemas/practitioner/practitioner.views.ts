@@ -279,7 +279,6 @@ const practitionerCreateFormNodes: ViewConfig["nodes"] = [
                             widgetProps: {
                                 apiUrl: "/api/company/users/select",
                                 postBody: {administration: true},
-                                method: "POST",
                                 pageSize: 50,
                             },
                         },
@@ -400,7 +399,6 @@ const practitionerCreateFormNodes: ViewConfig["nodes"] = [
                                     required: true,
                                     widgetProps: {
                                         apiUrl: "/api/dentalClinic/clinicLocation/select",
-                                        method: "POST",
                                         pageSize: 50,
                                     },
                                 },
@@ -552,7 +550,6 @@ const practitionerEditFormNodes: ViewConfig["nodes"] = [
                             widgetProps: {
                                 apiUrl: "/api/company/users/select",
                                 postBody: {administration: true},
-                                method: "POST",
                                 pageSize: 50,
                             },
                         },
@@ -683,7 +680,6 @@ const practitionerEditFormNodes: ViewConfig["nodes"] = [
                                     required: true,
                                     widgetProps: {
                                         apiUrl: "/api/dentalClinic/clinicLocation/select",
-                                        method: "POST",
                                         pageSize: 50,
                                     },
                                 },

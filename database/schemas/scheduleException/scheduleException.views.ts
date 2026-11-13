@@ -140,7 +140,6 @@ export const scheduleExceptionCreateFormView: ViewConfig = {
                                         placeholder: "form.practitionerPlaceholder",
                                         widgetProps: {
                                             apiUrl: "/api/dentalClinic/practitioner/select",
-                                            method: "POST",
                                             pageSize: 50,
                                             normalizeEmptyToUndefined: true,
                                         },
@@ -161,7 +160,6 @@ export const scheduleExceptionCreateFormView: ViewConfig = {
                                         placeholder: "form.locationPlaceholder",
                                         widgetProps: {
                                             apiUrl: "/api/dentalClinic/clinicLocation/select",
-                                            method: "POST",
                                             pageSize: 50,
                                             normalizeEmptyToUndefined: true,
                                         },

@@ -739,7 +739,6 @@ const patientCreateFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.countryPlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/auxiliary/country/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                             },
@@ -1103,7 +1102,6 @@ const patientEditFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.countryPlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/auxiliary/country/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                             },

@@ -276,7 +276,6 @@ const clinicLocationCreateFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.countryPlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/auxiliary/country/select",
-                                method: "POST",
                                 pageSize: 50,
                                 cascadeClearFormFields: ["address.city"],
                             },
@@ -291,7 +290,6 @@ const clinicLocationCreateFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.cityPlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/auxiliary/city/select",
-                                method: "POST",
                                 pageSize: 50,
                                 postBodyFromFormFields: [
                                     {
@@ -604,7 +602,6 @@ const clinicLocationEditFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.countryPlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/auxiliary/country/select",
-                                method: "POST",
                                 pageSize: 50,
                                 cascadeClearFormFields: ["address.city"],
                             },
@@ -623,7 +620,6 @@ const clinicLocationEditFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.cityPlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/auxiliary/city/select",
-                                method: "POST",
                                 pageSize: 50,
                                 postBodyFromFormFields: [
                                     {

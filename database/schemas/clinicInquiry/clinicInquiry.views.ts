@@ -393,7 +393,6 @@ const clinicInquiryCreateFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.countryPlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/auxiliary/country/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                             },
@@ -503,7 +502,6 @@ const clinicInquiryCreateFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.budgetCurrencyPlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/finance/currency/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                             },
@@ -523,7 +521,6 @@ const clinicInquiryCreateFormNodes: ViewConfig["nodes"] = [
             widgetProps: {
                 apiUrl: "/api/company/users/select",
                 postBody: {administration: true},
-                method: "POST",
                 pageSize: 50,
                 normalizeEmptyToUndefined: true,
             },

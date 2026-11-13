@@ -259,7 +259,6 @@ const treatmentPlanCreateFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.inquiryPlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/dentalClinic/clinicInquiry/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                             },
@@ -274,7 +273,6 @@ const treatmentPlanCreateFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.patientPlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/dentalClinic/patient/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                             },
@@ -421,7 +419,6 @@ const treatmentPlanCreateFormNodes: ViewConfig["nodes"] = [
                                     description: "form.lineServiceDescription",
                                     widgetProps: {
                                         apiUrl: "/api/dentalClinic/clinicService/select",
-                                        method: "POST",
                                         pageSize: 50,
                                         normalizeEmptyToUndefined: true,
                                     },
@@ -818,7 +815,6 @@ const treatmentPlanEditFormNodes: ViewConfig["nodes"] = [
                                     description: "form.lineServiceDescription",
                                     widgetProps: {
                                         apiUrl: "/api/dentalClinic/clinicService/select",
-                                        method: "POST",
                                         pageSize: 50,
                                         normalizeEmptyToUndefined: true,
                                     },
