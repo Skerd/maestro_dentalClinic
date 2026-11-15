@@ -68,9 +68,9 @@ const TIMEZONE = "Europe/Tirane";
 const LANGUAGE = "en-US";
 const WEEKDAYS = [1, 2, 3, 4, 5];
 
-/** The company's own City record by name; cities are seeded per company. */
-async function demoCityId(companyId: unknown, name: string) {
-    return (await City.findOne({company: companyId, name}).select("_id"))?._id;
+/** The City row with this name, from the platform list (D160). */
+async function demoCityId(name: string) {
+    return (await City.findOne({name}).select("_id"))?._id;
 }
 
 const locations = [
@@ -366,7 +366,7 @@ export async function seedDentalClinicDemoData(
                         ...location,
                         address: {
                             ...location.address,
-                            city: await demoCityId(company._id, cityName),
+                            city: await demoCityId(cityName),
                         },
                         timezone: TIMEZONE,
                         closures: [],
@@ -669,8 +669,8 @@ async function seedPatientRecords(input: {
     ];
     const patientByEmail = new Map<string, ObjectId>();
     for (const {countryCode, ...person} of people) {
-        // Tourists carry their home country; countries are seeded per company.
-        const country = countryCode ? (await Country.findOne({company: companyId, code: countryCode}).select("_id"))?._id : undefined;
+        // Tourists carry their home country, from the platform list (D160).
+        const country = countryCode ? (await Country.findOne({code: countryCode}).select("_id"))?._id : undefined;
         const history =
             person.email === "besa.leka@clinic.demo"
                 ? {

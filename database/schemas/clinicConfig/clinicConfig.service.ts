@@ -32,15 +32,14 @@ export class ClinicConfigService extends BaseCrudService<IClinicConfig, typeof C
 
     /**
      * The company's clinic settings, created with defaults (public booking off, the
-     * company's first currency) the first time staff open them.
+     * platform's first currency, D160) the first time staff open them.
      */
     async getOrCreateForCompany(companyId: ObjectId, options: CrudOptions = {}): Promise<IClinicConfig> {
         const existing = await this.findForCompany(companyId, options);
         if (existing) return existing;
 
-        const currency =
-            (await Currency.findOne({company: companyId}).sort({createdAt: 1}).select("_id").session(options.session ?? null))
-            ?? (await Currency.findOne({}).sort({createdAt: 1}).select("_id").session(options.session ?? null));
+        // The first row of the platform's currency list (D160).
+        const currency = await Currency.findOne({}).sort({createdAt: 1}).select("_id").session(options.session ?? null);
         if (!currency) {
             throw apiValidationException("clinic_currency_not_configured", "", null, options.languageCode ?? "en-US");
         }

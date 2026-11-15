@@ -217,9 +217,10 @@ beforeEach(() => acrossCompanies(async () => {
     await Role.collection.insertMany([clinicA, clinicB].map((company, index) => ({
         company, name: "Web Client", slug: `company ${index}:default:webclient`, isSignupDefault: true,
     })));
+    // Currencies are a platform list (D160): both clinics quote in the platform's euro.
+    const euro = await Currency.create({name: "Euro", symbol: "€", abbreviation: "EUR", decimalPlaces: 2, company: platformId});
     for (const company of [clinicA, clinicB]) {
-        const currency = await Currency.create({name: "Euro", symbol: "€", abbreviation: "EUR", decimalPlaces: 2, company});
-        await ClinicConfig.create({company, currency: currency._id, inquiriesEnabled: true, quoteValidityDays: 14, quoteTerms: "Payment at the clinic."});
+        await ClinicConfig.create({company, currency: euro._id, inquiriesEnabled: true, quoteValidityDays: 14, quoteTerms: "Payment at the clinic."});
     }
 }));
 
