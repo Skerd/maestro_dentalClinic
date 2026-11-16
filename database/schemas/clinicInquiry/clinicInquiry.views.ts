@@ -31,6 +31,7 @@ const treatmentOptions = TREATMENT_CATEGORIES.map((value) => ({
 export const clinicInquirySheetView: ViewConfig = {
     model: "clinicinquiries",
     viewType: "sheet",
+    sheetWidget: "#ClinicInquirySheetView",
     accessModel: "clinicinquiries",
     apiUrl: API_URL,
     header: {

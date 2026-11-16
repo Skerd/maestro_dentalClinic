@@ -19,6 +19,7 @@ const statusOptions = PATIENT_TRIP_STATUSES.map((value) => ({
 export const patientTripSheetView: ViewConfig = {
     model: "patienttrips",
     viewType: "sheet",
+    sheetWidget: "#PatientTripSheetView",
     accessModel: "patienttrips",
     apiUrl: API_URL,
     header: {

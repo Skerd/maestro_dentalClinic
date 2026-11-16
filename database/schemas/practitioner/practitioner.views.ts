@@ -22,6 +22,7 @@ const weekdayOptions = ["0", "1", "2", "3", "4", "5", "6"].map((value) => ({
 export const practitionerSheetView: ViewConfig = {
     model: "practitioners",
     viewType: "sheet",
+    sheetWidget: "#PractitionerSheetView",
     accessModel: "practitioners",
     apiUrl: API_URL,
     header: {

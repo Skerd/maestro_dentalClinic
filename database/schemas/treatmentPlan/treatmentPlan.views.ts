@@ -33,6 +33,7 @@ const lineKindOptions = TREATMENT_PLAN_LINE_KINDS.map((value) => ({
 export const treatmentPlanSheetView: ViewConfig = {
     model: "treatmentplans",
     viewType: "sheet",
+    sheetWidget: "#TreatmentPlanSheetView",
     accessModel: "treatmentplans",
     apiUrl: API_URL,
     header: {

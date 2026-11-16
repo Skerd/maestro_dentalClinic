@@ -37,6 +37,7 @@ const sourceOptions = PATIENT_SOURCES.map((value) => ({
 export const patientSheetView: ViewConfig = {
     model: "patients",
     viewType: "sheet",
+    sheetWidget: "#PatientSheetView",
     accessModel: "patients",
     apiUrl: API_URL,
     header: {

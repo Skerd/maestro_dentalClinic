@@ -12,6 +12,7 @@ const API_URL = "/api/dentalClinic/scheduleException";
 export const scheduleExceptionSheetView: ViewConfig = {
     model: "scheduleexceptions",
     viewType: "sheet",
+    sheetWidget: "#ScheduleExceptionSheetView",
     accessModel: "scheduleexceptions",
     apiUrl: API_URL,
     header: {

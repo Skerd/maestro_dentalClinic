@@ -11,6 +11,7 @@ const API_URL = "/api/dentalClinic/appointment";
 export const appointmentSheetView: ViewConfig = {
     model: "appointments",
     viewType: "sheet",
+    sheetWidget: "#AppointmentSheetView",
     accessModel: "appointments",
     apiUrl: API_URL,
     header: {
