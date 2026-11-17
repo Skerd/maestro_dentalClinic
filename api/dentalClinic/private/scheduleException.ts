@@ -5,7 +5,7 @@ import {createCrudRouter} from "@coreModule/api/crudRouterFactory";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {createScheduleExceptionFormSchema} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/scheduleException/createScheduleException.form.validator";
 import {editScheduleExceptionFormSchema} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/scheduleException/editScheduleException.form.validator";
-import ScheduleException from "@dentalClinicModule/database/schemas/scheduleException/scheduleException";
+import ScheduleException, {type IScheduleException} from "@dentalClinicModule/database/schemas/scheduleException/scheduleException";
 import {scheduleExceptionService} from "@dentalClinicModule/database/schemas/scheduleException/scheduleException.service";
 import {scheduleExceptionToDTO, scheduleExceptionsToDTO} from "@dentalClinicModule/utilities/mappers/scheduleException/scheduleExceptionMapper.dto";
 import {blockingAppointmentFilter} from "@dentalClinicModule/utilities/services/clinicAvailability";
@@ -15,6 +15,19 @@ import {scheduleExceptionScopeFilter} from "@dentalClinicModule/utilities/servic
 import {clinicLocationService} from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation.service";
 import {practitionerService} from "@dentalClinicModule/database/schemas/practitioner/practitioner.service";
 import {appointmentService} from "@dentalClinicModule/database/schemas/appointment/appointment.service";
+import {companyTimeZone} from "@coreModule/utilities/time/companyTimeZone";
+import {localDateOf, localTimeOf} from "@coreModule/utilities/time/timeWindows";
+
+/**
+ * "Dr. Ana · 2026-11-18 13:00": who is away (the dentist, or the closed location) and the local start in that clinic's
+ * zone (TD-B242: the picker read a raw UTC timestamp).
+ */
+function timeOffLabel(exception: Pick<IScheduleException, "startAt" | "practitioner" | "location">): string {
+    const zone = companyTimeZone({timezone: exception.location?.timezone ?? exception.practitioner?.locations?.[0]?.timezone});
+    const when = `${localDateOf(exception.startAt, zone)} ${localTimeOf(exception.startAt, zone)}`;
+    const who = exception.practitioner?.displayName ?? exception.location?.name;
+    return who ? `${who} · ${when}` : when;
+}
 /** At most this many clashing booking numbers are named in the error. */
 const CLASHES_SHOWN = 5;
 
@@ -62,10 +75,14 @@ export const {router} = createCrudRouter({
     editSchema: editScheduleExceptionFormSchema,
     toDTO: scheduleExceptionToDTO,
     toDTOArray: scheduleExceptionsToDTO,
-    toSelect: (exceptions) => exceptions.map((exception) => ({value: exception._id.toString(), label: exception.startAt.toISOString()})),
+    toSelect: (exceptions) => exceptions.map((exception) => ({value: exception._id.toString(), label: timeOffLabel(exception)})),
     selectSearchField: "internalNote",
     // The label is the start (TD-B235: without it in the projection every select answered 500).
-    selectProjection: "_id internalNote startAt",
+    selectProjection: "_id internalNote startAt practitioner location",
+    selectPopulate: [
+        {path: "practitioner", select: "displayName locations", populate: {path: "locations", select: "timezone"}},
+        {path: "location", select: "name timezone"},
+    ],
     selectSort: {startAt: -1},
     defaultSort: {startAt: -1},
     extraListFilter: ({company, actionUserCtx}: any) => scheduleExceptionScopeFilter(company._id, actionUserCtx),

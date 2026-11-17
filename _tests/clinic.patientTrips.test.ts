@@ -137,7 +137,7 @@ describe("the healing time between phases", {timeout: 60000}, () => {
     }));
 });
 
-// TD-B235: the picker list answered 500, since its label (the arrival date) was not read.
+// TD-B235: the picker list answered 500, since its label (the arrival date) was not read. TD-B242: it names the patient too.
 describe("trip picker", {timeout: 60000}, () => {
     it("lists trips by arrival, labelled with the arrival date, and finds one by its accommodation", () => asClinic(async () => {
         await trip({arrivalAt: "2027-03-02T10:00:00.000Z", departureAt: "2027-03-04T10:00:00.000Z", accommodation: "Hotel Rogner"});
@@ -146,7 +146,7 @@ describe("trip picker", {timeout: 60000}, () => {
 
         const all = await select({});
         expect(all.status).toBe(200);
-        expect(all.body.data.map((option: {label: string}) => option.label)).toEqual(["2027-01-10", "2027-03-02"]);
-        expect((await select({name: "rogner"})).body.data.map((option: {label: string}) => option.label)).toEqual(["2027-03-02"]);
+        expect(all.body.data.map((option: {label: string}) => option.label)).toEqual(["Giulia Bianchi · 2027-01-10", "Giulia Bianchi · 2027-03-02"]);
+        expect((await select({name: "rogner"})).body.data.map((option: {label: string}) => option.label)).toEqual(["Giulia Bianchi · 2027-03-02"]);
     }));
 });

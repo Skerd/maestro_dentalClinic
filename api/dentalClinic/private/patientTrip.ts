@@ -25,10 +25,16 @@ export const {router} = createCrudRouter({
     editSchema: editPatientTripFormSchema,
     toDTO: patientTripToDTO,
     toDTOArray: patientTripsToDTO,
-    toSelect: (trips) => trips.map((trip) => ({value: trip._id.toString(), label: trip.arrivalAt.toISOString().slice(0, 10)})),
+    // "Giulia Bianchi · 2027-01-10": whose stay and when they arrive (TD-B242: the picker showed the date alone).
+    toSelect: (trips) => trips.map((trip) => {
+        const patient = [trip.patient?.firstName, trip.patient?.lastName].filter(Boolean).join(" ");
+        const arrival = trip.arrivalAt.toISOString().slice(0, 10);
+        return {value: trip._id.toString(), label: patient ? `${patient} · ${arrival}` : arrival};
+    }),
     selectSearchField: "accommodation",
     // The label is the arrival date (TD-B235: without it in the projection every select answered 500).
-    selectProjection: "_id accommodation arrivalAt",
+    selectProjection: "_id accommodation arrivalAt patient",
+    selectPopulate: [{path: "patient", select: "firstName lastName"}],
     selectSort: {arrivalAt: 1},
     defaultSort: {arrivalAt: 1},
     buildCreateData: async (params: any) => {

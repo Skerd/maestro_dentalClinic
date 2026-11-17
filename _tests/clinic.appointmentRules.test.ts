@@ -271,9 +271,10 @@ describe("time off and closures", {timeout: 60000}, () => {
     }));
 });
 
-// TD-B235: the picker list answered 500, since its label (the start) was not read.
+// TD-B235: the picker list answered 500, since its label (the start) was not read. TD-B242: the label was a raw UTC
+// timestamp; it names the dentist and the local start in the clinic's zone.
 describe("time off picker", {timeout: 60000}, () => {
-    it("lists time off newest first, labelled with its start, and finds one by its note", () => asCompany(async () => {
+    it("lists time off newest first, labelled with the dentist and local start, and finds one by its note", () => asCompany(async () => {
         const nine = await instantOf(DATE, "09:00");
         const ten = await instantOf(DATE, "10:00");
         const eleven = await instantOf(DATE, "11:00");
@@ -283,8 +284,8 @@ describe("time off picker", {timeout: 60000}, () => {
 
         const all = await select({});
         expect(all.status).toBe(200);
-        expect(all.body.data.map((option: {label: string}) => option.label)).toEqual([new Date(ten).toISOString(), new Date(nine).toISOString()]);
-        expect((await select({name: "congress"})).body.data.map((option: {label: string}) => option.label)).toEqual([new Date(nine).toISOString()]);
+        expect(all.body.data.map((option: {label: string}) => option.label)).toEqual([`Dr. Ana · ${DATE} 10:00`, `Dr. Ana · ${DATE} 09:00`]);
+        expect((await select({name: "congress"})).body.data.map((option: {label: string}) => option.label)).toEqual([`Dr. Ana · ${DATE} 09:00`]);
     }));
 });
 
