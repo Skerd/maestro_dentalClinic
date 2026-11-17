@@ -271,6 +271,23 @@ describe("time off and closures", {timeout: 60000}, () => {
     }));
 });
 
+// TD-B235: the picker list answered 500, since its label (the start) was not read.
+describe("time off picker", {timeout: 60000}, () => {
+    it("lists time off newest first, labelled with its start, and finds one by its note", () => asCompany(async () => {
+        const nine = await instantOf(DATE, "09:00");
+        const ten = await instantOf(DATE, "10:00");
+        const eleven = await instantOf(DATE, "11:00");
+        expect((await timeOff({practitioner: anaId, startAt: nine, endAt: ten, internalNote: "Dentist congress"})).status).toBe(200);
+        expect((await timeOff({practitioner: anaId, startAt: ten, endAt: eleven})).status).toBe(200);
+        const select = (body: Record<string, unknown>) => request(app).post("/api/dentalClinic/scheduleException/select").set(callerHeader(admin)).send({page: 1, limit: 10, ...body});
+
+        const all = await select({});
+        expect(all.status).toBe(200);
+        expect(all.body.data.map((option: {label: string}) => option.label)).toEqual([new Date(ten).toISOString(), new Date(nine).toISOString()]);
+        expect((await select({name: "congress"})).body.data.map((option: {label: string}) => option.label)).toEqual([new Date(nine).toISOString()]);
+    }));
+});
+
 describe("the panel's day view (P8.6)", {timeout: 60000}, () => {
     const dayView = (body: Record<string, unknown>) => request(app).post("/api/dentalClinic/clinicDay/view").set(callerHeader(admin)).send(body);
 

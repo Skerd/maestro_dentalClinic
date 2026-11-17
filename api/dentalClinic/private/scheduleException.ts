@@ -64,6 +64,9 @@ export const {router} = createCrudRouter({
     toDTOArray: scheduleExceptionsToDTO,
     toSelect: (exceptions) => exceptions.map((exception) => ({value: exception._id.toString(), label: exception.startAt.toISOString()})),
     selectSearchField: "internalNote",
+    // The label is the start (TD-B235: without it in the projection every select answered 500).
+    selectProjection: "_id internalNote startAt",
+    selectSort: {startAt: -1},
     defaultSort: {startAt: -1},
     extraListFilter: ({company, actionUserCtx}: any) => scheduleExceptionScopeFilter(company._id, actionUserCtx),
     buildCreateData: async ({practitioner, location, startAt, endAt, reason, internalNote, company, session, languageCode}: any) => {

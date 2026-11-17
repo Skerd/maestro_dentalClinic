@@ -27,6 +27,9 @@ export const {router} = createCrudRouter({
     toDTOArray: patientTripsToDTO,
     toSelect: (trips) => trips.map((trip) => ({value: trip._id.toString(), label: trip.arrivalAt.toISOString().slice(0, 10)})),
     selectSearchField: "accommodation",
+    // The label is the arrival date (TD-B235: without it in the projection every select answered 500).
+    selectProjection: "_id accommodation arrivalAt",
+    selectSort: {arrivalAt: 1},
     defaultSort: {arrivalAt: 1},
     buildCreateData: async (params: any) => {
         await assertTripFits(
