@@ -15,6 +15,8 @@ import {dentalClinicDefaultRoles} from "@dentalClinicModule/database/schemas/rol
 import {ClinicServiceSchemaDef} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicService/clinicService.schema-def";
 import {PractitionerSchemaDef} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/practitioner/practitioner.schema-def";
 import {ClinicConfigSchemaDef} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicConfig/clinicConfig.schema-def";
+import {clinicConfigService} from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig.service";
+import type {SelfServeBusinessType} from "@coreModule/domain/company/selfServeBusinessTypes";
 
 export const dentalClinicModels: Model<any>[] = [
     ClinicConfig,
@@ -56,8 +58,19 @@ registerPublicMediaBackfillSource({
     loadModel: () => import("@dentalClinicModule/database/schemas/clinicConfig/clinicConfig").then((m) => m.default),
 });
 
+/** A dental clinic may sign itself up on the portal; it is listed there once the platform approves it (D178). */
+const selfServeBusinessTypes: SelfServeBusinessType[] = [{
+    key: "dentalClinic",
+    modules: ["dentalClinic"],
+    onCreated: async ({company, session, logger, languageCode}) => {
+        const config = await clinicConfigService.getOrCreateForCompany(company._id, {session, logger, languageCode});
+        await clinicConfigService.updateOne({_id: config._id}, {$set: {listedOnPortal: true}}, {session, logger});
+    },
+}];
+
 export const moduleBootstrap = {
     models: dentalClinicModels,
     dropModuleCollections: dropDentalClinicCollections,
     defaultRoles: dentalClinicDefaultRoles,
+    selfServeBusinessTypes,
 };
