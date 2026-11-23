@@ -8,6 +8,7 @@ import {transactionHandler, type TransactionRequiredParams} from "@coreModule/ut
 import publicChatCustomerMW, {type PublicChatCustomerMWType} from "@coreModule/utilities/middlewares/publicChatCustomerMW";
 import {publicCustomerFor, requirePortalAccount} from "@coreModule/domain/publicChat/publicChatCustomer";
 import {companyIdsWithModule} from "@coreModule/utilities/modules/companyModules";
+import {asCrossTenant, withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import {portalCompanyRefs} from "@coreModule/utilities/marketing/portalCompanies";
 import {resolveCompanyByOrigin} from "@coreModule/utilities/marketing/resolveCompanyByOrigin";
 import {isPortalApexOrigin} from "@coreModule/utilities/marketing/portalOrigin";
@@ -292,15 +293,17 @@ router.post(
     asyncHandler(async (params: PublicParams<object> & PublicChatCustomerMWType): Promise<MyAppointmentsResponse> => {
         const {origin, languageCode} = params;
         const user = await requirePortalAccount(params.customer, origin, languageCode);
-        const appointments = await appointmentService.find({
+        const clinics = await companyIdsWithModule("dentalClinic");
+        const appointments = await asCrossTenant("a portal customer's own appointments at every clinic", () => appointmentService.find({
             customer: user._id,
             deletedAt: null,
             anonymizedAt: null,
-            company: {$in: await companyIdsWithModule("dentalClinic")},
-        }, {}, undefined, undefined, {startAt: -1}, MY_APPOINTMENTS_MAX);
+            company: {$in: clinics},
+        }, {}, undefined, undefined, {startAt: -1}, MY_APPOINTMENTS_MAX));
         const companies = await portalCompanyRefs(appointments.map((appointment) => nestedEntityToRef(appointment.company)!));
         const data = await Promise.all(appointments.map(async (appointment) => ({
-            appointment: await publicAppointment(appointment),
+            // Each appointment's details are read as its own clinic's data.
+            appointment: await withTenant(nestedEntityToRef(appointment.company)!, () => publicAppointment(appointment), "dentalClinic"),
             company: companies.get(String(nestedEntityToRef(appointment.company))) ?? {name: "", slug: ""},
             manageToken: manageTokenFor(appointment),
         })));

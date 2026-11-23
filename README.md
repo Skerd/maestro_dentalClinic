@@ -21,8 +21,9 @@ Requires `HEALTH_DATA_MASTER_KEY` (base64, 32 bytes; `environment.validator.ts`)
 dentalClinic/
 ├── api/dentalClinic/private/      # CRUD routes, @actions, day view, my appointments
 ├── api/dentalClinic/public/       # clinicStorefront (slots, book, manage, reviews)
-├── database/moduleBootstrap.ts    # models, default roles
+├── database/moduleBootstrap.ts    # models, default roles, onAccountVerified (a verified account claims its guest appointments, P23.9)
 ├── database/schemas/<resource>/   # models, indexes, services, snippets, views
 ├── domain/notifications/          # staff alerts
-└── utilities/                     # services, mappers, emails, cron jobs
+├── utilities/                     # services, mappers, emails, cron jobs
+└── workflows/                     # guestAppointmentClaim (appointments + folder + membership)
 ```

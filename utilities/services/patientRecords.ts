@@ -86,6 +86,32 @@ export async function findOrCreatePatient(
 }
 
 /**
+ * Ties an account to the clinic's folder that its claimed guest appointments opened (P23.9), by the rule a signed-in
+ * booking matches a folder with: the account's email and full name. An account that already has a folder here keeps
+ * it (one folder per account per clinic), and a folder tied to another account is never taken. Once tied, the account
+ * becomes a member of the clinic, as after a signed-in booking.
+ */
+export async function linkClaimedFolder(
+    input: {companyId: ObjectId; accountId: ObjectId; folderIds: ObjectId[]; email: string; firstName: string; lastName: string},
+    ctx: ClinicCtx,
+): Promise<void> {
+    const {companyId, accountId} = input;
+    const live = {company: companyId, deletedAt: null};
+    if (await patientService.exists({...live, account: accountId}, {session: ctx.session})) return;
+    const folder = await patientService.findOneByName({
+        ...live,
+        _id: {$in: input.folderIds},
+        account: null,
+        email: input.email,
+        firstName: input.firstName.trim(),
+        lastName: input.lastName.trim(),
+    }, NAME_COLLATION, ctx.session);
+    if (!folder) return;
+    await patientService.updateByIdOrThrow(folder._id, {account: accountId}, ctx);
+    await ensurePatientMembership(companyId, accountId, ctx);
+}
+
+/**
  * Makes the account a member of the clinic with its signup role (Web Client), once it is tied to
  * a patient folder there: a customer, so it stays off the staff lists and pickers. Someone
  * already in the company (any role) is left as they are.

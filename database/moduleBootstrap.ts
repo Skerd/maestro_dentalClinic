@@ -18,6 +18,8 @@ import {PractitionerSchemaDef} from "armonia/src/modules/dentalClinic/api/dental
 import {ClinicConfigSchemaDef} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicConfig/clinicConfig.schema-def";
 import {clinicConfigService} from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig.service";
 import type {SelfServeBusinessType} from "@coreModule/domain/company/selfServeBusinessTypes";
+import type {AccountVerifiedHook} from "@coreModule/utilities/modules/moduleCompanyDefaults";
+import {claimGuestAppointments} from "@dentalClinicModule/workflows/guestAppointmentClaim";
 
 export const dentalClinicModels: Model<any>[] = [
     ClinicConfig,
@@ -66,13 +68,20 @@ const selfServeBusinessTypes: SelfServeBusinessType[] = [{
     modules: ["dentalClinic"],
     onCreated: async ({company, session, logger, languageCode}) => {
         const config = await clinicConfigService.getOrCreateForCompany(company._id, {session, logger, languageCode});
-        await clinicConfigService.updateOne({_id: config._id}, {$set: {listedOnPortal: true}}, {session, logger});
+        // Booking online on, too: the portal and the company's own site show only a business that takes bookings, so
+        // without it a self-serve business never appeared anywhere (P23.12). With nothing set up yet there is nothing
+        // to book; the owner can turn it off in the settings.
+        await clinicConfigService.updateOne({_id: config._id}, {$set: {listedOnPortal: true, publicBookingEnabled: true}}, {session, logger});
     },
 }];
+
+/** A guest's appointments, and the clinic's folder they opened, become theirs once their email is verified (P23.9). */
+const onAccountVerified: AccountVerifiedHook = claimGuestAppointments;
 
 export const moduleBootstrap = {
     models: dentalClinicModels,
     dropModuleCollections: dropDentalClinicCollections,
     defaultRoles: dentalClinicDefaultRoles,
     selfServeBusinessTypes,
+    onAccountVerified,
 };

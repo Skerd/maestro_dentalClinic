@@ -9,6 +9,8 @@ export function applyAppointmentIndexes(schema: Schema): void {
     schema.index({company: 1, location: 1, startAt: 1});
     schema.index({company: 1, customer: 1, startAt: -1});
     schema.index({company: 1, patientRecord: 1, startAt: -1});
+    // A verified account claims the guest appointments booked with its email, at every clinic at once (P23.9).
+    schema.index({"patient.email": 1});
     // Reminders and the retention purge.
     schema.index({status: 1, startAt: 1});
     schema.index({endAt: 1, anonymizedAt: 1});
