@@ -3,7 +3,9 @@
  * on, two locations, five services with photos and videos, three practitioners
  * with weekly schedules, an afternoon off, four staff-booked appointments on
  * the coming weekdays, and the folders those visits belong to: patients, two
- * inquiries with messages, two treatment plans and a trip.
+ * inquiries with messages, two treatment plans and a trip. Past visits are closed
+ * the way staff close them; two completed ones have the patients' reviews, one
+ * published (the clinic's stars on the portal) and one waiting for staff.
  *
  * Every row is keyed by a natural key (location name, service slug, practitioner
  * name, exception note, appointment idempotency key), so running it twice changes
@@ -35,6 +37,9 @@ import ClinicInquiry from "@dentalClinicModule/database/schemas/clinicInquiry/cl
 import ClinicMessage from "@dentalClinicModule/database/schemas/clinicMessage/clinicMessage";
 import TreatmentPlan from "@dentalClinicModule/database/schemas/treatmentPlan/treatmentPlan";
 import PatientTrip from "@dentalClinicModule/database/schemas/patientTrip/patientTrip";
+import Appointment from "@dentalClinicModule/database/schemas/appointment/appointment";
+import ClinicReview from "@dentalClinicModule/database/schemas/clinicReview/clinicReview";
+import {reviewAuthorName} from "@dentalClinicModule/database/schemas/clinicReview/clinicReview.service";
 import {clinicConfigService} from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig.service";
 import ClinicLocation, {
     type IClinicLocation,
@@ -940,6 +945,8 @@ const DEMO_CONTACTS = {
     gent: {firstName: "Gent", lastName: "Mema", email: "gent.mema@clinic.demo", phone: "+355 69 222 3302"},
     ilir: {firstName: "Ilir", lastName: "Gjoka", email: "ilir.gjoka@clinic.demo", phone: "+355 69 222 3304"},
     arben: {firstName: "Arben", lastName: "Hoxha", email: "arben.hoxha@clinic.demo", phone: "+355 69 222 3308"},
+    besa: {firstName: "Besa", lastName: "Leka", email: "besa.leka@clinic.demo", phone: "+355 69 222 3301"},
+    sara: {firstName: "Sara", lastName: "Conti", email: "sara.conti@clinic.demo", phone: "+39 333 000 4403"},
 };
 
 /** Visits that are already over (or called off), closed the way staff close them. `nth` counts working days back, or ahead for `cancel`. */
@@ -947,12 +954,24 @@ const closedVisits = [
     {key: "demo-appt-past-gent", practitioner: "Anila Doda", location: 1, service: "cleaning", nth: 2, time: "10:00", patient: DEMO_CONTACTS.gent, close: "complete"},
     {key: "demo-appt-past-ilir", practitioner: "Dr. Elira Shehu", location: 0, service: "check-up", nth: 1, time: "15:00", patient: DEMO_CONTACTS.ilir, close: "noShow"},
     {key: "demo-appt-cancelled-arben", practitioner: "Dr. Elira Shehu", location: 0, service: "filling", nth: 4, time: "11:00", patient: DEMO_CONTACTS.arben, close: "cancel"},
+    {key: "demo-appt-past-besa", practitioner: "Dr. Elira Shehu", location: 0, service: "whitening", nth: 3, time: "10:00", patient: DEMO_CONTACTS.besa, close: "complete"},
+    {key: "demo-appt-past-sara", practitioner: "Dr. Marco Rossi", location: 1, service: "check-up", nth: 2, time: "09:30", patient: DEMO_CONTACTS.sara, close: "complete"},
+] as const;
+
+/**
+ * What patients wrote after their completed visits (D178), as the manage link saves it: the first is published, the
+ * second waits for staff. Gent's completed cleaning has none, so the manage link can still be tried with it.
+ */
+const demoReviews = [
+    {appointmentKey: "demo-appt-past-besa", rating: 5, comment: "Friendly team, right on time, and everything was explained before it started.", isPublished: true},
+    {appointmentKey: "demo-appt-past-sara", rating: 4, comment: "Clear explanations in Italian; I waited about ten minutes.", isPublished: false},
 ] as const;
 
 /**
  * The clinic's recent past, made through the real booking and lifecycle code so every row is one the app could have
- * made: a completed visit, a no-show, a cancelled booking, and quotes in the closed states, one accepted at the desk
- * and part paid. Keyed by idempotency key and plan number; a second run changes nothing.
+ * made: completed visits (two with the patients' reviews), a no-show, a cancelled booking, and quotes in the closed
+ * states, one accepted at the desk and part paid. Keyed by idempotency key, appointment and plan number; a second run
+ * changes nothing.
  */
 async function seedClinicHistory(input: {
     logger: serverLogger;
@@ -993,6 +1012,16 @@ async function seedClinicHistory(input: {
             if (visit.close === "noShow") await markNoShow(appointment, {...staff, graceMinutes: config.noShowGraceMinutes}, ctx);
             if (visit.close === "cancel") await cancelAppointment(appointment, {...staff, reason: "The patient called to move to next month."}, ctx);
         });
+    }
+
+    for (const review of demoReviews) {
+        const appointment = await Appointment.findOne({company: companyId, idempotencyKey: review.appointmentKey, status: "completed"});
+        if (!appointment) continue;
+        await upsert(
+            ClinicReview,
+            {company: companyId, appointment: appointment._id},
+            {createdBy, rating: review.rating, comment: review.comment, authorName: reviewAuthorName(appointment.patient), isPublished: review.isPublished},
+        );
     }
 
     const currency = {_id: nestedEntityToRef(config.currency)};

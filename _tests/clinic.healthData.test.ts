@@ -30,6 +30,7 @@ import ClinicConfig from "@dentalClinicModule/database/schemas/clinicConfig/clin
 import ClinicInquiry from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry";
 import ClinicLocation from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation";
 import ClinicMessage from "@dentalClinicModule/database/schemas/clinicMessage/clinicMessage";
+import ClinicReview from "@dentalClinicModule/database/schemas/clinicReview/clinicReview";
 import ClinicService from "@dentalClinicModule/database/schemas/clinicService/clinicService";
 import Patient from "@dentalClinicModule/database/schemas/patient/patient";
 import PatientTrip from "@dentalClinicModule/database/schemas/patientTrip/patientTrip";
@@ -46,7 +47,7 @@ const raw = <T>(fn: () => PromiseLike<T>): Promise<T> => asCrossTenant("test rea
 const app = appFor([patientRoute, inquiryRoute].map((route) => ({...route, module: "dentalClinic"})));
 const logger = getLogger("clinic_health_data_test");
 
-const DENTAL_MODELS = [Appointment, ClinicConfig, ClinicInquiry, ClinicLocation, ClinicMessage, ClinicService, Patient, PatientTrip, Practitioner, ScheduleException, TreatmentPlan];
+const DENTAL_MODELS = [Appointment, ClinicConfig, ClinicInquiry, ClinicLocation, ClinicMessage, ClinicReview, ClinicService, Patient, PatientTrip, Practitioner, ScheduleException, TreatmentPlan];
 /** Values that must never leave a single read: the questionnaire's detail, the medication, the X-ray's name. */
 const SECRET_DETAIL = "type 2, insulin";
 const SECRET_MEDICATION = "Apixaban 5 mg";

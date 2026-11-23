@@ -1,6 +1,6 @@
 import {registerPortalProvider} from "@coreModule/domain/portal/portalProviderRegistry";
 import type {PortalBrowseParams} from "@coreModule/domain/portal/portalProvider.types";
-import {catalogItems, configCurrencies, priceRange, samePriceCurrencyCompanies} from "@coreModule/domain/portal/portalCatalog";
+import {catalogItems, catalogRating, configCurrencies, priceRange, samePriceCurrencyCompanies} from "@coreModule/domain/portal/portalCatalog";
 import {addressCitiesByCompany, portalListedCompanyIds, type PortalScope} from "@coreModule/utilities/marketing/portalCompanies";
 import {escapeRegex} from "@coreModule/utilities/helpers";
 import {publicMediaUrl} from "@coreModule/utilities/media/publicMediaUrl";
@@ -9,6 +9,7 @@ import ClinicConfig from "@dentalClinicModule/database/schemas/clinicConfig/clin
 import ClinicLocation from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation";
 
 import {clinicServiceService} from "@dentalClinicModule/database/schemas/clinicService/clinicService.service";
+import {clinicReviewService} from "@dentalClinicModule/database/schemas/clinicReview/clinicReview.service";
 /** Clinics taking public bookings or estimate requests (and on the apex, opted in to the portal). */
 export function clinicPortalCompanyIds(scope: PortalScope) {
     return portalListedCompanyIds("dentalClinic", {
@@ -29,12 +30,15 @@ async function browseTreatments({companyIds, query, priceMin, priceMax, sort, fi
     if (query) clause.name = {$regex: escapeRegex(query), $options: "i"};
     const price = priceRange(priceMin, priceMax);
     if (price) clause.price = price;
-    const [services, total] = await Promise.all([
+    const [services, total, ratings] = await Promise.all([
         clinicServiceService.findPortalCards(clause, SERVICE_SORTS[sort ?? "newest"], skip, limit),
         clinicServiceService.count(clause),
+        // Reviews rate the clinic, so each of its treatments shows the clinic's average (D178).
+        clinicReviewService.publishedRatingsByCompany(companyIds),
     ]);
     const items = await catalogItems(services, (service) => {
         const currency = currencies.get(service.company.toString());
+        const rating = ratings.get(service.company.toString());
         // "On request" and "free" treatments show no price.
         const priced = service.priceType === "fixed" || service.priceType === "from";
         return {
@@ -43,6 +47,7 @@ async function browseTreatments({companyIds, query, priceMin, priceMax, sort, fi
             title: service.name,
             image: publicMediaUrl(service.images?.[0]),
             ...(priced && service.price != null && currency ? {price: {amount: service.price, currency, from: service.priceType === "from"}} : {}),
+            ...catalogRating(rating?.average, rating?.count),
             section: "dentalClinic",
             path: `/treatments/${service.slug || service._id.toString()}`,
         };

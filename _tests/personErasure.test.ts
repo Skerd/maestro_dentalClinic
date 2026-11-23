@@ -26,6 +26,7 @@ import ClinicInquiry from "@dentalClinicModule/database/schemas/clinicInquiry/cl
 import ClinicMessage from "@dentalClinicModule/database/schemas/clinicMessage/clinicMessage";
 import Appointment from "@dentalClinicModule/database/schemas/appointment/appointment";
 import PatientTrip from "@dentalClinicModule/database/schemas/patientTrip/patientTrip";
+import ClinicReview from "@dentalClinicModule/database/schemas/clinicReview/clinicReview";
 
 const clinicA = new ObjectId();
 const clinicB = new ObjectId();
@@ -38,7 +39,7 @@ const staff: TestCaller = {userId: new ObjectId().toString(), companyId: clinicA
 // An admin of a company none of whose modules can erase a person.
 const shopAdmin: TestCaller = {userId: new ObjectId().toString(), companyId: clinicA.toString(), isAdmin: true, modules: ["core", "propertyDevelopment"]};
 
-const ids = {marco: new ObjectId(), patient: new ObjectId(), otherPatient: new ObjectId(), inquiry: new ObjectId(), message: new ObjectId(), appointment: new ObjectId(), trip: new ObjectId(), xray: new ObjectId(), photo: new ObjectId()};
+const ids = {marco: new ObjectId(), patient: new ObjectId(), otherPatient: new ObjectId(), inquiry: new ObjectId(), message: new ObjectId(), appointment: new ObjectId(), review: new ObjectId(), trip: new ObjectId(), xray: new ObjectId(), photo: new ObjectId()};
 const files = {xray: new ObjectId(), photo: new ObjectId()};
 const history = {version: "2026-10", answers: [{question: "diabetes", answer: "yes", detail: "type 2"}], signedName: "Giulia Bianchi", submittedAt: new Date()};
 const erase = (caller: TestCaller, preview: boolean) =>
@@ -60,7 +61,7 @@ afterAll(async () => {
 beforeEach(async () => {
     deletedFiles.length = 0;
     await raw(async () => {
-        for (const model of [Patient, ClinicInquiry, ClinicMessage, Appointment, PatientTrip, Media, AuditLog, User]) await model.collection.deleteMany({});
+        for (const model of [Patient, ClinicInquiry, ClinicMessage, Appointment, ClinicReview, PatientTrip, Media, AuditLog, User]) await model.collection.deleteMany({});
         // Another person in the same clinic, with an account too: the erasure must not reach them.
         await User.collection.insertMany([
             {_id: accountId, username: EMAIL, name: "Giulia"},
@@ -78,6 +79,7 @@ beforeEach(async () => {
         await ClinicInquiry.collection.insertOne({_id: ids.inquiry, company: clinicA, number: "INQ-1", account: accountId, contact: {firstName: "Giulia", lastName: "B.", email: EMAIL, preferredLanguage: "it-IT"}, description: "my implant hurts", files: [ids.xray], medicalHistory: history, patient: ids.patient, deletedAt: null});
         await ClinicMessage.collection.insertOne({_id: ids.message, company: clinicA, inquiry: ids.inquiry, from: "patient", body: "here is a photo", attachments: [ids.photo], deletedAt: null});
         await Appointment.collection.insertOne({_id: ids.appointment, company: clinicA, number: "AP-1", customer: accountId, patientRecord: ids.patient, patient: {firstName: "Giulia", lastName: "Bianchi", email: EMAIL, phone: "+39 1"}, note: "allergic", deletedAt: null});
+        await ClinicReview.collection.insertOne({_id: ids.review, company: clinicA, appointment: ids.appointment, authorName: "Giulia B.", rating: 5, isPublished: true, deletedAt: null});
         await PatientTrip.collection.insertOne({_id: ids.trip, company: clinicA, patient: ids.patient, arrivalFlight: "LH123", deletedAt: null});
         await AuditLog.collection.insertOne({company: clinicA, collectionName: "patients", documentId: ids.patient, action: "UPDATE", diff: {medicalHistory: {from: null, to: history}, notes: {from: null, to: "nervous"}}});
     });
@@ -99,6 +101,7 @@ describe("person erasure (D57)", {timeout: 60000}, () => {
             {collection: "clinicinquiries", anonymised: 1, deleted: 0},
             {collection: "clinicmessages", anonymised: 0, deleted: 1},
             {collection: "appointments", anonymised: 1, deleted: 0},
+            {collection: "clinicreviews", anonymised: 1, deleted: 0},
             {collection: "patienttrips", anonymised: 0, deleted: 1},
             {collection: "media", anonymised: 0, deleted: 2},
         ]));
@@ -124,6 +127,8 @@ describe("person erasure (D57)", {timeout: 60000}, () => {
         const appointment = (await raw(() => Appointment.collection.findOne({_id: ids.appointment})))!;
         expect(appointment.patient).toEqual({firstName: "Erased", lastName: "person", email: "erased@erased.invalid", phone: "-"});
         expect(appointment.customer).toBeUndefined();
+        // Their review keeps its rating under an erased name (D178).
+        expect(await raw(() => ClinicReview.collection.findOne({_id: ids.review}))).toMatchObject({authorName: "Erased person", rating: 5});
 
         expect(await raw(() => ClinicMessage.collection.countDocuments({}))).toBe(0);
         expect(await raw(() => PatientTrip.collection.countDocuments({}))).toBe(0);
@@ -132,7 +137,7 @@ describe("person erasure (D57)", {timeout: 60000}, () => {
 
         // Each erased record says who erased it and when, nothing about the person (TD-B34).
         const erasures = await raw(() => AuditLog.collection.find({action: "ERASE"}).toArray());
-        expect(erasures.map((entry) => String(entry.documentId)).sort()).toEqual([ids.patient, ids.inquiry, ids.message, ids.appointment, ids.trip].map(String).sort());
+        expect(erasures.map((entry) => String(entry.documentId)).sort()).toEqual([ids.patient, ids.inquiry, ids.message, ids.appointment, ids.review, ids.trip].map(String).sort());
         expect(erasures.every((entry) => String(entry.actorId) === admin.userId && JSON.stringify(entry.diff) === "{}")).toBe(true);
 
         const audit = (await raw(() => AuditLog.collection.findOne({documentId: ids.patient, action: "UPDATE"})))!;

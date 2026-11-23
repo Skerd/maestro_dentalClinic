@@ -9,6 +9,7 @@ import Patient from "@dentalClinicModule/database/schemas/patient/patient";
 import ClinicInquiry from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry";
 import ClinicMessage from "@dentalClinicModule/database/schemas/clinicMessage/clinicMessage";
 import TreatmentPlan from "@dentalClinicModule/database/schemas/treatmentPlan/treatmentPlan";
+import ClinicReview from "@dentalClinicModule/database/schemas/clinicReview/clinicReview";
 import {registerDefaultRoles} from "@coreModule/database/schemas/role/role.defaults";
 import {registerPublicMediaBackfillSource} from "@coreModule/utilities/media/publicMediaBackfillRegistry";
 import {dentalClinicDefaultRoles} from "@dentalClinicModule/database/schemas/role/dentalClinic.role.defaults";
@@ -29,6 +30,7 @@ export const dentalClinicModels: Model<any>[] = [
     ClinicInquiry,
     ClinicMessage,
     TreatmentPlan,
+    ClinicReview,
 ];
 
 export async function dropDentalClinicCollections(): Promise<void> {

@@ -19,18 +19,24 @@ import type {ICompany} from "@coreModule/database/schemas/company/company";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {
     bookAppointmentFormSchema,
+    clinicReviewsFormSchema,
     clinicSlotsFormSchema,
     manageAppointmentFormSchema,
+    manageReviewFormSchema,
     rescheduleManagedAppointmentFormSchema,
+    type ClinicReviewsFormType,
 } from "armonia/src/modules/dentalClinic/api/dentalClinic/public/clinicStorefront/clinicStorefront.form.validators";
 import type {
     BookAppointmentFormType,
     ClinicSlotsFormType,
     ManageAppointmentFormType,
+    ManageReviewFormType,
     RescheduleManagedAppointmentFormType,
 } from "armonia/src/modules/dentalClinic/api/dentalClinic/public/clinicStorefront/clinicStorefront.forms";
 import type {
     AppointmentBookingResponse,
+    ClinicReviewsResponse,
+    ManagedAppointmentResponse,
     MyAppointmentsResponse,
     ClinicSlotsResponse,
     ClinicStorefrontConfigResponse,
@@ -53,6 +59,7 @@ import {appointmentService} from "@dentalClinicModule/database/schemas/appointme
 import {clinicLocationService} from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation.service";
 import {clinicServiceService} from "@dentalClinicModule/database/schemas/clinicService/clinicService.service";
 import {practitionerService} from "@dentalClinicModule/database/schemas/practitioner/practitioner.service";
+import {clinicReviewService} from "@dentalClinicModule/database/schemas/clinicReview/clinicReview.service";
 export const basePath = "/api/dentalClinic/clinicStorefront";
 
 const MY_APPOINTMENTS_MAX = 50;
@@ -301,16 +308,70 @@ router.post(
     }),
 );
 
-/** The guest "manage your appointment" page. */
+/**
+ * POST /api/dentalClinic/clinicStorefront/reviews
+ *
+ * The clinic's published reviews on its site (D178): the average, how many, and the latest ones. Patients write them
+ * from the emailed link after a completed appointment; they show once staff publish them.
+ */
+router.post(
+    "/reviews",
+    authMW("public"),
+    rateLimiter({windowMs: 60000, max: 60}),
+    validateFormZod(clinicReviewsFormSchema),
+    asyncHandler(async ({origin, languageCode, limit}: PublicParams<ClinicReviewsFormType>): Promise<ClinicReviewsResponse> => {
+        const {company} = await storefrontContext(origin, languageCode, "site");
+        const found = await clinicReviewService.publishedForCompany(company._id, limit ?? 10);
+        return {
+            data: {
+                average: found.average,
+                count: found.count,
+                reviews: found.reviews.map((review) => ({
+                    rating: review.rating,
+                    ...(review.comment ? {comment: review.comment} : {}),
+                    authorName: review.authorName,
+                    createdAt: review.createdAt.toISOString(),
+                })),
+            },
+        };
+    }),
+);
+
+/** The guest "manage your appointment" page, and whether the patient may still write their review. */
 router.post(
     "/manage",
     authMW("public"),
     rateLimiter({windowMs: 60000, max: 30, failClosed: true}),
     validateFormZod(manageAppointmentFormSchema),
-    asyncHandler(async (params: PublicParams<ManageAppointmentFormType>): Promise<PublicAppointmentResponse> => {
+    asyncHandler(async (params: PublicParams<ManageAppointmentFormType>): Promise<ManagedAppointmentResponse> => {
         const {origin, languageCode, token} = params;
         const company = await resolveCompanyByOrigin(origin, languageCode);
-        return {data: await publicAppointment(await appointmentFromLink(token, company, languageCode))};
+        const appointment = await appointmentFromLink(token, company, languageCode);
+        const canReview = appointment.status === "completed"
+            && !(await clinicReviewService.exists({company: company._id, appointment: appointment._id, deletedAt: null}));
+        return {data: await publicAppointment(appointment), canReview};
+    }),
+);
+
+/** The patient's one review of a completed appointment (D178); it waits for staff to publish it. */
+router.post(
+    "/manage/review",
+    authMW("public"),
+    rateLimiter({windowMs: 60000, max: 5, failClosed: true}),
+    transactionHandler(),
+    validateFormZod(manageReviewFormSchema),
+    asyncHandler(async (params: TransactionRequiredParams & PublicParams<ManageReviewFormType>): Promise<{data: {saved: true}}> => {
+        const {origin, languageCode, token, session, logger} = params;
+        const company = await resolveCompanyByOrigin(origin, languageCode);
+        const appointment = await appointmentFromLink(token, company, languageCode, session);
+        await clinicReviewService.writeForAppointment(
+            company._id,
+            appointment,
+            {rating: params.rating, comment: params.comment},
+            // Written by the patient: their portal account when the booking has one, as at booking.
+            {session, logger, languageCode, auditUserId: nestedEntityToRef(appointment.customer)},
+        );
+        return {data: {saved: true}};
     }),
 );
 
