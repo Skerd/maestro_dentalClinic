@@ -7,6 +7,8 @@
   "labelWhere": "Where",
   "labelWhat": "Treatment",
   "manageLinkText": "View, move or cancel your appointment",
+  "accountNote": "All your bookings in one place:",
+  "accountLinkText": "your {pageName} account",
   "headingRequested": "Appointment request received",
   "subjectRequested": "Appointment request {number} — {companyName}",
   "introRequested": "Thank you. We have received your request and will confirm it shortly.",

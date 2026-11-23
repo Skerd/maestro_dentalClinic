@@ -7,6 +7,8 @@
   "labelWhere": "Où",
   "labelWhat": "Soin",
   "manageLinkText": "Voir, déplacer ou annuler votre rendez-vous",
+  "accountNote": "Toutes vos réservations au même endroit :",
+  "accountLinkText": "votre compte {pageName}",
   "headingRequested": "Demande de rendez-vous reçue",
   "subjectRequested": "Demande de rendez-vous {number} — {companyName}",
   "introRequested": "Merci. Nous avons reçu votre demande et la confirmerons sous peu.",

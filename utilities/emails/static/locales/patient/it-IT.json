@@ -7,6 +7,8 @@
   "labelWhere": "Dove",
   "labelWhat": "Trattamento",
   "manageLinkText": "Visualizza, sposta o annulla il tuo appuntamento",
+  "accountNote": "Tutte le tue prenotazioni in un unico posto:",
+  "accountLinkText": "il tuo account {pageName}",
   "headingRequested": "Richiesta di appuntamento ricevuta",
   "subjectRequested": "Richiesta di appuntamento {number} — {companyName}",
   "introRequested": "Grazie. Abbiamo ricevuto la tua richiesta e la confermeremo a breve.",

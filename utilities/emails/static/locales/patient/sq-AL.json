@@ -7,6 +7,8 @@
   "labelWhere": "Ku",
   "labelWhat": "Trajtimi",
   "manageLinkText": "Shikoni, zhvendosni ose anuloni takimin",
+  "accountNote": "Të gjitha rezervimet tuaja në një vend:",
+  "accountLinkText": "llogaria juaj në {pageName}",
   "headingRequested": "Kërkesa për takim u mor",
   "subjectRequested": "Kërkesë për takim {number} — {companyName}",
   "introRequested": "Faleminderit. E morëm kërkesën tuaj dhe do ta konfirmojmë së shpejti.",

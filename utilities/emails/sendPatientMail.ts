@@ -45,6 +45,8 @@ export type PatientMessage = {
     manageToken: string;
     /** The manage page on the clinic's own site; the token is appended. */
     manageUrl: string;
+    /** The patient's account on the portal apex, for an appointment booked signed in (their account lists it, D178). */
+    accountUrl?: string;
 };
 
 function stringsFor(languageCode: string) {
@@ -84,6 +86,13 @@ export async function sendPatientMail(data: PatientMessage): Promise<void> {
         detailsSummary: summaryCardHtml(loc.summaryTitle ?? "", rows),
         cta: ctaButtonHtml(loc.manageLinkText ?? "", manageUrl(data), loc.fallbackLabel ?? ""),
         closing: loc[closingKey] ?? "",
+        account: data.accountUrl
+            ? applyPlaceholders(readTemplate("account.html"), {
+                accountNote: loc.accountNote ?? "",
+                accountUrl: escapeHtml(data.accountUrl),
+                accountLinkText: localized(strings, "accountLinkText", {pageName}),
+            })
+            : "",
     });
 
     let html = applyPlaceholders(readTemplate("patient.html"), layoutStrings(strings, `heading${suffix}`, `preheader${suffix}`));
@@ -164,6 +173,8 @@ export async function sendInquiryMail(data: InquiryMessage): Promise<void> {
         detailsSummary: rows.length ? summaryCardHtml(loc.summaryTitleInquiry ?? "", rows) : "",
         cta: ctaButtonHtml(loc.caseLinkText ?? "", data.caseUrl, loc.fallbackLabel ?? ""),
         closing: loc[`closing${suffix}`] ?? "",
+        // The button already opens the case in the patient's account.
+        account: "",
     });
 
     let html = applyPlaceholders(

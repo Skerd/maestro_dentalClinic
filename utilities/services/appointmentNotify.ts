@@ -11,7 +11,7 @@ import {clinicConfigService} from "@dentalClinicModule/database/schemas/clinicCo
 import {patientService} from "@dentalClinicModule/database/schemas/patient/patient.service";
 import {NotificationEventCodes} from "@dentalClinicModule/domain/notifications/notificationEventCodes";
 import {sendPatientMail, patientSmsText, type PatientMessageKind} from "@dentalClinicModule/utilities/emails/sendPatientMail";
-import {companySiteUrl} from "@coreModule/utilities/marketing/portalCompanies";
+import {companySiteUrl, portalAccountUrl} from "@coreModule/utilities/marketing/portalCompanies";
 
 import {companyService} from "@coreModule/database/schemas/company/company.service";
 function formatLocal(date: Date, timeZone: string, languageCode: string): string {
@@ -73,6 +73,8 @@ export async function notifyPatient(
             serviceName: config?.includeServiceInMessages ? snapshot.serviceName : undefined,
             manageToken: manageTokenFor(appointment),
             manageUrl: companySiteUrl({_id: company._id, siteSlug: company.siteSlug}, "/dentists/manage"),
+            // A guest booking is in no account (yet): the link would open an account without it.
+            accountUrl: appointment.customer ? portalAccountUrl() : undefined,
         };
         await sendPatientMail(message);
         if (kind === "reminder" && config?.reminderSms && patient.phone) {

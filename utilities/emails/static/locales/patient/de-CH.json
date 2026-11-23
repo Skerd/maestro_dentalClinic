@@ -7,6 +7,8 @@
   "labelWhere": "Wo",
   "labelWhat": "Behandlung",
   "manageLinkText": "Termin ansehen, verschieben oder absagen",
+  "accountNote": "Alle Ihre Buchungen an einem Ort:",
+  "accountLinkText": "Ihr {pageName}-Konto",
   "headingRequested": "Terminanfrage erhalten",
   "subjectRequested": "Terminanfrage {number} — {companyName}",
   "introRequested": "Vielen Dank. Wir haben Ihre Anfrage erhalten und bestätigen sie in Kürze.",

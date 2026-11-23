@@ -21,7 +21,7 @@ import {
     type PatientMessageKind,
 } from "@dentalClinicModule/utilities/emails/sendPatientMail";
 
-const message = (kind: PatientMessageKind, languageCode = "en-US", serviceName?: string): PatientMessage => ({
+const message = (kind: PatientMessageKind, languageCode = "en-US", serviceName?: string, accountUrl?: string): PatientMessage => ({
     kind,
     companyId: "6ad653ec4b21ee6f13d1083a",
     companyName: "Smile Clinic",
@@ -35,6 +35,7 @@ const message = (kind: PatientMessageKind, languageCode = "en-US", serviceName?:
     serviceName,
     manageToken: "token",
     manageUrl: "https://smile.arpeggio.al/dentists/manage",
+    accountUrl,
 });
 
 beforeEach(() => {
@@ -57,15 +58,27 @@ describe("patient email", () => {
         expect(sent[1].html).toContain("Check-up");
     });
 
+    it("links a signed-in patient's appointment to their account on the portal (D178), and a guest's not", async () => {
+        await sendPatientMail(message("confirmed", "en-US", undefined, "https://arpeggio.al/account"));
+        expect(sent[0].html).toContain("All your bookings in one place:");
+        expect(sent[0].html).toContain('href="https://arpeggio.al/account"');
+
+        await sendPatientMail(message("confirmed"));
+        expect(sent[1].html).not.toContain("All your bookings in one place");
+    });
+
     it("renders every kind in every language without leftovers", async () => {
         for (const languageCode of ["en-US", "de-CH", "fr-FR", "it-IT", "sq-AL"]) {
             for (const kind of ["requested", "confirmed", "rescheduled", "cancelled", "reminder"] as const) {
-                await sendPatientMail(message(kind, languageCode));
+                await sendPatientMail(message(kind, languageCode, undefined, "https://arpeggio.al/account"));
             }
             expect(patientSmsText(message("reminder", languageCode))).toContain("/manage?token=token");
         }
         expect(sent).toHaveLength(25);
-        for (const {html} of sent) expect(html).not.toMatch(/\{[a-zA-Z]+\}/);
+        for (const {html} of sent) {
+            expect(html).not.toMatch(/\{[a-zA-Z]+\}/);
+            expect(html).toContain('href="https://arpeggio.al/account"');
+        }
     });
 });
 
