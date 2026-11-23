@@ -3,6 +3,7 @@ import {BaseCrudService, type CrudOptions} from "@coreModule/database/services/b
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import type {IAppointment} from "@dentalClinicModule/database/schemas/appointment/appointment";
 import ClinicReview, {IClinicReview} from "./clinicReview";
+import {publicPersonName} from "@coreModule/utilities/helpers/publicName";
 
 type PublishedReview = {rating: number; comment?: string; authorName: string; createdAt: Date};
 
@@ -72,6 +73,5 @@ export function assertAppointmentReviewable(appointment: Pick<IAppointment, "sta
  * clinic's patient is itself personal, so a public review never carries the full name (SEC-06).
  */
 export function reviewAuthorName(patient: {firstName: string; lastName: string}): string {
-    const initial = patient.lastName.trim().charAt(0);
-    return [patient.firstName.trim(), initial ? `${initial.toUpperCase()}.` : ""].filter(Boolean).join(" ");
+    return publicPersonName(patient.firstName, patient.lastName);
 }
