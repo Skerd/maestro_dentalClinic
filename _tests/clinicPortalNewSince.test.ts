@@ -66,3 +66,17 @@ describe("treatments new since a date (P23.7)", () => {
         expect(kept.items.map((item) => item.title)).toEqual(["Cleaning"]);
     });
 });
+
+describe("a treatment's page (D181)", () => {
+    it("finds the treatment its page names, by slug or id, and nothing for an internal one", async () => {
+        const provider = getPortalProvider("dentalClinic");
+        if (!provider?.itemAt) throw new Error("the dentists section must answer itemAt");
+        const itemAt = provider.itemAt;
+        const at = (path: string) => withTenant(clinic, () => itemAt({scope: {companyId: clinic}, companyId: clinic, path, languageCode: "en-US"}));
+        expect(provider.sitePath).toBe("dentists");
+        expect(await at("/treatments/whitening")).toMatchObject({schemaType: "MedicalProcedure", item: {title: "Whitening", path: "/treatments/whitening"}});
+        expect((await at(`/treatments/${treatments.implant.toString()}`))?.item.title).toBe("Implant");
+        expect(await at("/treatments/internal%20check")).toBeUndefined();
+        expect(await at("/book")).toBeUndefined();
+    });
+});

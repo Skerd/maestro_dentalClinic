@@ -31,6 +31,7 @@ vi.mock("@dentalClinicModule/utilities/emails/sendPatientMail", () => ({
 
 import {allPermissionTags, appFor, callerHeader, type TestCaller} from "@coreModule/_tests/httpHarness";
 import Company from "@coreModule/database/schemas/company/company";
+import Role from "@coreModule/database/schemas/role/role";
 import Currency from "@coreModule/database/schemas/currency/currency";
 import {addLocalDays, localDateOf} from "@coreModule/utilities/time/timeWindows";
 import {withTenant} from "@coreModule/utilities/endpoints/tenantScope";
@@ -118,6 +119,9 @@ beforeAll(async () => {
     otherPatientCaller = {userId: new ObjectId().toString(), companyId: companyId.toString(), isAdmin: false, permissions: []};
     originCompany.current = {_id: companyId, name: "Smile Clinic"};
     await Company.collection.insertOne({_id: companyId, name: "Smile Clinic", vat: "VAT-1"});
+    // The clinic's sign-up role, as every company has from its creation: without it a signed-in patient's first booking
+    // builds the whole default role set, about ten seconds (TD-T19).
+    await Role.collection.insertOne({name: "Patient", slug: "patient_smile_clinic", company: companyId, isSignupDefault: true, isAdmin: false, permissions: []});
 }, 120000);
 
 afterAll(async () => {

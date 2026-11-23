@@ -112,11 +112,11 @@ async function publicAppointment(appointment: IAppointment) {
 async function appointmentFromLink(token: string, company: ICompany, languageCode: string, session?: TransactionRequiredParams["session"]): Promise<IAppointment> {
     const payload = validateRecordAccessToken(token, APPOINTMENT_LINK_PURPOSE, languageCode);
     if (payload.companyId !== company._id.toString()) {
-        throw apiValidationException("token_verification_failed", "", null, languageCode);
+        throw apiValidationException("link_no_longer_valid", "", null, languageCode);
     }
     const appointment = await appointmentService.findOne({_id: new ObjectId(payload.recordId), company: company._id, deletedAt: null}, {session: session ?? undefined});
     if (!appointment || appointment.manageTokenVersion !== payload.version || appointment.anonymizedAt) {
-        throw apiValidationException("token_verification_failed", "", null, languageCode);
+        throw apiValidationException("link_no_longer_valid", "", null, languageCode);
     }
     return appointment;
 }

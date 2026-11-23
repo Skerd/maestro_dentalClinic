@@ -215,7 +215,7 @@ describe("the patient's manage link", {timeout: 60000}, () => {
         expect(moved.status).toBe(200);
         expect(moved.body.data.appointment.startAt).toBe("2027-06-09T08:30:00.000Z");
 
-        expect((await manage("", {token: oldToken})).body.error_code).toBe("token_verification_failed");
+        expect((await manage("", {token: oldToken})).body.error_code).toBe("link_no_longer_valid");
         const cancelled = await manage("/cancel", {token: moved.body.data.manageToken});
         expect(cancelled.body.data.status).toBe("cancelled");
         // The freed time can be booked again

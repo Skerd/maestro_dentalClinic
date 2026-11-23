@@ -51,6 +51,7 @@ vi.mock("@dentalClinicModule/utilities/emails/sendPatientMail", () => ({
 import {allPermissionTags, appFor, callerHeader, type TestCaller} from "@coreModule/_tests/httpHarness";
 import Media from "@coreModule/database/schemas/media/media";
 import Company from "@coreModule/database/schemas/company/company";
+import Role from "@coreModule/database/schemas/role/role";
 import * as inquiryRoute from "@dentalClinicModule/api/dentalClinic/private/clinicInquiry";
 import * as portalRoute from "@dentalClinicModule/api/dentalClinic/public/patientPortal";
 import ClinicConfig from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig";
@@ -129,6 +130,11 @@ beforeEach(() => acrossCompanies(async () => {
     // Emails name the clinic, so the companies must exist; only their names are read.
     await Company.collection.deleteMany({});
     await Company.collection.insertMany([clinicA, clinicB, clinicC, platformId].map((_id, index) => ({_id, name: `Company ${index}`, vat: `VAT-${index}`})));
+    // Each company's sign-up role, as every company has from its creation: without it opening a patient's folder
+    // builds the whole default role set, about ten seconds (TD-T19).
+    await Role.collection.deleteMany({});
+    await Role.collection.insertMany([clinicA, clinicB, clinicC, platformId].map((company, index) =>
+        ({name: "Patient", slug: `patient_${index}`, company, isSignupDefault: true, isAdmin: false, permissions: []})));
 }));
 
 describe("a patient's request to several clinics", {timeout: 60000}, () => {

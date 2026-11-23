@@ -140,7 +140,7 @@ describe("clinic reviews (D178)", {timeout: 60000}, () => {
         const {id, token} = await booked();
         await completed(id);
         await Appointment.collection.updateOne({_id: new ObjectId(id)}, {$inc: {manageTokenVersion: 1}});
-        expect((await storefront("/manage/review", {token, rating: 5})).body.error_code).toBe("token_verification_failed");
+        expect((await storefront("/manage/review", {token, rating: 5})).body.error_code).toBe("link_no_longer_valid");
         expect(await ClinicReview.countDocuments({})).toBe(0);
     }));
 

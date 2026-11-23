@@ -1,6 +1,6 @@
 import {registerPortalProvider} from "@coreModule/domain/portal/portalProviderRegistry";
 import type {PortalBrowseParams, PortalNewSinceContext} from "@coreModule/domain/portal/portalProvider.types";
-import {catalogItems, catalogRating, configCurrencies, newSinceClause, priceRange, samePriceCurrencyCompanies} from "@coreModule/domain/portal/portalCatalog";
+import {catalogItems, catalogRating, configCurrencies, itemPagePath, newSinceClause, priceRange, samePriceCurrencyCompanies, slugOrIdClause} from "@coreModule/domain/portal/portalCatalog";
 import {addressCitiesByCompany, portalListedCompanyIds, type PortalScope} from "@coreModule/utilities/marketing/portalCompanies";
 import {escapeRegex} from "@coreModule/utilities/helpers";
 import {publicMediaUrl} from "@coreModule/utilities/media/publicMediaUrl";
@@ -63,11 +63,27 @@ export function registerClinicPortalProvider(): void {
     registerPortalProvider({
         key: "dentalClinic",
         order: 30,
+        sitePath: "dentists",
+        // As the portal's section tabs name it (sinfonia `portalSectionName`).
+        names: {
+            "en-US": {title: "Dentists", description: "Find a clinic and book an appointment online."},
+            "sq-AL": {title: "Dentistët", description: "Gjeni një klinikë dhe rezervoni një takim online."},
+            "it-IT": {title: "Dentisti", description: "Trova uno studio e prenota un appuntamento online."},
+            "fr-FR": {title: "Dentistes", description: "Trouvez un cabinet et prenez rendez-vous en ligne."},
+            "de-CH": {title: "Zahnärzte", description: "Finden Sie eine Praxis und buchen Sie online einen Termin."},
+        },
         kinds: ["treatment"],
         companyIds: clinicPortalCompanyIds,
         citiesByCompany: (companyIds) => addressCitiesByCompany(ClinicLocation, companyIds, {isActive: true}),
         browse: (params) => browseTreatments(params),
         // Treatments offered after the date (D178): a saved search's alert, a person's kept items.
         newSince: (context: PortalNewSinceContext) => browseTreatments({...context, sort: "newest", skip: 0}, newSinceClause(context)),
+        // A treatment's page (D181): `/treatments/{slug or id}`.
+        itemAt: async ({scope, companyId, path, languageCode}) => {
+            const [page, ref] = itemPagePath(path).segments;
+            if (page !== "treatments" || !ref) return undefined;
+            const {items} = await browseTreatments({kind: "treatment", scope, companyIds: [companyId], filters: {}, skip: 0, limit: 1, languageCode}, slugOrIdClause(ref));
+            return items[0] ? {item: items[0], schemaType: "MedicalProcedure"} : undefined;
+        },
     });
 }
