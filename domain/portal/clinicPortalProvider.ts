@@ -64,13 +64,13 @@ export function registerClinicPortalProvider(): void {
         key: "dentalClinic",
         order: 30,
         sitePath: "dentists",
-        // As the portal's section tabs name it (sinfonia `portalSectionName`).
+        // As the portal names it: the section (sinfonia `portalSectionName`) and its kinds' tabs (`portalKindName`).
         names: {
-            "en-US": {title: "Dentists", description: "Find a clinic and book an appointment online."},
-            "sq-AL": {title: "Dentistët", description: "Gjeni një klinikë dhe rezervoni një takim online."},
-            "it-IT": {title: "Dentisti", description: "Trova uno studio e prenota un appuntamento online."},
-            "fr-FR": {title: "Dentistes", description: "Trouvez un cabinet et prenez rendez-vous en ligne."},
-            "de-CH": {title: "Zahnärzte", description: "Finden Sie eine Praxis und buchen Sie online einen Termin."},
+            "en-US": {title: "Dentists", description: "Find a clinic and book an appointment online.", kinds: {treatment: "Dental"}},
+            "sq-AL": {title: "Dentistët", description: "Gjeni një klinikë dhe rezervoni një takim online.", kinds: {treatment: "Dentare"}},
+            "it-IT": {title: "Dentisti", description: "Trova uno studio e prenota un appuntamento online.", kinds: {treatment: "Dentista"}},
+            "fr-FR": {title: "Dentistes", description: "Trouvez un cabinet et prenez rendez-vous en ligne.", kinds: {treatment: "Dentaire"}},
+            "de-CH": {title: "Zahnärzte", description: "Finden Sie eine Praxis und buchen Sie online einen Termin.", kinds: {treatment: "Zahnmedizin"}},
         },
         kinds: ["treatment"],
         companyIds: clinicPortalCompanyIds,
