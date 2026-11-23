@@ -1,6 +1,6 @@
 import {registerPortalProvider} from "@coreModule/domain/portal/portalProviderRegistry";
-import type {PortalBrowseParams} from "@coreModule/domain/portal/portalProvider.types";
-import {catalogItems, catalogRating, configCurrencies, priceRange, samePriceCurrencyCompanies} from "@coreModule/domain/portal/portalCatalog";
+import type {PortalBrowseParams, PortalNewSinceContext} from "@coreModule/domain/portal/portalProvider.types";
+import {catalogItems, catalogRating, configCurrencies, newSinceClause, priceRange, samePriceCurrencyCompanies} from "@coreModule/domain/portal/portalCatalog";
 import {addressCitiesByCompany, portalListedCompanyIds, type PortalScope} from "@coreModule/utilities/marketing/portalCompanies";
 import {escapeRegex} from "@coreModule/utilities/helpers";
 import {publicMediaUrl} from "@coreModule/utilities/media/publicMediaUrl";
@@ -21,12 +21,15 @@ export function clinicPortalCompanyIds(scope: PortalScope) {
 
 const SERVICE_SORTS = {newest: {createdAt: -1}, priceAsc: {price: 1}, priceDesc: {price: -1}} as const;
 
-/** Public treatments of these clinics; each opens the booking wizard on it. */
-async function browseTreatments({companyIds, query, priceMin, priceMax, sort, filters, skip, limit}: PortalBrowseParams) {
+/**
+ * Public treatments of these clinics; each opens the booking wizard on it. `narrowing` keeps only the treatments a
+ * "new since" ask is about.
+ */
+async function browseTreatments({companyIds, query, priceMin, priceMax, sort, filters, skip, limit}: PortalBrowseParams, narrowing: Record<string, unknown> = {}) {
     const currencies = await configCurrencies(ClinicConfig, companyIds);
     // Prices are compared only between clinics charging in one currency.
     const comparable = samePriceCurrencyCompanies(companyIds, currencies, {priceMin, priceMax, sort, filters});
-    const clause: Record<string, unknown> = {company: {$in: comparable}, isActive: true, isPublic: true, deletedAt: null};
+    const clause: Record<string, unknown> = {...narrowing, company: {$in: comparable}, isActive: true, isPublic: true, deletedAt: null};
     if (query) clause.name = {$regex: escapeRegex(query), $options: "i"};
     const price = priceRange(priceMin, priceMax);
     if (price) clause.price = price;
@@ -63,6 +66,8 @@ export function registerClinicPortalProvider(): void {
         kinds: ["treatment"],
         companyIds: clinicPortalCompanyIds,
         citiesByCompany: (companyIds) => addressCitiesByCompany(ClinicLocation, companyIds, {isActive: true}),
-        browse: browseTreatments,
+        browse: (params) => browseTreatments(params),
+        // Treatments offered after the date (D178): a saved search's alert, a person's kept items.
+        newSince: (context: PortalNewSinceContext) => browseTreatments({...context, sort: "newest", skip: 0}, newSinceClause(context)),
     });
 }
