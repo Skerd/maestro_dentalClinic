@@ -6,7 +6,9 @@ import {runAfterCommit} from "@coreModule/utilities/middlewares/transactionUtils
 import type {IClinicInquiry} from "@dentalClinicModule/database/schemas/clinicInquiry/clinicInquiry";
 import {clinicConfigService} from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig.service";
 import {NotificationEventCodes} from "@dentalClinicModule/domain/notifications/notificationEventCodes";
-import {sendInquiryMail, type InquiryMessage, type InquiryMessageKind} from "@dentalClinicModule/utilities/emails/sendPatientMail";
+import type {InquiryMessage, InquiryMessageKind} from "@dentalClinicModule/utilities/emails/sendPatientMail";
+import {dispatchPatientInquiryEmail} from "@dentalClinicModule/utilities/emails/patientEmailDispatch";
+import {inquiryEmailEventType} from "@dentalClinicModule/kafka/kafkaProducer";
 
 import {userService} from "@coreModule/database/schemas/user/user.service";
 import {companyService} from "@coreModule/database/schemas/company/company.service";
@@ -58,7 +60,7 @@ export async function notifyInquiryStaff(
 
 /**
  * Email to a portal patient about their request at one clinic, after the caller's transaction
- * commits. Leads the clinic entered itself have no portal case, so nothing is sent for them.
+ * commits, through its kind's Kafka topic (D188). Leads the clinic entered itself have no portal case, so nothing is sent for them.
  */
 export async function notifyInquiryPatient(
     kind: Exclude<InquiryMessageKind, "requestSent">,
@@ -72,7 +74,11 @@ export async function notifyInquiryPatient(
         const companyId = nestedEntityToRef(inquiry.company);
         const [company, email] = await Promise.all([companyService.findById(companyId, {}, undefined, "name"), patientEmail(inquiry)]);
         if (!company || !email) return;
-        await sendInquiryMail({
+        await dispatchPatientInquiryEmail({
+            eventType: inquiryEmailEventType(kind),
+            timestamp: Date.now(),
+            companyId: String(companyId),
+            recordId: inquiry._id.toString(),
             kind,
             senderCompanyId: String(companyId),
             companyName: company.name,
@@ -101,7 +107,11 @@ export async function notifyRequestSent(
             patientEmail(first),
         ]);
         if (!email) return;
-        await sendInquiryMail({
+        await dispatchPatientInquiryEmail({
+            eventType: inquiryEmailEventType("requestSent"),
+            timestamp: Date.now(),
+            companyId: platform.companyId,
+            recordId: requestGroup,
             kind: "requestSent",
             senderCompanyId: platform.companyId,
             companyName: platform.name,

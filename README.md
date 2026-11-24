@@ -27,3 +27,14 @@ dentalClinic/
 ├── utilities/                     # services, mappers, emails, cron jobs
 └── workflows/                     # guestAppointmentClaim (appointments + folder + membership)
 ```
+
+## Kafka
+
+Every patient email goes through its own Kafka topic, one per kind, so it survives a restart and is retried (D188, BE-10). Kafka is optional: when core `publishEvent` returns `false` the email is sent in-process instead (`utilities/emails/patientEmailDispatch.ts`, called by `notifyPatient`, `notifyInquiryPatient` and `notifyRequestSent`).
+
+| Topic keys (`KAFKA_TOPIC_<key>`, `KAFKA_CONSUMER_GROUP_<key>`) | Emails |
+|---|---|
+| `DENTAL_APPOINTMENT_{REQUESTED,CONFIRMED,RESCHEDULED,CANCELLED,REMINDER}_EMAIL` | Appointment emails (the reminder's text message is still sent in-process) |
+| `DENTAL_INQUIRY_{REQUEST_SENT,INFO_REQUESTED,CLINIC_MESSAGE,DECLINED,QUOTE_RECEIVED,PLAN_ACCEPTED,DEPOSIT_PAID,TRIP_PLANNED}_EMAIL` | Estimate-request emails to portal patients |
+
+`startDentalClinicKafkaConsumers` (`kafka/kafkaConsumer.ts`) runs one consumer per topic. Its 26 variables are required while Kafka is on, next to `HEALTH_DATA_MASTER_KEY` (`environment.validator.ts`).

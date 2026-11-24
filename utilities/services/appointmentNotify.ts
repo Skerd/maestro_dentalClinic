@@ -10,7 +10,9 @@ import type {IAppointment} from "@dentalClinicModule/database/schemas/appointmen
 import {clinicConfigService} from "@dentalClinicModule/database/schemas/clinicConfig/clinicConfig.service";
 import {patientService} from "@dentalClinicModule/database/schemas/patient/patient.service";
 import {NotificationEventCodes} from "@dentalClinicModule/domain/notifications/notificationEventCodes";
-import {sendPatientMail, patientSmsText, type PatientMessageKind} from "@dentalClinicModule/utilities/emails/sendPatientMail";
+import {patientSmsText, type PatientMessageKind} from "@dentalClinicModule/utilities/emails/sendPatientMail";
+import {dispatchPatientAppointmentEmail} from "@dentalClinicModule/utilities/emails/patientEmailDispatch";
+import {appointmentEmailEventType} from "@dentalClinicModule/kafka/kafkaProducer";
 import {companySiteUrl, portalAccountUrl} from "@coreModule/utilities/marketing/portalCompanies";
 
 import {companyService} from "@coreModule/database/schemas/company/company.service";
@@ -41,7 +43,7 @@ async function patientLanguageOf(appointment: IAppointment): Promise<string> {
 
 /**
  * Tells the patient about their appointment once the caller's transaction has
- * committed (right away without one): an email, plus a text for reminders when
+ * committed (right away without one): an email through its kind's Kafka topic (D188), plus a text for reminders when
  * the clinic turned that on, in the patient's language. Messages say when, where and with whom; the
  * treatment is named only if the clinic opted in, since it can reveal a condition.
  */
@@ -76,7 +78,7 @@ export async function notifyPatient(
             // A guest booking is in no account (yet): the link would open an account without it.
             accountUrl: appointment.customer ? portalAccountUrl() : undefined,
         };
-        await sendPatientMail(message);
+        await dispatchPatientAppointmentEmail({...message, eventType: appointmentEmailEventType(kind), timestamp: Date.now(), appointmentId: appointment._id.toString()});
         if (kind === "reminder" && config?.reminderSms && patient.phone) {
             await sendMessagingNotification({to: patient.phone, body: patientSmsText(message), channel: "sms", companyId});
         }
