@@ -69,6 +69,8 @@ import {postInquiryMessage, readThread} from "@dentalClinicModule/utilities/serv
 import {notifyInquiryStaff, notifyRequestSent} from "@dentalClinicModule/utilities/services/inquiryNotify";
 import {type ITreatmentPlan} from "@dentalClinicModule/database/schemas/treatmentPlan/treatmentPlan";
 import {treatmentPlanToPatient} from "@dentalClinicModule/utilities/mappers/treatmentPlan/treatmentPlanMapper.dto";
+import {companyService} from "@coreModule/database/schemas/company/company.service";
+import type {CompanyBankAccount} from "armonia/src/modules/core/api/company/private/company/company.dto";
 import {acceptPlan} from "@dentalClinicModule/utilities/services/treatmentPlans";
 import {sendTreatmentPlanPdf} from "@dentalClinicModule/utilities/pdf/sendTreatmentPlanPdf";
 import {PAYMENTS} from "@financeModule/environment";
@@ -616,6 +618,12 @@ async function loadOwnPlan(accountId: ObjectId, planId: string, languageCode: st
     return plan;
 }
 
+/** Each clinic's bank account, the patient's other way to pay a deposit while card payments are coming soon (D190). */
+async function clinicBankAccounts(companyIds: ObjectId[]): Promise<Map<string, CompanyBankAccount>> {
+    const companies = await companyService.find({_id: {$in: companyIds}, "bankAccount.iban": {$exists: true}}, {}, undefined, "_id bankAccount");
+    return new Map(companies.flatMap((company) => (company.bankAccount ? [[company._id.toString(), company.bankAccount] as const] : [])));
+}
+
 /** Every quote the clinics sent for one request, to compare side by side. */
 router.post(
     "/plans",
@@ -627,12 +635,13 @@ router.post(
         const user = await requirePortalAccount(params.customer, params.origin, params.languageCode);
         const inquiries = await clinicInquiryService.find({account: user._id, requestGroup: params.requestGroup, deletedAt: null}, {}, undefined, "_id company");
         const plans = await treatmentPlanService.find({inquiry: {$in: inquiries.map((inquiry) => inquiry._id)}, status: {$ne: "draft"}, deletedAt: null}, {}, {path: "currency", select: "name symbol abbreviation decimalPlaces"}, undefined, {sentAt: 1});
-        const clinics = await portalCompanyCards(idsOf(inquiries.map((inquiry) => inquiry.company)), new Map());
+        const clinicIds = idsOf(inquiries.map((inquiry) => inquiry.company));
+        const [clinics, bankAccounts] = await Promise.all([portalCompanyCards(clinicIds, new Map()), clinicBankAccounts(clinicIds)]);
         const names = new Map(clinics.map((clinic) => [clinic._id, clinic.name]));
         return {
             data: plans.map((plan) => {
                 const clinicId = String(nestedEntityToRef(plan.company));
-                return treatmentPlanToPatient(plan, {_id: clinicId, name: names.get(clinicId) ?? ""});
+                return treatmentPlanToPatient(plan, {_id: clinicId, name: names.get(clinicId) ?? ""}, bankAccounts.get(clinicId));
             }),
             onlinePayment: onlinePaymentAvailable(),
         };
@@ -678,8 +687,9 @@ router.post(
             {session, logger, languageCode, auditUserId: user._id},
         );
         await plan.populate({path: "currency", select: "name symbol abbreviation decimalPlaces"});
-        const [clinic] = await portalCompanyCards(idsOf([plan.company]), new Map());
-        return {data: {plan: treatmentPlanToPatient(plan, {_id: clinic?._id ?? "", name: clinic?.name ?? ""})}};
+        const clinicIds = idsOf([plan.company]);
+        const [[clinic], bankAccounts] = await Promise.all([portalCompanyCards(clinicIds, new Map()), clinicBankAccounts(clinicIds)]);
+        return {data: {plan: treatmentPlanToPatient(plan, {_id: clinic?._id ?? "", name: clinic?.name ?? ""}, bankAccounts.get(String(nestedEntityToRef(plan.company))))}};
     })),
 );
 

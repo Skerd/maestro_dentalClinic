@@ -46,8 +46,11 @@ vi.mock("@dentalClinicModule/utilities/emails/sendPatientMail", () => ({
     patientSmsText: () => "",
 }));
 
+// Card payments as if on (D190); the "coming soon" test switches them off, and Stripe with them, as finance's environment does.
+const {cardSwitch} = vi.hoisted(() => ({cardSwitch: {CARD_PAYMENTS_AVAILABLE: true}}));
+vi.mock("armonia/src/modules/finance/helpers/cardPaymentAvailability", () => cardSwitch);
 // A gateway that answers like Stripe: one intent per idempotency key.
-vi.mock("@financeModule/environment", () => ({PAYMENTS: {STRIPE_ENABLED: true, STRIPE_PUBLISHABLE_KEY: "pk_test"}}));
+vi.mock("@financeModule/environment", () => ({PAYMENTS: {get STRIPE_ENABLED() { return cardSwitch.CARD_PAYMENTS_AVAILABLE; }, STRIPE_PUBLISHABLE_KEY: "pk_test"}}));
 const {gateway} = vi.hoisted(() => {
     const adapter = {
         isEnabled: () => true,
@@ -511,6 +514,42 @@ describe("paying for an accepted plan", {timeout: 60000}, () => {
         expect(offers.body.data[0]).toMatchObject({paymentStatus: "partially_refunded", amountPaid: 1710, depositDue: 0});
         stored = await TreatmentPlan.findById(id);
         expect(stored!.timeline.map((entry) => entry.event)).toEqual(expect.arrayContaining(["payment_received", "refunded"]));
+    }));
+
+    it("while card payments are coming soon, refuses the card and offers the clinic's bank account until staff record the deposit", () => acrossCompanies(async () => {
+        cardSwitch.CARD_PAYMENTS_AVAILABLE = false;
+        try {
+            const account = {holder: "Klinika A sh.p.k.", iban: "AL47212110090000000235698741", bic: "UBALALTR", bankName: "Union Bank"};
+            await Company.updateOne({_id: clinicA}, {$set: {bankAccount: account}});
+            const {atA, atB, requestGroup} = await requestToBoth();
+            const id = await sentPlan(staffA, atA);
+            await sentPlan(staffB, atB);
+            // Nothing is due before acceptance, so no clinic shows its account.
+            let offers = await asPatient("/plans", {requestGroup});
+            expect(offers.body.onlinePayment).toBe(false);
+            expect(offers.body.data.map((offer: {bankTransfer?: unknown}) => offer.bankTransfer)).toEqual([undefined, undefined]);
+
+            const accepted = await asPatient("/acceptPlan", {plan: id, signedName: "Giulia Bianchi", acceptTerms: true});
+            const {number} = (await TreatmentPlan.findById(id))!;
+            // Only the account, with the plan number to quote, never the rest of the company.
+            expect(accepted.body.data.plan).toMatchObject({depositDue: 201, bankTransfer: {...account, reference: number}});
+            expect(Object.keys(accepted.body.data.plan.bankTransfer).sort()).toEqual(["bankName", "bic", "holder", "iban", "reference"]);
+
+            const card = await asPatient("/payDeposit", {plan: id});
+            expect(card.status).toBe(403);
+            expect(card.body.error_code).toBe("treatment_plan_card_payments_coming_soon");
+            expect(await PaymentTransaction.countDocuments({sourceId: new ObjectId(id)})).toBe(0);
+
+            // The transfer arrives; staff record it and the account is no longer offered.
+            const marked = await asStaff(staffA, "post", "/recordPayment", {_id: id, amount: 201, note: "bank transfer"});
+            expect(marked.body).toMatchObject({paymentStatus: "deposit_paid", amountPaid: 201});
+            offers = await asPatient("/plans", {requestGroup});
+            const mine = offers.body.data.find((offer: {_id: string}) => offer._id === id);
+            expect(mine).toMatchObject({paymentStatus: "deposit_paid", depositDue: 0});
+            expect(mine.bankTransfer).toBeUndefined();
+        } finally {
+            cardSwitch.CARD_PAYMENTS_AVAILABLE = true;
+        }
     }));
 });
 

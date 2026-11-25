@@ -4,6 +4,7 @@ import type {TreatmentPlanPaymentStatus} from "armonia/src/modules/dentalClinic/
 import {DEFAULT_DECIMAL_PLACES, minorToNumber, roundToCurrency, subtractMoney, toMinor, type MoneyInput} from "armonia/src/modules/core/helpers/money";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {PAYMENTS} from "@financeModule/environment";
+import {CARD_PAYMENTS_AVAILABLE} from "armonia/src/modules/finance/helpers/cardPaymentAvailability";
 import {paymentTransactionService} from "@financeModule/database/schemas/paymentTransaction/paymentTransaction.service";
 import {getPaymentAdapter} from "@financeModule/utilities/services/payment/paymentService";
 import type {SettledPaymentIntent} from "@financeModule/utilities/services/payment/paymentSourceHandlers";
@@ -22,7 +23,7 @@ export function amountDue(plan: Payable, decimals = DEFAULT_DECIMAL_PLACES): num
     return Math.max(0, subtractMoney(plan.totals.total, plan.amountPaid ?? 0, decimals));
 }
 
-/** What the patient can still pay online: the deposit less what was paid, once the plan is accepted. */
+/** What the patient can still pay of the deposit: the deposit less what was paid, once the plan is accepted. */
 export function depositDue(plan: Payable, decimals = DEFAULT_DECIMAL_PLACES): number {
     if (plan.status !== "accepted") return 0;
     return Math.max(0, subtractMoney(Math.min(plan.totals.deposit, plan.totals.total), plan.amountPaid ?? 0, decimals));
@@ -87,13 +88,15 @@ async function notifyPaid(plan: ITreatmentPlan, ctx: ClinicCtx): Promise<void> {
 /**
  * Starts the online payment of what is left of the deposit: a gateway intent keyed on the plan
  * and what was paid so far (a replayed request reuses it) and a pending ledger row the webhook
- * settles. Returns the client secret the portal confirms the card with.
+ * settles. Returns the client secret the portal confirms the card with. While card payments are
+ * coming soon (D190) it is refused: the deposit is paid at the clinic and staff record it.
  */
 export async function startDepositPayment(plan: ITreatmentPlan, ctx: ClinicCtx): Promise<{clientSecret: string; amount: number}> {
     assertAccepted(plan, ctx.languageCode);
     const source = await planSource(plan, ctx);
     const amount = depositDue(plan, source.decimalPlaces);
     if (amount <= 0) throw apiValidationException("treatment_plan_nothing_to_pay", "", null, ctx.languageCode);
+    if (!CARD_PAYMENTS_AVAILABLE) throw apiValidationException("treatment_plan_card_payments_coming_soon", "", null, ctx.languageCode);
     const adapter = getPaymentAdapter("stripe");
     if (!onlinePaymentAvailable() || !adapter) {
         throw apiValidationException("treatment_plan_online_payment_unavailable", "", null, ctx.languageCode);

@@ -2,6 +2,7 @@ import type {ITreatmentPlan} from "@dentalClinicModule/database/schemas/treatmen
 import type {TreatmentPlan, TreatmentPlanLine, TreatmentPlanPhase} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/treatmentPlan/treatmentPlan.dto";
 import type {PatientPlan} from "armonia/src/modules/dentalClinic/api/dentalClinic/public/patientPortal/patientPortal.response.types";
 import type {CurrencySimple} from "armonia/src/modules/core/dto/currency.dto";
+import type {CompanyBankAccount} from "armonia/src/modules/core/api/company/private/company/company.dto";
 import type {ClinicInquirySimple} from "armonia/src/modules/dentalClinic/dto/clinicInquiry.dto";
 import type {ClinicServiceSimple} from "armonia/src/modules/dentalClinic/dto/clinicService.dto";
 import type {PatientSimple} from "armonia/src/modules/dentalClinic/dto/patient.dto";
@@ -87,10 +88,21 @@ export function treatmentPlansToDTO(plans: ITreatmentPlan[]): TreatmentPlan[] {
     return plans.map(treatmentPlanToDTO);
 }
 
-/** A quote as the patient compares it; `currency` must be populated. */
-export function treatmentPlanToPatient(plan: ITreatmentPlan, clinic: {_id: string; name: string}): PatientPlan {
+/**
+ * The clinic's bank account as a way to pay the deposit due (D190), with the plan number as the
+ * transfer's reference; only while a deposit is due and the clinic has an IBAN.
+ */
+function bankTransferFor(plan: ITreatmentPlan, due: number, account: CompanyBankAccount | undefined): PatientPlan["bankTransfer"] {
+    if (due <= 0 || !account?.iban) return undefined;
+    const {holder, iban, bic, bankName} = account;
+    return {holder, iban, bic, bankName, reference: plan.number};
+}
+
+/** A quote as the patient compares it; `currency` must be populated. `bankAccount` is the clinic's, when it has one. */
+export function treatmentPlanToPatient(plan: ITreatmentPlan, clinic: {_id: string; name: string}, bankAccount?: CompanyBankAccount): PatientPlan {
     const currency = mapSnippet<CurrencySimple>()(plan.currency, CurrencySimpleSnippet);
     const decimals = decimalsOf(currency);
+    const due = depositDue(plan, decimals);
     return {
         _id: plan._id.toString(),
         number: plan.number,
@@ -112,6 +124,7 @@ export function treatmentPlanToPatient(plan: ITreatmentPlan, clinic: {_id: strin
         acceptedAt: plan.acceptance ? dateToISOString(plan.acceptance.at) : undefined,
         paymentStatus: plan.paymentStatus ?? "unpaid",
         amountPaid: plan.amountPaid ?? 0,
-        depositDue: depositDue(plan, decimals),
+        depositDue: due,
+        bankTransfer: bankTransferFor(plan, due, bankAccount),
     };
 }

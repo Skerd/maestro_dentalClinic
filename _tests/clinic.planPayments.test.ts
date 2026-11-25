@@ -16,6 +16,8 @@ vi.mock("@dentalClinicModule/utilities/emails/sendPatientMail", () => ({
 }));
 // A gateway that answers like Stripe and records what it was asked, at the currency's own decimals.
 vi.mock("@financeModule/environment", () => ({PAYMENTS: {STRIPE_ENABLED: true, STRIPE_PUBLISHABLE_KEY: "pk_test"}}));
+// These tests take cards: as if card payments were on (D190; treatmentPlanFlow.test.ts also covers them off).
+vi.mock("armonia/src/modules/finance/helpers/cardPaymentAvailability", () => ({CARD_PAYMENTS_AVAILABLE: true}));
 const {gateway} = vi.hoisted(() => ({
     gateway: {
         intents: [] as {amount: number; currencyCode: string; decimalPlaces?: number}[],
