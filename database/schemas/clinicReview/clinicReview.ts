@@ -27,16 +27,28 @@ export interface IClinicReview extends Document, IOwnershipPluginFields, ISoftDe
     isPublished: boolean;
 }
 
+/**
+ * A review is the patient's own words, written from their appointment email's link: staff publish or hide it, but never
+ * write or change it, so the stars on the portal stay the patients'.
+ */
+const PatientWrittenOnly = {self: {write: "no-permission"}, others: {write: "no-permission"}};
+
 const ClinicReviewSchema = new Schema<IClinicReview>(
     {
-        authorName: {type: SchemaTypes.String, required: true, trim: true, minlength: 1, maxlength: CLINIC_REVIEW_AUTHOR_NAME_MAX},
-        rating: {type: SchemaTypes.Number, required: true, ...CLINIC_REVIEW_RATING},
-        comment: {type: SchemaTypes.String, trim: true, maxlength: CLINIC_REVIEW_COMMENT_MAX, dynamicTableConfiguration: {hideColumn: true}},
-        // Fixed once written: the edit route drops it.
-        appointment: {type: SchemaTypes.ObjectId, ref: "Appointment", required: true, refAllowlist: AppointmentSimpleSnippet, dynamicTableConfiguration: {refDisplayKey: ["number"]}},
+        authorName: {type: SchemaTypes.String, required: true, trim: true, minlength: 1, maxlength: CLINIC_REVIEW_AUTHOR_NAME_MAX, permissions: PatientWrittenOnly},
+        rating: {type: SchemaTypes.Number, required: true, ...CLINIC_REVIEW_RATING, permissions: PatientWrittenOnly},
+        comment: {type: SchemaTypes.String, trim: true, maxlength: CLINIC_REVIEW_COMMENT_MAX, permissions: PatientWrittenOnly, dynamicTableConfiguration: {hideColumn: true}},
+        appointment: {type: SchemaTypes.ObjectId, ref: "Appointment", required: true, refAllowlist: AppointmentSimpleSnippet, permissions: PatientWrittenOnly, dynamicTableConfiguration: {refDisplayKey: ["number"]}},
         isPublished: {type: SchemaTypes.Boolean, default: false},
     },
-    {accessMode: "loose"},
+    {
+        accessMode: "loose",
+        // Only the patient's link route creates a review (`clinicStorefront` `/manage/review`).
+        permissions: {
+            self: {create: "no-permission"},
+            others: {create: "no-permission"},
+        },
+    },
 );
 
 ownershipPlugin(ClinicReviewSchema);

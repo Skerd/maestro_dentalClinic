@@ -63,8 +63,8 @@ export class ClinicReviewService extends BaseCrudService<IClinicReview, typeof C
 
 export const clinicReviewService = new ClinicReviewService();
 
-/** A review belongs to a visit that took place: a completed appointment, whoever writes it. */
-export function assertAppointmentReviewable(appointment: Pick<IAppointment, "status">, languageCode: string): void {
+/** A review belongs to a visit that took place: a completed appointment. */
+function assertAppointmentReviewable(appointment: Pick<IAppointment, "status">, languageCode: string): void {
     if (appointment.status !== "completed") throw apiValidationException("clinic_review_not_open", "", null, languageCode);
 }
 

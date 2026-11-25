@@ -162,20 +162,29 @@ describe("clinic reviews (D178)", {timeout: 60000}, () => {
         expect((await ClinicReview.findById(review._id))!.isPublished).toBe(false);
     }));
 
-    it("lets staff record a review only for a completed visit, and keeps it with its appointment", () => asCompany(async () => {
-        const {id} = await booked();
-        const other = await booked("10:00");
-        const create = () => request(app).put("/api/dentalClinic/clinicReview").set(callerHeader(admin)).send({appointment: id, rating: 5, authorName: "Ada L."});
-        expect((await create()).body.error_code).toBe("clinic_review_not_open");
+    it("offers staff no grant to create a review or write its words", () => {
+        const tags = allPermissionTags([ClinicReview]);
+        expect(tags.filter((tag) => /\[(create|write):(appointment|rating|comment|authorName|clinicreviews)\]/.test(tag))).toEqual([]);
+        // Publishing stays theirs.
+        expect(tags).toContain("clinicreviews[write:isPublished]");
+    });
 
+    it("refuses a review staff try to write, and lets them change nothing the patient wrote", () => asCompany(async () => {
+        const {id, token} = await booked();
+        const other = await booked("10:00");
         await completed(id);
-        const created = await create();
-        expect(created.status).toBe(200);
+
+        const byStaff = await request(app).put("/api/dentalClinic/clinicReview").set(callerHeader(admin))
+            .send({appointment: id, rating: 5, comment: "Best clinic ever", authorName: "Happy patient"});
+        expect([byStaff.status, byStaff.body.error_code]).toEqual([403, "clinic_review_written_by_patient_only"]);
+        expect(await ClinicReview.countDocuments({})).toBe(0);
+
+        await storefront("/manage/review", {token, rating: 2, comment: "Long wait."});
         const review = (await ClinicReview.findOne({}))!;
         const edited = await request(app).patch("/api/dentalClinic/clinicReview").set(callerHeader(admin))
-            .send({_id: review._id.toString(), appointment: other.id, rating: 3, authorName: "Ada L."});
-        expect(edited.status).toBe(200);
-        expect(await ClinicReview.findById(review._id)).toMatchObject({rating: 3, appointment: new ObjectId(id)});
+            .send({_id: review._id.toString(), appointment: other.id, rating: 5, comment: "Perfect.", authorName: "Someone else"});
+        expect(edited.body.error_code).toBeUndefined();
+        expect(await ClinicReview.findById(review._id)).toMatchObject({appointment: new ObjectId(id), rating: 2, comment: "Long wait.", authorName: "Ada L."});
     }));
 
     it("shows the site only the published reviews, and the portal card their average per clinic", async () => {

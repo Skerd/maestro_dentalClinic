@@ -13,7 +13,7 @@ Requires `HEALTH_DATA_MASTER_KEY` (base64, 32 bytes; `environment.validator.ts`)
 - The practitioner's `bookingVersion` is written in every booking, move and time-off transaction, so one slot is never booked twice.
 - A staff user linked to a practitioner sees and acts on only that practitioner's appointments.
 - Patient messages name the treatment only when the clinic opts in; a daily job removes patient details after the retention period.
-- A patient reviews a completed appointment once, from the emailed manage link (`POST /api/dentalClinic/clinicStorefront/manage/review`); it shows under their first name and last initial once staff publish it (`/api/dentalClinic/clinicReview` `publish`/`unpublish`). The site reads the published ones (`/clinicStorefront/reviews`) and the portal's treatment cards show the clinic's average (D178).
+- A patient reviews a completed appointment once, from the emailed manage link (`POST /api/dentalClinic/clinicStorefront/manage/review`); it shows under their first name and last initial once staff publish it (`/api/dentalClinic/clinicReview` `publish`/`unpublish`). Staff never write or change a review: the panel create is refused (`clinic_review_written_by_patient_only`) and its words are not writable. The site reads the published ones (`/clinicStorefront/reviews`) and the portal's treatment cards show the clinic's average (D178).
 
 ## Directory layout
 
