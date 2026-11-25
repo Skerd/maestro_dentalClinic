@@ -6,7 +6,6 @@ import {createClinicReviewFormSchema} from "armonia/src/modules/dentalClinic/api
 import {editClinicReviewFormSchema} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicReview/editClinicReview.form.validator";
 import ClinicReview from "@dentalClinicModule/database/schemas/clinicReview/clinicReview";
 import {clinicReviewService} from "@dentalClinicModule/database/schemas/clinicReview/clinicReview.service";
-import {ClinicReviewActions} from "@dentalClinicModule/database/schemas/clinicReview/clinicReview.actions";
 import {clinicReviewToDTO, clinicReviewsToDTO} from "@dentalClinicModule/utilities/mappers/clinicReview/clinicReviewMapper.dto";
 import {clinicReviewsToSelect} from "@dentalClinicModule/utilities/mappers/clinicReview/clinicReviewMapper.select";
 
@@ -24,8 +23,8 @@ export const {router} = createCrudRouter({
     toSelect: clinicReviewsToSelect,
     selectSearchField: "authorName",
     defaultSort: {createdAt: -1},
-    actions: ClinicReviewActions,
-    // A review comes only from the patient, through their appointment email's link: staff never write one.
+    // A review comes only from the patient, through their appointment email's link: staff never write or delete one, and
+    // only the platform hides one (D191).
     checkCreatePermission: ({languageCode}) => {
         throw apiValidationException("clinic_review_written_by_patient_only", "", null, languageCode);
     },

@@ -27,6 +27,8 @@ vi.mock("@dentalClinicModule/utilities/emails/sendPatientMail", () => ({
 }));
 
 import {allPermissionTags, appFor, callerHeader, type TestCaller} from "@coreModule/_tests/httpHarness";
+import {getLogger} from "@coreModule/loggers/serverLog";
+import type {ReportableDefinition} from "@coreModule/domain/reports/reportables";
 import {asCrossTenant, withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import Company from "@coreModule/database/schemas/company/company";
 import Currency from "@coreModule/database/schemas/currency/currency";
@@ -41,9 +43,13 @@ import Appointment from "@dentalClinicModule/database/schemas/appointment/appoin
 import Patient from "@dentalClinicModule/database/schemas/patient/patient";
 import ClinicReview from "@dentalClinicModule/database/schemas/clinicReview/clinicReview";
 import {clinicReviewService, reviewAuthorName} from "@dentalClinicModule/database/schemas/clinicReview/clinicReview.service";
+import {dentalClinicReportables} from "@dentalClinicModule/domain/reports/dentalClinicReportables";
+import {loadBookingTargets} from "@dentalClinicModule/utilities/services/appointmentBooking";
+import {setReportableHidden} from "@coreModule/domain/reports/reportDesk";
 
-/* D178: a patient reviews a completed appointment once from the emailed link; staff publish it; the clinic's site and
- * the portal's treatment cards show only published reviews. */
+/* D178: a patient reviews a completed appointment once from the emailed link and it shows at once (D191); staff never
+ * change, publish or delete it; only the platform hides one, after a report, which takes it off the clinic's site and out
+ * of the portal's averages. */
 
 const companyId = new ObjectId();
 const otherCompanyId = new ObjectId();
@@ -55,6 +61,21 @@ let serviceId: string;
 let locationId: string;
 let practitionerId: string;
 let order = 0;
+const logger = getLogger("clinic_reviews_test");
+
+function reportable(kind: string): ReportableDefinition {
+    const found = dentalClinicReportables.find((definition) => definition.kind === kind);
+    if (!found) throw new Error(`No reportable ${kind}`);
+    return found;
+}
+
+/** What the platform's report desk does (D191): reads the record across companies, then core hides it in its company. */
+async function platformHides(kind: string, recordId: ObjectId) {
+    const snapshot = await asCrossTenant("the report desk reads a reported record", () =>
+        reportable(kind).snapshot({recordId, logger, languageCode: "en-US"}));
+    await setReportableHidden({...reportable(kind), module: "dentalClinic"}, companyId, {recordId, logger, languageCode: "en-US", hidden: true, decidedBy: new ObjectId()});
+    return snapshot;
+}
 
 const WEEKDAYS = [1, 2, 3, 4, 5];
 /** Wednesday 9 June 2027, Zurich summer time. */
@@ -76,10 +97,11 @@ async function booked(time = "09:00"): Promise<{id: string; token: string}> {
 
 const completed = (id: string) => Appointment.collection.updateOne({_id: new ObjectId(id)}, {$set: {status: "completed"}});
 
-async function storedReview(company: ObjectId, rating: number, isPublished: boolean) {
-    await ClinicReview.collection.insertOne({
-        company, appointment: new ObjectId(), authorName: `Patient ${order}`, rating, isPublished, createdAt: new Date(Date.now() + order++), deletedAt: null,
+async function storedReview(company: ObjectId, rating: number, hiddenByPlatform = false) {
+    const {insertedId} = await ClinicReview.collection.insertOne({
+        company, appointment: new ObjectId(), authorName: `Patient ${order}`, rating, hiddenByPlatform, createdAt: new Date(Date.now() + order++), deletedAt: null,
     });
+    return insertedId;
 }
 
 beforeAll(async () => {
@@ -127,8 +149,10 @@ describe("clinic reviews (D178)", {timeout: 60000}, () => {
         expect(written.status).toBe(200);
 
         const review = await ClinicReview.findOne({appointment: new ObjectId(id)});
-        // The first name and the last name's initial only; it waits for staff.
-        expect(review).toMatchObject({rating: 4, comment: "Kind and on time", authorName: "Ada L.", isPublished: false});
+        // The first name and the last name's initial only, shown at once.
+        expect(review).toMatchObject({rating: 4, comment: "Kind and on time", authorName: "Ada L.", hiddenByPlatform: false});
+        const site = await storefront("/reviews", {});
+        expect(site.body.data.reviews).toEqual([expect.objectContaining({_id: review!._id.toString(), rating: 4, comment: "Kind and on time"})]);
 
         const again = await storefront("/manage/review", {token, rating: 1});
         expect(again.body.error_code).toBe("clinicReview_already_exists");
@@ -144,32 +168,13 @@ describe("clinic reviews (D178)", {timeout: 60000}, () => {
         expect(await ClinicReview.countDocuments({})).toBe(0);
     }));
 
-    it("publishes only for a role with the action permission", () => asCompany(async () => {
-        const {id, token} = await booked();
-        await completed(id);
-        await storefront("/manage/review", {token, rating: 5});
-        const review = (await ClinicReview.findOne({}))!;
-
-        const viewer: TestCaller = {...admin, isAdmin: false, permissions: admin.permissions!.filter((tag) => !tag.includes("[action:"))};
-        const refused = await request(app).post("/api/dentalClinic/clinicReview/publish").set(callerHeader(viewer)).send({_id: review._id.toString()});
-        expect(refused.body.error_code).toBe("user_permissions_not_sufficient");
-        expect((await ClinicReview.findById(review._id))!.isPublished).toBe(false);
-
-        const published = await request(app).post("/api/dentalClinic/clinicReview/publish").set(callerHeader(admin)).send({_id: review._id.toString()});
-        expect(published.status).toBe(200);
-        expect((await ClinicReview.findById(review._id))!.isPublished).toBe(true);
-        await request(app).post("/api/dentalClinic/clinicReview/unpublish").set(callerHeader(admin)).send({_id: review._id.toString()});
-        expect((await ClinicReview.findById(review._id))!.isPublished).toBe(false);
-    }));
-
-    it("offers staff no grant to create a review or write its words", () => {
+    it("offers staff no grant to write, publish, hide or delete a review", () => {
         const tags = allPermissionTags([ClinicReview]);
-        expect(tags.filter((tag) => /\[(create|write):(appointment|rating|comment|authorName|clinicreviews)\]/.test(tag))).toEqual([]);
-        // Publishing stays theirs.
-        expect(tags).toContain("clinicreviews[write:isPublished]");
+        expect(tags.filter((tag) => /\[(create|write):(appointment|rating|comment|authorName|hiddenByPlatform|clinicreviews)\]/.test(tag))).toEqual([]);
+        expect(tags.filter((tag) => /\[(delete|restore)\b|publish/.test(tag))).toEqual([]);
     });
 
-    it("refuses a review staff try to write, and lets them change nothing the patient wrote", () => asCompany(async () => {
+    it("refuses a review staff try to write, and lets them change or delete nothing the patient wrote", () => asCompany(async () => {
         const {id, token} = await booked();
         const other = await booked("10:00");
         await completed(id);
@@ -182,18 +187,26 @@ describe("clinic reviews (D178)", {timeout: 60000}, () => {
         await storefront("/manage/review", {token, rating: 2, comment: "Long wait."});
         const review = (await ClinicReview.findOne({}))!;
         const edited = await request(app).patch("/api/dentalClinic/clinicReview").set(callerHeader(admin))
-            .send({_id: review._id.toString(), appointment: other.id, rating: 5, comment: "Perfect.", authorName: "Someone else"});
-        expect(edited.body.error_code).toBeUndefined();
-        expect(await ClinicReview.findById(review._id)).toMatchObject({appointment: new ObjectId(id), rating: 2, comment: "Long wait.", authorName: "Ada L."});
+            .send({_id: review._id.toString(), appointment: other.id, rating: 5, comment: "Perfect.", authorName: "Someone else", hiddenByPlatform: true});
+        // Nothing of a review is staff's to write, so the edit is refused as a whole.
+        expect([edited.status, edited.body.error_code]).toEqual([403, "user_permissions_not_sufficient"]);
+        expect(await ClinicReview.findById(review._id)).toMatchObject({appointment: new ObjectId(id), rating: 2, comment: "Long wait.", authorName: "Ada L.", hiddenByPlatform: false});
+
+        const deleted = await request(app).delete("/api/dentalClinic/clinicReview").set(callerHeader(admin)).send({_id: review._id.toString()});
+        expect([deleted.status, deleted.body.error_code]).toEqual([403, "user_permissions_not_sufficient"]);
+        expect((await ClinicReview.findById(review._id))!.deletedAt).toBeFalsy();
+        expect((await request(app).post("/api/dentalClinic/clinicReview/publish").set(callerHeader(admin)).send({_id: review._id.toString()})).status).toBe(404);
     }));
 
-    it("shows the site only the published reviews, and the portal card their average per clinic", async () => {
-        await asCompany(async () => {
-            await storedReview(companyId, 5, true);
-            await storedReview(companyId, 4, true);
-            await storedReview(companyId, 1, false);
+    it("shows the site every review the platform has not hidden, and the portal card their average per clinic", async () => {
+        const reported = await asCompany(async () => {
+            await storedReview(companyId, 5);
+            await storedReview(companyId, 4);
+            return storedReview(companyId, 1);
         });
-        await withTenant(otherCompanyId, () => storedReview(otherCompanyId, 1, true));
+        await withTenant(otherCompanyId, () => storedReview(otherCompanyId, 1));
+        const snapshot = await platformHides("dentalClinic.review", reported);
+        expect(snapshot).toMatchObject({title: "★ Patient 2", companyId, hidden: false});
 
         const site = await asCompany(() => storefront("/reviews", {limit: 1}));
         expect(site.status).toBe(200);
@@ -206,6 +219,20 @@ describe("clinic reviews (D178)", {timeout: 60000}, () => {
         expect(ratings.get(otherCompanyId.toString())).toEqual({average: 1, count: 1});
         expect((await clinicReviewService.publishedRatingsByCompany([])).size).toBe(0);
     });
+
+    it("takes a treatment the platform hid off the clinic's site and out of online booking", () => asCompany(async () => {
+        const listed = async () => (await storefront("/config", {})).body.data?.services?.map((service: {name: string}) => service.name);
+        expect(await listed()).toEqual(["Check-up"]);
+
+        const snapshot = await platformHides("dentalClinic.treatment", new ObjectId(serviceId));
+        expect(snapshot).toMatchObject({title: "Check-up", companyId, hidden: false});
+
+        expect(await listed()).toEqual([]);
+        await expect(loadBookingTargets(companyId, {service: serviceId, location: locationId}, {languageCode: "en-US", online: true}))
+            .rejects.toMatchObject({error_code: "clinic_service_not_found"});
+        // The clinic still books it from the panel.
+        expect((await loadBookingTargets(companyId, {service: serviceId, location: locationId}, {languageCode: "en-US", online: false})).service.hiddenByPlatform).toBe(true);
+    }));
 
     it("names the author by first name and last initial", () => {
         expect(reviewAuthorName({firstName: " Gent ", lastName: "mema"})).toBe("Gent M.");

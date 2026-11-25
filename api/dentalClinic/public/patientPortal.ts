@@ -86,6 +86,7 @@ import {mediaService} from "@coreModule/database/schemas/media/media.service";
 import {patientTripService} from "@dentalClinicModule/database/schemas/patientTrip/patientTrip.service";
 import {clinicMessageService} from "@dentalClinicModule/database/schemas/clinicMessage/clinicMessage.service";
 import {clinicServiceService} from "@dentalClinicModule/database/schemas/clinicService/clinicService.service";
+import {notHiddenByPlatform} from "@coreModule/database/plugins/platformHiddenPlugin";
 export const basePath = "/api/dentalClinic/patientPortal";
 export const router = Router();
 
@@ -266,7 +267,7 @@ router.post(
         const [cities, configs, services, responseHours] = await Promise.all([
             addressCitiesByCompany(ClinicLocation, companyIds),
             clinicConfigService.find({company: {$in: companyIds}, deletedAt: null}, {}, undefined, "company languagesSpoken implantBrands profileTexts"),
-            clinicServiceService.findCategoriesLean({company: {$in: companyIds}, isActive: true, isPublic: true, deletedAt: null}),
+            clinicServiceService.findCategoriesLean({company: {$in: companyIds}, isActive: true, isPublic: true, ...notHiddenByPlatform(), deletedAt: null}),
             medianResponseHours(companyIds),
         ]);
         const cards = await portalCompanyCards(companyIds, cities);

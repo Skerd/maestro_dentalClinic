@@ -61,6 +61,7 @@ import {clinicLocationService} from "@dentalClinicModule/database/schemas/clinic
 import {clinicServiceService} from "@dentalClinicModule/database/schemas/clinicService/clinicService.service";
 import {practitionerService} from "@dentalClinicModule/database/schemas/practitioner/practitioner.service";
 import {clinicReviewService} from "@dentalClinicModule/database/schemas/clinicReview/clinicReview.service";
+import {notHiddenByPlatform} from "@coreModule/database/plugins/platformHiddenPlugin";
 export const basePath = "/api/dentalClinic/clinicStorefront";
 
 const MY_APPOINTMENTS_MAX = 50;
@@ -130,7 +131,8 @@ router.post(
         const {company, config} = await storefrontContext(origin, languageCode, "site");
         const [locations, services, practitioners, currency] = await Promise.all([
             clinicLocationService.find({company: company._id, isActive: true, deletedAt: null}, {}, [{path: "address.city", select: "name"}], undefined, {name: 1}),
-            clinicServiceService.find({company: company._id, isActive: true, isPublic: true, deletedAt: null}, {}, undefined, undefined, {sortOrder: 1, name: 1}),
+            // A treatment the platform hid after a report is gone from the clinic's site (D191).
+            clinicServiceService.find({company: company._id, isActive: true, isPublic: true, ...notHiddenByPlatform(), deletedAt: null}, {}, undefined, undefined, {sortOrder: 1, name: 1}),
             practitionerService.find({company: company._id, isActive: true, deletedAt: null}, {}, undefined, undefined, {sortOrder: 1, displayName: 1}),
             clinicConfigService.currencyOf(config, languageCode),
         ]);
@@ -315,7 +317,7 @@ router.post(
  * POST /api/dentalClinic/clinicStorefront/reviews
  *
  * The clinic's published reviews on its site (D178): the average, how many, and the latest ones. Patients write them
- * from the emailed link after a completed appointment; they show once staff publish them.
+ * from the emailed link after a completed appointment and they show at once; one the platform hid is left out (D191).
  */
 router.post(
     "/reviews",
@@ -330,6 +332,7 @@ router.post(
                 average: found.average,
                 count: found.count,
                 reviews: found.reviews.map((review) => ({
+                    _id: review._id.toString(),
                     rating: review.rating,
                     ...(review.comment ? {comment: review.comment} : {}),
                     authorName: review.authorName,
@@ -356,7 +359,7 @@ router.post(
     }),
 );
 
-/** The patient's one review of a completed appointment (D178); it waits for staff to publish it. */
+/** The patient's one review of a completed appointment (D178); it shows at once (D191). */
 router.post(
     "/manage/review",
     authMW("public"),

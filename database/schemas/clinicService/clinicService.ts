@@ -24,8 +24,9 @@ import {
 import {TREATMENT_CATEGORIES, type TreatmentCategory} from "armonia/src/modules/dentalClinic/constants";
 import {applyClinicServiceIndexes} from "./clinicService.indexes";
 import {clinicServiceViews} from "./clinicService.views";
+import {platformHiddenPlugin, type IPlatformHiddenPluginFields} from "@coreModule/database/plugins/platformHiddenPlugin";
 
-export interface IClinicService extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields {
+export interface IClinicService extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields, IPlatformHiddenPluginFields {
     name: string;
     slug: string;
     description?: string;
@@ -98,6 +99,8 @@ ClinicServiceSchema.pre("validate", async function () {
 });
 
 ownershipPlugin(ClinicServiceSchema);
+// The platform may hide it from the public after a report (D191).
+platformHiddenPlugin(ClinicServiceSchema);
 publicMediaPlugin(ClinicServiceSchema, {schemaDef: ClinicServiceSchemaDef});
 auditPlugin(ClinicServiceSchema);
 softDeletePlugin(ClinicServiceSchema);

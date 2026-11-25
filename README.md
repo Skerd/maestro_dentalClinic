@@ -14,7 +14,8 @@ Requires `HEALTH_DATA_MASTER_KEY` (base64, 32 bytes; `environment.validator.ts`)
 - A staff user linked to a practitioner sees and acts on only that practitioner's appointments.
 - Patient messages name the treatment only when the clinic opts in; a daily job removes patient details after the retention period.
 - Card payments are "Coming soon" while finance's `CARD_PAYMENTS_AVAILABLE` is off (D190): `/patientPortal/payDeposit` answers `treatment_plan_card_payments_coming_soon`; the patient pays the deposit at the clinic, or by transfer to the clinic's `Company.bankAccount` (sent as the plan's `bankTransfer`, with the plan number as reference, only while a deposit is due), and staff record it with the plan's `recordPayment` action.
-- A patient reviews a completed appointment once, from the emailed manage link (`POST /api/dentalClinic/clinicStorefront/manage/review`); it shows under their first name and last initial once staff publish it (`/api/dentalClinic/clinicReview` `publish`/`unpublish`). Staff never write or change a review: the panel create is refused (`clinic_review_written_by_patient_only`) and its words are not writable. The site reads the published ones (`/clinicStorefront/reviews`) and the portal's treatment cards show the clinic's average (D178).
+- A patient reviews a completed appointment once, from the emailed manage link (`POST /api/dentalClinic/clinicStorefront/manage/review`); it shows at once under their first name and last initial (D191). Staff never write, change or delete a review: the panel create is refused (`clinic_review_written_by_patient_only`), its words are not writable and the delete is refused; they can report one to the platform. The site reads the reviews (`/clinicStorefront/reviews`) and the portal's treatment cards show the clinic's average (D178).
+- People report a treatment or a review to the platform from the clinic's site (D191): `moduleBootstrap.reportables` declares `dentalClinic.treatment` and `dentalClinic.review` (`domain/reports/dentalClinicReportables.ts`); a treatment or review the platform hides (`hiddenByPlatform`) leaves the portal, the clinic's site, online booking and every average.
 
 ## Directory layout
 
@@ -22,7 +23,7 @@ Requires `HEALTH_DATA_MASTER_KEY` (base64, 32 bytes; `environment.validator.ts`)
 dentalClinic/
 ├── api/dentalClinic/private/      # CRUD routes, @actions, day view, my appointments
 ├── api/dentalClinic/public/       # clinicStorefront (slots, book, manage, reviews)
-├── database/moduleBootstrap.ts    # models, default roles, onAccountVerified (a verified account claims its guest appointments, P23.9)
+├── database/moduleBootstrap.ts    # models, default roles, onAccountVerified (a verified account claims its guest appointments, P23.9), reportables (D191)
 ├── database/schemas/<resource>/   # models, indexes, services, snippets, views
 ├── domain/notifications/          # staff alerts
 ├── utilities/                     # services, mappers, emails, cron jobs

@@ -79,7 +79,7 @@ beforeEach(async () => {
         await ClinicInquiry.collection.insertOne({_id: ids.inquiry, company: clinicA, number: "INQ-1", account: accountId, contact: {firstName: "Giulia", lastName: "B.", email: EMAIL, preferredLanguage: "it-IT"}, description: "my implant hurts", files: [ids.xray], medicalHistory: history, patient: ids.patient, deletedAt: null});
         await ClinicMessage.collection.insertOne({_id: ids.message, company: clinicA, inquiry: ids.inquiry, from: "patient", body: "here is a photo", attachments: [ids.photo], deletedAt: null});
         await Appointment.collection.insertOne({_id: ids.appointment, company: clinicA, number: "AP-1", customer: accountId, patientRecord: ids.patient, patient: {firstName: "Giulia", lastName: "Bianchi", email: EMAIL, phone: "+39 1"}, note: "allergic", deletedAt: null});
-        await ClinicReview.collection.insertOne({_id: ids.review, company: clinicA, appointment: ids.appointment, authorName: "Giulia B.", rating: 5, isPublished: true, deletedAt: null});
+        await ClinicReview.collection.insertOne({_id: ids.review, company: clinicA, appointment: ids.appointment, authorName: "Giulia B.", rating: 5, deletedAt: null});
         await PatientTrip.collection.insertOne({_id: ids.trip, company: clinicA, patient: ids.patient, arrivalFlight: "LH123", deletedAt: null});
         await AuditLog.collection.insertOne({company: clinicA, collectionName: "patients", documentId: ids.patient, action: "UPDATE", diff: {medicalHistory: {from: null, to: history}, notes: {from: null, to: "nervous"}}});
     });

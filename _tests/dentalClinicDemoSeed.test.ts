@@ -37,16 +37,16 @@ afterAll(async () => {
 });
 
 describe("dental clinic demo seed", () => {
-    it("seeds completed visits with one published review and one waiting for staff, and changes nothing on a second run", () => asCompany(async () => {
+    it("seeds completed visits with two reviews, both shown at once (D191), and changes nothing on a second run", () => asCompany(async () => {
         await seedDentalClinicDemoData(undefined, company);
 
         expect(await Appointment.countDocuments({status: "completed"})).toBe(3);
         const reviews = await ClinicReview.find({}).sort({rating: -1}).lean();
-        expect(reviews.map(({authorName, rating, isPublished}) => ({authorName, rating, isPublished}))).toEqual([
-            {authorName: "Besa L.", rating: 5, isPublished: true},
-            {authorName: "Sara C.", rating: 4, isPublished: false},
+        expect(reviews.map(({authorName, rating}) => ({authorName, rating}))).toEqual([
+            {authorName: "Besa L.", rating: 5},
+            {authorName: "Sara C.", rating: 4},
         ]);
-        expect(await clinicReviewService.publishedForCompany(company._id, 10)).toMatchObject({average: 5, count: 1});
+        expect(await clinicReviewService.publishedForCompany(company._id, 10)).toMatchObject({average: 4.5, count: 2});
         // Gent's completed cleaning is left without one, for the manage link.
         const gent = await Appointment.findOne({idempotencyKey: "demo-appt-past-gent"});
         expect(gent!.status).toBe("completed");

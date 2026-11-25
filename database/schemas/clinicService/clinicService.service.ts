@@ -1,6 +1,6 @@
 import {BaseCrudService} from "@coreModule/database/services/baseCrudService";
 import ClinicService, {IClinicService} from "./clinicService";
-import type {FilterQuery, SortOrder} from "mongoose";
+import type {ClientSession, FilterQuery, SortOrder} from "mongoose";
 import type {ObjectId} from "mongodb";
 import type {TreatmentCategory} from "armonia/src/modules/dentalClinic/constants";
 import type {ClinicServicePriceType} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicService/clinicService.schema-def";
@@ -22,6 +22,14 @@ export class ClinicServiceService extends BaseCrudService<IClinicService, typeof
             .sort(sort)
             .skip(skip).limit(limit)
             .lean<{_id: ObjectId; company: ObjectId; name: string; slug?: string; images?: ObjectId[]; price?: number; priceType: ClinicServicePriceType}[]>();
+    }
+
+    /** A live treatment as the platform's report desk reads it (D191): by its id alone, whichever clinic owns it. */
+    findReportable(id: ObjectId, session?: ClientSession) {
+        return this.model.findOne({_id: id, deletedAt: null})
+            .select("company name slug hiddenByPlatform")
+            .session(session ?? null)
+            .lean<{_id: ObjectId; company: ObjectId; name: string; slug?: string; hiddenByPlatform?: boolean}>();
     }
 }
 

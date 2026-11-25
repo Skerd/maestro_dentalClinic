@@ -19,6 +19,7 @@ import {findOrCreatePatient} from "./patientRecords";
 import {practitionerService} from "@dentalClinicModule/database/schemas/practitioner/practitioner.service";
 import {clinicServiceService} from "@dentalClinicModule/database/schemas/clinicService/clinicService.service";
 import {clinicLocationService} from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation.service";
+import {notHiddenByPlatform} from "@coreModule/database/plugins/platformHiddenPlugin";
 const HOUR = 3600 * 1000;
 const DAY = 24 * HOUR;
 
@@ -36,7 +37,7 @@ export async function lockPractitioner(practitionerId: ObjectId, ctx: {companyId
     if (result.matchedCount === 0) throw apiValidationException("practitioner_not_found", "", null, ctx.languageCode);
 }
 
-/** The service and location of a booking: active, and offered online when booked online. */
+/** The service and location of a booking: active, and offered online (and not hidden by the platform, D191) when booked online. */
 export async function loadBookingTargets(
     companyId: ObjectId,
     ids: {service: string; location: string},
@@ -48,7 +49,7 @@ export async function loadBookingTargets(
             company: companyId,
             isActive: true,
             deletedAt: null,
-            ...(ctx.online ? {isPublic: true, onlineBookable: true} : {}),
+            ...(ctx.online ? {isPublic: true, onlineBookable: true, ...notHiddenByPlatform()} : {}),
         }, {session: ctx.session ?? undefined})
         : null;
     if (!service) throw apiValidationException("clinic_service_not_found", "", null, ctx.languageCode);

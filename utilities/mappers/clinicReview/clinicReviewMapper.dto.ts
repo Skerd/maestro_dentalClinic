@@ -3,7 +3,7 @@ import type {ClinicReview} from "armonia/src/modules/dentalClinic/api/dentalClin
 import type {AppointmentSimple} from "armonia/src/modules/dentalClinic/dto/appointment.dto";
 import {AppointmentSimpleSnippet} from "@dentalClinicModule/database/schemas/appointment/appointment.snippets";
 import {mapSnippet} from "@coreModule/utilities/mappers/common.mapper";
-import {mapLifeCycleToDTO, mapOwnershipToDTO, mapSoftDeleteToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
+import {mapLifeCycleToDTO, mapOwnershipToDTO, mapSoftDeleteToDTO, mapPlatformHiddenToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
 
 export function clinicReviewToDTO(review: IClinicReview): ClinicReview {
     return {
@@ -12,7 +12,7 @@ export function clinicReviewToDTO(review: IClinicReview): ClinicReview {
         rating: review.rating,
         comment: review.comment,
         authorName: review.authorName,
-        isPublished: review.isPublished,
+        ...mapPlatformHiddenToDTO(review),
         ...mapSoftDeleteToDTO(review),
         ...mapOwnershipToDTO(review),
         ...mapLifeCycleToDTO(review),

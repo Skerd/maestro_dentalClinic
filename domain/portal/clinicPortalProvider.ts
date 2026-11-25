@@ -10,6 +10,7 @@ import ClinicLocation from "@dentalClinicModule/database/schemas/clinicLocation/
 
 import {clinicServiceService} from "@dentalClinicModule/database/schemas/clinicService/clinicService.service";
 import {clinicReviewService} from "@dentalClinicModule/database/schemas/clinicReview/clinicReview.service";
+import {notHiddenByPlatform} from "@coreModule/database/plugins/platformHiddenPlugin";
 /** Clinics taking public bookings or estimate requests (and on the apex, opted in to the portal). */
 export function clinicPortalCompanyIds(scope: PortalScope) {
     return portalListedCompanyIds("dentalClinic", {
@@ -29,7 +30,8 @@ async function browseTreatments({companyIds, query, priceMin, priceMax, sort, fi
     const currencies = await configCurrencies(ClinicConfig, companyIds);
     // Prices are compared only between clinics charging in one currency.
     const comparable = samePriceCurrencyCompanies(companyIds, currencies, {priceMin, priceMax, sort, filters});
-    const clause: Record<string, unknown> = {...narrowing, company: {$in: comparable}, isActive: true, isPublic: true, deletedAt: null};
+    // A treatment the platform hid after a report is gone from every portal list and page (D191).
+    const clause: Record<string, unknown> = {...narrowing, company: {$in: comparable}, isActive: true, isPublic: true, ...notHiddenByPlatform(), deletedAt: null};
     if (query) clause.name = {$regex: escapeRegex(query), $options: "i"};
     const price = priceRange(priceMin, priceMax);
     if (price) clause.price = price;

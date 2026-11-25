@@ -17,6 +17,7 @@ import {clinicConfigsToSelect} from "@dentalClinicModule/utilities/mappers/clini
 import {clinicLocationService} from "@dentalClinicModule/database/schemas/clinicLocation/clinicLocation.service";
 import {clinicServiceService} from "@dentalClinicModule/database/schemas/clinicService/clinicService.service";
 import {practitionerService} from "@dentalClinicModule/database/schemas/practitioner/practitioner.service";
+import {notHiddenByPlatform} from "@coreModule/database/plugins/platformHiddenPlugin";
 /**
  * Public booking only goes live once a patient could actually complete one: a
  * location, a service offered online, and someone bookable with working hours
@@ -25,7 +26,7 @@ import {practitionerService} from "@dentalClinicModule/database/schemas/practiti
 async function assertReadyForPublicBooking(companyId: ObjectId, session: ClientSession, languageCode: string): Promise<void> {
     const locations = await clinicLocationService.find({company: companyId, isActive: true, deletedAt: null}, {session: session}, undefined, "_id");
     if (!locations.length) throw apiValidationException("clinic_setup_missing_location", "", null, languageCode);
-    const services = await clinicServiceService.find({company: companyId, isActive: true, isPublic: true, onlineBookable: true, deletedAt: null}, {session: session}, undefined, "_id");
+    const services = await clinicServiceService.find({company: companyId, isActive: true, isPublic: true, onlineBookable: true, ...notHiddenByPlatform(), deletedAt: null}, {session: session}, undefined, "_id");
     if (!services.length) throw apiValidationException("clinic_setup_missing_service", "", null, languageCode);
     const practitioner = await practitionerService.exists({
         company: companyId,

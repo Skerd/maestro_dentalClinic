@@ -15,6 +15,30 @@ export const clinicReviewSheetView: ViewConfig = {
         showCloseButton: true,
     },
     nodes: [
+        // The platform hid it after a report (D191): staff still see it, and why the public no longer does.
+        {
+            render: "#SheetGroup",
+            dependent: "hiddenByPlatform",
+            props: {title: "hiddenByPlatform", titleIcon: "#IconEyeOff", accent: "danger", defaultOpen: true},
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 1},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "hiddenByPlatform"},
+                            field: {
+                                name: "hiddenByPlatform",
+                                widget: "#DisplayCard",
+                                label: "hiddenByPlatformNote",
+                                widgetProps: {icon: "#IconEyeOff", dontRenderValue: true},
+                            },
+                        },
+                    ],
+                },
+            ],
+        },
         {
             render: "#SheetGroup",
             props: {title: "overview"},
@@ -23,19 +47,6 @@ export const clinicReviewSheetView: ViewConfig = {
                     render: "#SheetGrid",
                     props: {columns: 3},
                     children: [
-                        {
-                            render: "#DisplayCard",
-                            permissions: {read: "isPublished"},
-                            field: {
-                                name: "isPublished",
-                                widget: "#DisplayCard",
-                                label: "isPublished",
-                                widgetProps: {
-                                    icon: "#IconWorld",
-                                    type: "boolean",
-                                },
-                            },
-                        },
                         {
                             render: "#DisplayCard",
                             permissions: {read: "rating"},
@@ -94,5 +105,5 @@ export const clinicReviewSheetView: ViewConfig = {
     ],
 };
 
-/** No create or edit form: the patient writes the review from their appointment email's link, staff only publish it. */
+/** No create or edit form: the patient writes the review from their appointment email's link and it shows at once (D191). */
 export const clinicReviewViews: ViewConfig[] = [clinicReviewSheetView];

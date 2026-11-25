@@ -959,12 +959,12 @@ const closedVisits = [
 ] as const;
 
 /**
- * What patients wrote after their completed visits (D178), as the manage link saves it: the first is published, the
- * second waits for staff. Gent's completed cleaning has none, so the manage link can still be tried with it.
+ * What patients wrote after their completed visits (D178), as the manage link saves it: both show at once (D191).
+ * Gent's completed cleaning has none, so the manage link can still be tried with it.
  */
 const demoReviews = [
-    {appointmentKey: "demo-appt-past-besa", rating: 5, comment: "Friendly team, right on time, and everything was explained before it started.", isPublished: true},
-    {appointmentKey: "demo-appt-past-sara", rating: 4, comment: "Clear explanations in Italian; I waited about ten minutes.", isPublished: false},
+    {appointmentKey: "demo-appt-past-besa", rating: 5, comment: "Friendly team, right on time, and everything was explained before it started."},
+    {appointmentKey: "demo-appt-past-sara", rating: 4, comment: "Clear explanations in Italian; I waited about ten minutes."},
 ] as const;
 
 /**
@@ -1020,7 +1020,7 @@ async function seedClinicHistory(input: {
         await upsert(
             ClinicReview,
             {company: companyId, appointment: appointment._id},
-            {createdBy, rating: review.rating, comment: review.comment, authorName: reviewAuthorName(appointment.patient), isPublished: review.isPublished},
+            {createdBy, rating: review.rating, comment: review.comment, authorName: reviewAuthorName(appointment.patient)},
         );
     }
 

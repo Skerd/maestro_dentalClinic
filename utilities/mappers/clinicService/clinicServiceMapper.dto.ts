@@ -1,7 +1,7 @@
 import type {IClinicService} from "@dentalClinicModule/database/schemas/clinicService/clinicService";
 import type {ClinicService} from "armonia/src/modules/dentalClinic/api/dentalClinic/private/clinicService/clinicService.dto";
 import {mapMedia} from "@coreModule/utilities/mappers/common.mapper";
-import {mapLifeCycleToDTO, mapOwnershipToDTO, mapSoftDeleteToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
+import {mapLifeCycleToDTO, mapOwnershipToDTO, mapSoftDeleteToDTO, mapPlatformHiddenToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
 
 export function clinicServiceToDTO(service: IClinicService): ClinicService {
     return {
@@ -20,6 +20,7 @@ export function clinicServiceToDTO(service: IClinicService): ClinicService {
         price: service.price,
         onlineBookable: service.onlineBookable,
         isPublic: service.isPublic,
+        ...mapPlatformHiddenToDTO(service),
         isActive: service.isActive,
         sortOrder: service.sortOrder ?? 0,
         ...mapSoftDeleteToDTO(service),

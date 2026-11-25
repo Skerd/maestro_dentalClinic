@@ -20,6 +20,7 @@ import {clinicConfigService} from "@dentalClinicModule/database/schemas/clinicCo
 import type {SelfServeBusinessType} from "@coreModule/domain/company/selfServeBusinessTypes";
 import type {AccountVerifiedHook} from "@coreModule/utilities/modules/moduleCompanyDefaults";
 import {claimGuestAppointments} from "@dentalClinicModule/workflows/guestAppointmentClaim";
+import {dentalClinicReportables} from "@dentalClinicModule/domain/reports/dentalClinicReportables";
 
 export const dentalClinicModels: Model<any>[] = [
     ClinicConfig,
@@ -84,4 +85,5 @@ export const moduleBootstrap = {
     defaultRoles: dentalClinicDefaultRoles,
     selfServeBusinessTypes,
     onAccountVerified,
+    reportables: dentalClinicReportables,
 };

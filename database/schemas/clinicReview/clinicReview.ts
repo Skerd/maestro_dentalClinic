@@ -17,19 +17,19 @@ import type {IAppointment} from "../appointment/appointment";
 import {AppointmentSimpleSnippet} from "../appointment/appointment.snippets";
 import {applyClinicReviewIndexes} from "./clinicReview.indexes";
 import {clinicReviewViews} from "./clinicReview.views";
+import {platformHiddenPlugin, type IPlatformHiddenPluginFields} from "@coreModule/database/plugins/platformHiddenPlugin";
 
 /** A patient's review of a completed appointment (D178). Nothing about their health is kept here (SEC-06). */
-export interface IClinicReview extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields {
+export interface IClinicReview extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields, IPlatformHiddenPluginFields {
     authorName: string;
     rating: number;
     comment?: string;
     appointment: IAppointment;
-    isPublished: boolean;
 }
 
 /**
- * A review is the patient's own words, written from their appointment email's link: staff publish or hide it, but never
- * write or change it, so the stars on the portal stay the patients'.
+ * A review is the patient's own words, written from their appointment email's link and shown at once (D191): staff never
+ * write, change or delete it, so the stars on the portal stay the patients'.
  */
 const PatientWrittenOnly = {self: {write: "no-permission"}, others: {write: "no-permission"}};
 
@@ -39,19 +39,21 @@ const ClinicReviewSchema = new Schema<IClinicReview>(
         rating: {type: SchemaTypes.Number, required: true, ...CLINIC_REVIEW_RATING, permissions: PatientWrittenOnly},
         comment: {type: SchemaTypes.String, trim: true, maxlength: CLINIC_REVIEW_COMMENT_MAX, permissions: PatientWrittenOnly, dynamicTableConfiguration: {hideColumn: true}},
         appointment: {type: SchemaTypes.ObjectId, ref: "Appointment", required: true, refAllowlist: AppointmentSimpleSnippet, permissions: PatientWrittenOnly, dynamicTableConfiguration: {refDisplayKey: ["number"]}},
-        isPublished: {type: SchemaTypes.Boolean, default: false},
     },
     {
         accessMode: "loose",
-        // Only the patient's link route creates a review (`clinicStorefront` `/manage/review`).
+        // Only the patient's link route creates a review (`clinicStorefront` `/manage/review`), and nobody deletes one:
+        // the platform hides it instead (D191).
         permissions: {
-            self: {create: "no-permission"},
-            others: {create: "no-permission"},
+            self: {create: "no-permission", delete: "no-permission", restore: "no-permission"},
+            others: {create: "no-permission", delete: "no-permission", restore: "no-permission"},
         },
     },
 );
 
 ownershipPlugin(ClinicReviewSchema);
+// The platform may hide it from the public after a report (D191).
+platformHiddenPlugin(ClinicReviewSchema);
 auditPlugin(ClinicReviewSchema);
 softDeletePlugin(ClinicReviewSchema);
 lifeCyclePlugin(ClinicReviewSchema);
